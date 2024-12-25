@@ -1,0 +1,13 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="MongoDB.Driver" Version="3.1.0" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\..\interfaces\dotnet\PolyPersist\PolyPersist.Net.csproj" />
+    <ProjectReference Include="..\PolyPersist.Net.Common\PolyPersist.Net.Common.csproj" />
+  </ItemGroup>
+</Project>

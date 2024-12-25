@@ -28,14 +28,6 @@ namespace PolyPersist {
         # If no entity with the specified ID exists, the operation will likely fail.
         async method UpdateOne(entity: TEntity) => IResult
 
-        # Asynchronous method to upsert (insert or update) a single entity in the collection.
-        # The 'entity' parameter is of type TEntity, which represents the entity to be upserted.
-        #
-        # The entity must have its ID already set for the upsert operation.
-        # If the entity with the specified ID exists in the collection, it will be updated.
-        # If the entity with the specified ID does not exist, it will be inserted as a new entity.
-        async method UpsertOne(entity: TEntity) => IResult
-
         # Asynchronous method to delete a single entity from the collection, identified by its key.
         # The 'entity' parameter is of type TEntity, and it represents the entity to be deleted.
         #
@@ -45,16 +37,18 @@ namespace PolyPersist {
 
         # Asynchronous method to delete a single entity from the collection, identified by its ID.
         # The 'id' parameter is of type 'string', representing the ID of the entity to be deleted.
+        # The 'PartitionKey' property represents the key used to partition data in distributed data stores.
         #
         # The delete operation will search for an entity by the specified ID and remove it from the collection.
         # If no entity with the specified ID exists, the operation will likely fail.
-        async method DeleteOne(id: string) => IResult
+        async method DeleteOne(id: string, partitionKey:string) => IResult
 
         # Asynchronous method to find a single entity in the collection by its ID.
         # The 'id' parameter is of type 'string', representing the ID of the entity to be found.
+        # The 'PartitionKey' property represents the key used to partition data in distributed data stores.
         #
         # The method will return the entity matching the specified ID if it exists, otherwise it will return null or an error result.
-        async method FindOne(id: string) => TEntity
+        async method FindOne(id: string, partitionKey:string) => TEntity
     }
 
     # IResult interface represents the result of an operation, providing information about its success, message, and additional operation-related data.
@@ -69,10 +63,10 @@ namespace PolyPersist {
 
         # The 'message' property provides additional information about the result of the operation.
         # This can include success messages, error descriptions, or any other relevant details regarding the operation.
-        readonly property message: string
+        readonly property Message: string
 
         # The 'operationValues' property stores a map of key-value pairs that provide additional data about the operation.
         # This could include details such as affected rows, error codes, or custom operation data that is useful for logging or debugging.
-        readonly property operationValues: Map[string, string]
+        readonly property OperationValues: Map[string, string]
     }
 }

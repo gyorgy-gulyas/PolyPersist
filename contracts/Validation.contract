@@ -1,0 +1,41 @@
+#---------------------------------------------------------------------------------------------------
+# These files are part of the PolyPersist project and are intended to be processed by the unicontract tool.
+# After modifying these files, running unicontract is required to propagate the changes to the interface files in every supported programming language.
+# unicontract will generate the necessary interface files in .NET, Java, and Python, reflecting the modifications made in this file.
+#---------------------------------------------------------------------------------------------------
+
+namespace PolyPersist {
+
+    # IValidabale is an interface that defines a validation mechanism for entities.
+    # Classes or structs implementing this interface must provide logic to validate themselves 
+    # and collect validation errors if any are found.
+    #
+    # The validation process ensures that the entity adheres to certain rules or constraints 
+    # defined in the implementing class.
+    interface IValidable {
+
+        # Validates the current entity and populates the errors list with any validation errors encountered.
+        #
+        # @param errors: A list of IValidationError objects that will be populated with errors if the validation fails.
+        # @returns: A boolean indicating whether the validation succeeded (true) or failed (false).
+        async method Validate(errors: List[IValidationError]) => boolean
+    }
+
+    # IValidationError is an interface that represents a validation error occurring during the validation process.
+    # It provides structured details about the nature and location of the error within the entity.
+    interface IValidationError {
+
+        # Represents the type or class name of the entity where the validation error occurred.
+        # For example, it might be "User", "Order", or "Product".
+        readonly property TypeOfEntity: string
+
+        # Indicates the specific member or property of the entity that caused the validation error.
+        # For example, it could be "Username", "OrderDate", or "Price".
+        readonly property MemberOfEntity: string
+
+        # A human-readable description of the error, explaining what went wrong.
+        # This is useful for displaying error messages to users or logging them for debugging.
+        readonly property ErrorText: string
+    }
+}
+

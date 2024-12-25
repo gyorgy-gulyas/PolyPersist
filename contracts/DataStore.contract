@@ -4,8 +4,8 @@
 # unicontract will generate the necessary interface files in .NET, Java, and Python, reflecting the modifications made in this file.
 #---------------------------------------------------------------------------------------------------
 
-import IConnection
-import ICollection
+import Connection
+import Collection
 
 namespace PolyPersist {
 
@@ -65,12 +65,18 @@ namespace PolyPersist {
         # This property helps identify what kind of data the store can manage and supports operations specific to the selected model.
         readonly property StorageModel: StorageModels
 
-
         # The ProviderName property represents the name of the underlying database or data provider that the IDataStore is connected to.
         # It identifies the specific database system or service behind the IDataStore implementation.
         # This could be a name like "MongoDB", "Cassandra", "PostgreSQL", etc., depending on which provider is being used.
         # The ProviderName is useful for understanding the context of the data store, such as its behavior, features, and limitations.
         readonly property ProviderName: string
+
+        # The Name property represents the name of the data store instance.
+        # It can refer to the name of a database (e.g., "MyDatabase"), a keyspace in a NoSQL database (e.g., "MyKeyspace"), 
+        # or any logical identifier used to distinguish the data store within the context of the application.
+        # This property is essential for identifying the target data store when performing operations
+        # such as querying, updating, or managing collections.
+        readonly property Name: string
 
         # Asynchronous method to check if a collection exists in the data store.
         # It returns a boolean value, indicating whether the collection with the specified name exists or not.

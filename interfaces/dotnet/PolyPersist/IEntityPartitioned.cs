@@ -15,7 +15,7 @@ namespace PolyPersist
 	/// IEntityPartitioned interface inherits from IEntity and adds a partition key for partitioned data stores.
 	/// The 'PartitionKey' is used to segment data into partitions, often for scaling or distributing data across different nodes.
 	/// In distributed databases, partitioning helps optimize performance and ensures efficient querying by reducing the scope of data scans.
-	interface IEntityPartitioned
+	public interface IEntityPartitioned
 	{
 		/// The 'PartitionKey' property represents the key used to partition data in distributed data stores.
 		/// This allows for more efficient storage and retrieval of entities, especially in large-scale, partitioned systems.

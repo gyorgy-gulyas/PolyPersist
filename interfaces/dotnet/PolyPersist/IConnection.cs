@@ -15,7 +15,7 @@ namespace PolyPersist
 	/// The IConnection interface represents the operations for managing and interacting with data stores.
 	/// It defines methods for checking the existence, retrieval, creation, and deletion of data stores.
 	/// These operations abstract away the underlying logic of interacting with the data store systems.
-	interface IConnection
+	public interface IConnection
 	{
 		/// Checks if a data store with the specified name exists.
 		/// This method returns a boolean indicating whether the data store is present in the system.
@@ -23,27 +23,27 @@ namespace PolyPersist
 		///   storeName (string): The name of the data store to check.
 		/// Returns:
 		///   boolean: True if the data store exists, false otherwise.
-		Task<bool> IsDataStoreExists( string storeName );
+		public Task<bool> IsDataStoreExists( string storeName );
 		/// Retrieves a data store by its name.
 		/// This method returns the corresponding IDataStore object for the provided store name.
 		/// Arguments:
 		///   storeName (string): The name of the data store to retrieve.
 		/// Returns:
 		///   IDataStore: The data store object associated with the specified name.
-		Task<IDataStore> GetDataStoreByName( string storeName );
+		public Task<IDataStore> GetDataStoreByName( string storeName );
 		/// Creates a new data store with the given name.
 		/// This method returns an IDataStore object for the newly created data store.
 		/// Arguments:
 		///   storeName (string): The name of the new data store to create.
 		/// Returns:
 		///   IDataStore: The created data store object.
-		Task<IDataStore> CreateDataStore( string storeName );
+		public Task<IDataStore> CreateDataStore( string storeName );
 		/// Deletes a data store.
 		/// This method removes the provided data store from the system and returns a boolean indicating success.
 		/// Arguments:
 		///   dataStore (IDataStore): The data store to delete.
 		/// Returns:
 		///   boolean: True if the data store was successfully deleted, false otherwise.
-		Task<bool> DropDataStore( IDataStore dataStore );
+		public Task<bool> DropDataStore( IDataStore dataStore );
 	}
 }

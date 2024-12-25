@@ -16,16 +16,16 @@ namespace PolyPersist
 	/// This interface is commonly used to return the outcome of an operation, such as database insertions, updates, or deletions.
 	/// The properties help to evaluate the success of the operation, get additional information about errors or events, 
 	/// and store any relevant values related to the specific operation.
-	interface IResult
+	public interface IResult
 	{
 		/// The 'Succeeded' property indicates whether the operation was successful or not.
 		/// It returns a boolean value: true if the operation succeeded, and false if it failed.
 		public bool Succeeded { get; }
 		/// The 'message' property provides additional information about the result of the operation.
 		/// This can include success messages, error descriptions, or any other relevant details regarding the operation.
-		public string message { get; }
+		public string Message { get; }
 		/// The 'operationValues' property stores a map of key-value pairs that provide additional data about the operation.
 		/// This could include details such as affected rows, error codes, or custom operation data that is useful for logging or debugging.
-		public IDictionary<string,string> operationValues { get; }
+		public IDictionary<string,string> OperationValues { get; }
 	}
 }

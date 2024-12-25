@@ -4,8 +4,7 @@
 # unicontract will generate the necessary interface files in .NET, Java, and Python, reflecting the modifications made in this file.
 #---------------------------------------------------------------------------------------------------
 
-
-import IDataStore
+import DataStore
 
 namespace PolyPersist {
     

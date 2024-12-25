@@ -20,12 +20,12 @@ namespace PolyPersist
 	///
 	/// This abstraction ensures a uniform way to interact with various types of databases,
 	/// while allowing flexibility for specific implementations tailored to the database type.
-	interface IDataStore
+	public interface IDataStore
 	{
 
 		/// This enum defines various types of data stores or database representations.
 		/// Each entry represents a different data storage model suitable for specific data types and use cases.
-		enum StorageModels
+		public enum StorageModels
 		{
 		/// Relational databases (SQL) store data in structured tables and support complex queries through SQL.
 		/// Examples include MySQL, PostgreSQL, SQL Server, etc.
@@ -66,6 +66,12 @@ namespace PolyPersist
 		/// This could be a name like "MongoDB", "Cassandra", "PostgreSQL", etc., depending on which provider is being used.
 		/// The ProviderName is useful for understanding the context of the data store, such as its behavior, features, and limitations.
 		public string ProviderName { get; }
+		/// The Name property represents the name of the data store instance.
+		/// It can refer to the name of a database (e.g., "MyDatabase"), a keyspace in a NoSQL database (e.g., "MyKeyspace"), 
+		/// or any logical identifier used to distinguish the data store within the context of the application.
+		/// This property is essential for identifying the target data store when performing operations
+		/// such as querying, updating, or managing collections.
+		public string Name { get; }
 
 		/// Asynchronous method to check if a collection exists in the data store.
 		/// It returns a boolean value, indicating whether the collection with the specified name exists or not.
@@ -73,26 +79,26 @@ namespace PolyPersist
 		///
 		/// @param collectionName - The name of the collection to check for existence.
 		/// @returns A boolean value indicating if the collection is present in the data store.
-		Task<bool> IsCollectionExists( string collectionName );
+		public Task<bool> IsCollectionExists( string collectionName );
 		/// Asynchronous method to retrieve a collection by its name from the data store.
 		/// This method returns the collection as an ICollection of entities that implement the IEntity interface.
 		/// 
 		/// @param collectionName - The name of the collection to retrieve from the data store.
 		/// @returns An ICollection representing the collection with the specified name.
-		Task<ICollection<TEntity>> GetCollectionByName<TEntity>( string collectionName ) where TEntity: IEntity;
+		public Task<ICollection<TEntity>> GetCollectionByName<TEntity>( string collectionName ) where TEntity: IEntity;
 		/// Asynchronous method to create a new collection in the data store.
 		/// This method creates a collection with the specified name and returns it as an ICollection of type <T>,
 		/// where <T> is the entity type constrained to implement IEntity.
 		///
 		/// @param collectionName - The name of the new collection to be created.
 		/// @returns The newly created collection, represented as an ICollection<T>.
-		Task<ICollection<TEntity>> CreateCollection<TEntity>( string collectionName ) where TEntity: IEntity;
+		public Task<ICollection<TEntity>> CreateCollection<TEntity>( string collectionName ) where TEntity: IEntity;
 		/// Asynchronous method to drop (delete) an existing collection from the data store.
 		/// This method removes the specified collection, returning a boolean indicating whether the operation was successful.
 		/// The collection is represented as an ICollection of type <T>, where T is the entity type.
 		///
 		/// @param collection - The collection to be dropped from the data store.
 		/// @returns A boolean value indicating whether the collection was successfully dropped.
-		Task<bool> DropCollection<TEntity>( ICollection<TEntity> collection ) where TEntity: IEntity;
+		public Task<bool> DropCollection<TEntity>( ICollection<TEntity> collection ) where TEntity: IEntity;
 	}
 }

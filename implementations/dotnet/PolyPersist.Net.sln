@@ -1,0 +1,47 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.11.35219.272
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PolyPersist.Net", "..\..\interfaces\dotnet\PolyPersist\PolyPersist.Net.csproj", "{7A09170D-0746-4994-919D-4545EFCA5F81}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PolyPersist.Net.Common", "src\PolyPersist.Net.Common\PolyPersist.Net.Common.csproj", "{3245A684-EACB-4C69-9EEC-6055C23F4F3E}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Contract Files", "Contract Files", "{7DAB9E54-AB65-4076-AF2F-AB55855B125C}"
+	ProjectSection(SolutionItems) = preProject
+		..\..\contracts\Collection.contract = ..\..\contracts\Collection.contract
+		..\..\contracts\Entity.contract = ..\..\contracts\Entity.contract
+		..\..\contracts\DataStore.contract = ..\..\contracts\DataStore.contract
+		..\..\contracts\Connection.contract = ..\..\contracts\Connection.contract
+		..\..\contracts\PolyPersist.contract = ..\..\contracts\PolyPersist.contract
+		..\..\contracts\Validation.contract = ..\..\contracts\Validation.contract
+	EndProjectSection
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PolyPersist.Net.MongoDB", "src\PolyPersist.Net.MongoDB\PolyPersist.Net.MongoDB.csproj", "{56011EB0-BD1A-4B32-B490-EB54A8B05BAF}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{7A09170D-0746-4994-919D-4545EFCA5F81}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7A09170D-0746-4994-919D-4545EFCA5F81}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7A09170D-0746-4994-919D-4545EFCA5F81}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7A09170D-0746-4994-919D-4545EFCA5F81}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3245A684-EACB-4C69-9EEC-6055C23F4F3E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3245A684-EACB-4C69-9EEC-6055C23F4F3E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3245A684-EACB-4C69-9EEC-6055C23F4F3E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3245A684-EACB-4C69-9EEC-6055C23F4F3E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{56011EB0-BD1A-4B32-B490-EB54A8B05BAF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{56011EB0-BD1A-4B32-B490-EB54A8B05BAF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{56011EB0-BD1A-4B32-B490-EB54A8B05BAF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{56011EB0-BD1A-4B32-B490-EB54A8B05BAF}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {F7D5AE71-3A12-4F64-9BD7-1263ABD6D3BF}
+	EndGlobalSection
+EndGlobal
