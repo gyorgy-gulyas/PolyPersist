@@ -26,6 +26,6 @@ namespace PolyPersist
 		public string message { get; }
 		/// The 'operationValues' property stores a map of key-value pairs that provide additional data about the operation.
 		/// This could include details such as affected rows, error codes, or custom operation data that is useful for logging or debugging.
-		public System.Generic.Dictionary<string,string> operationValues { get; }
+		public IDictionary<string,string> operationValues { get; }
 	}
 }
