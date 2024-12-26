@@ -4,8 +4,8 @@ namespace PolyPersist.Net.MongoDB
 {
     internal class MongoDB_Database : IDataStore
     {
-        private readonly IMongoDatabase _mongoDatabase;
-        private readonly MongoDB_Connection _connection;
+        internal readonly IMongoDatabase _mongoDatabase;
+        internal readonly MongoDB_Connection _connection;
 
         public MongoDB_Database(IMongoDatabase mongoDatabase, MongoDB_Connection connection ) 
         {
@@ -33,12 +33,16 @@ namespace PolyPersist.Net.MongoDB
         }
 
         /// <inheritdoc/>
-        Task<ICollection<TEntity>> IDataStore.GetCollectionByName<TEntity>(string collectionName)
+        async Task<ICollection<TEntity>> IDataStore.GetCollectionByName<TEntity>(string collectionName)
         {
             MongoDB_Serializer.RegisterType<TEntity>(typeof(TEntity));
+
+            if( await ( this as IDataStore).IsCollectionExists(collectionName).ConfigureAwait( false ) == false )
+                return null;
+
             IMongoCollection<TEntity> mongoCollection = _mongoDatabase.GetCollection<TEntity>(collectionName);
 
-            return Task.FromResult<ICollection<TEntity>>( new MongoDB_Collection<TEntity>(mongoCollection, this) );
+            return new MongoDB_Collection<TEntity>(mongoCollection, this);
         }
 
         /// <inheritdoc/>

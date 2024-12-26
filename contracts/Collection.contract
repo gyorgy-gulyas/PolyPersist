@@ -9,7 +9,7 @@ namespace PolyPersist {
     # ICollection interface for generic entities.
     # This interface defines basic CRUD operations for working with collections of entities in the data store.
     # The operations include inserting, updating, upserting, and deleting entities, as well as finding one entity by its ID.
-    # Each method is asynchronous and returns an IResult indicating the outcome of the operation.
+    # Each method is asynchronous and throw an exception weh any error occurs.
     interface ICollection<TEntity constraint IEntity>{
 
         # Asynchronous method to insert a single entity into the collection.
@@ -18,7 +18,7 @@ namespace PolyPersist {
         # If the entity has a pre-set ID, that ID will be used for the insert operation.
         # If the ID is not set, it will be automatically generated and assigned to the entity.
         # This ensures that each entity is assigned a unique identifier when inserted.
-        async method InsertOne(entity: TEntity) => IResult
+        async method InsertOne(entity: TEntity)
 
         # Asynchronous method to update a single entity in the collection.
         # The 'entity' parameter is of type TEntity, which represents the entity to be updated.
@@ -26,14 +26,14 @@ namespace PolyPersist {
         # The entity must have its ID already set for the update operation.
         # The existing entity in the collection with the same ID will be updated with the new values.
         # If no entity with the specified ID exists, the operation will likely fail.
-        async method UpdateOne(entity: TEntity) => IResult
+        async method UpdateOne(entity: TEntity)
 
         # Asynchronous method to delete a single entity from the collection, identified by its key.
         # The 'entity' parameter is of type TEntity, and it represents the entity to be deleted.
         #
         # The entity must have a valid ID to perform the delete operation.
         # If no entity with the specified ID exists, the operation will likely fail.
-        async method DeleteOne(entity: TEntity) => IResult
+        async method DeleteOne(entity: TEntity)
 
         # Asynchronous method to delete a single entity from the collection, identified by its ID.
         # The 'id' parameter is of type 'string', representing the ID of the entity to be deleted.
@@ -41,32 +41,13 @@ namespace PolyPersist {
         #
         # The delete operation will search for an entity by the specified ID and remove it from the collection.
         # If no entity with the specified ID exists, the operation will likely fail.
-        async method DeleteOne(id: string, partitionKey:string) => IResult
+        async method DeleteOne(id: string, partitionKey:string)
 
         # Asynchronous method to find a single entity in the collection by its ID.
         # The 'id' parameter is of type 'string', representing the ID of the entity to be found.
         # The 'PartitionKey' property represents the key used to partition data in distributed data stores.
         #
-        # The method will return the entity matching the specified ID if it exists, otherwise it will return null or an error result.
+        # The method will return the entity matching the specified ID if it exists, otherwise it will return null.
         async method FindOne(id: string, partitionKey:string) => TEntity
-    }
-
-    # IResult interface represents the result of an operation, providing information about its success, message, and additional operation-related data.
-    # This interface is commonly used to return the outcome of an operation, such as database insertions, updates, or deletions.
-    # The properties help to evaluate the success of the operation, get additional information about errors or events, 
-    # and store any relevant values related to the specific operation.
-    interface IResult {
-
-        # The 'Succeeded' property indicates whether the operation was successful or not.
-        # It returns a boolean value: true if the operation succeeded, and false if it failed.
-        readonly property Succeeded: boolean
-
-        # The 'message' property provides additional information about the result of the operation.
-        # This can include success messages, error descriptions, or any other relevant details regarding the operation.
-        readonly property Message: string
-
-        # The 'operationValues' property stores a map of key-value pairs that provide additional data about the operation.
-        # This could include details such as affected rows, error codes, or custom operation data that is useful for logging or debugging.
-        readonly property OperationValues: Map[string, string]
     }
 }

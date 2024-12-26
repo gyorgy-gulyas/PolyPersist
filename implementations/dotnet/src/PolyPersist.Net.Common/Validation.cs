@@ -1,14 +1,14 @@
-﻿namespace PolyPersist.Net.Common
+﻿using PolyPersist;
+
+namespace PolyPersist.Net.Common
 {
     public class Validator
     {
-        async static public Task<Result> Validate(IValidabale validabale)
+        async static public Task Validate(IValidable validabale)
         {
             IList<IValidationError> validationErrors = [];
-            if (await validabale.Validate(validationErrors) == false)
-                return new ValidationResult(validationErrors);
-
-            return Result.Ok();
+            if (await validabale.Validate(validationErrors).ConfigureAwait(false) == false)
+                throw new ValidationExeption(validationErrors);
         }
     }
 
@@ -19,11 +19,11 @@
         public string ErrorText { get; set; }
     }
 
-    public class ValidationResult : Result
+    public class ValidationExeption : Exception
     {
         public IList<IValidationError> ValidationErrors { get; }
 
-        public ValidationResult(IList<IValidationError> validationErrors)
+        public ValidationExeption(IList<IValidationError> validationErrors)
         {
             ValidationErrors = validationErrors;
         }

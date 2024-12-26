@@ -26,6 +26,18 @@ namespace PolyPersist
 		public string etag { get; set;}
 		/// The 'PartitionKey' property represents the key used to partition data in distributed data stores.
 		/// This allows for more efficient storage and retrieval of entities, especially in large-scale, partitioned systems.
+		///
+		/// Why PartitionKey is Important:
+		/// - It ensures that related data is grouped together in the same partition, reducing cross-partition queries.
+		/// - It improves the performance of read and write operations by minimizing data distribution overhead.
+		/// - It is crucial for ensuring scalability in cloud-based systems like Azure Cosmos DB or Amazon DynamoDB.
+		///
+		/// Example Use Case:
+		/// In a multi-tenant application, the 'PartitionKey' could be the tenant ID, ensuring that all data
+		/// for a particular tenant is stored and queried efficiently.
+		///
+		/// This property is marked as 'readonly' to ensure that the partition key remains immutable,
+		/// as changing it would lead to significant system inconsistencies.
 		public string PartitionKey { get; }
 	}
 }
