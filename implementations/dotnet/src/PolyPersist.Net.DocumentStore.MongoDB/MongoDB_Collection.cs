@@ -1,9 +1,9 @@
 ﻿using MongoDB.Driver;
 using PolyPersist.Net.Common;
 
-namespace PolyPersist.Net.MongoDB
+namespace PolyPersist.Net.DocumentStore.MongoDB
 {
-    internal class MongoDB_Collection<TEntity> : ICollection<TEntity>
+    internal class MongoDB_Collection<TEntity> : IEntityCollection<TEntity>
         where TEntity : IEntity
     {
         private readonly IMongoCollection<TEntity> _mongoCollection;
@@ -16,7 +16,10 @@ namespace PolyPersist.Net.MongoDB
         }
 
         /// <inheritdoc/>
-        async Task ICollection<TEntity>.InsertOne(TEntity entity)
+        string ICollection.Name => _mongoCollection.CollectionNamespace.CollectionName;
+
+        /// <inheritdoc/>
+        async Task IEntityCollection<TEntity>.Insert(TEntity entity)
         {
             if (entity is IValidable validable)
                 await Validator.Validate(validable).ConfigureAwait(false);
@@ -36,10 +39,13 @@ namespace PolyPersist.Net.MongoDB
         }
 
         /// <inheritdoc/>
-        async Task ICollection<TEntity>.UpdateOne(TEntity entity)
+        async Task IEntityCollection<TEntity>.Update(TEntity entity)
         {
             if (entity is IValidable validable)
                 await Validator.Validate(validable).ConfigureAwait(false);
+
+            if (string.IsNullOrEmpty(entity.etag) == true)
+                throw new Exception($"ETag must be filled at Update operation in entity '{typeof(TEntity).Name}' id: {entity.id}");
 
             string oldETag = entity.etag;
             entity.etag = Guid.NewGuid().ToString();
@@ -50,13 +56,13 @@ namespace PolyPersist.Net.MongoDB
         }
 
         /// <inheritdoc/>
-        Task ICollection<TEntity>.DeleteOne(TEntity entity)
+        Task IEntityCollection<TEntity>.Delete(TEntity entity)
         {
-            return (this as ICollection<TEntity>).DeleteOne(entity.id, entity.PartitionKey);
+            return (this as IEntityCollection<TEntity>).Delete(entity.id, entity.PartitionKey);
         }
 
         /// <inheritdoc/>
-        async Task ICollection<TEntity>.DeleteOne(string id, string partitionKey)
+        async Task IEntityCollection<TEntity>.Delete(string id, string partitionKey)
         {
             DeleteResult result = await _mongoCollection.DeleteOneAsync(e => e.id == id && e.PartitionKey == partitionKey).ConfigureAwait(false);
             if (result.IsAcknowledged == false)
@@ -67,7 +73,7 @@ namespace PolyPersist.Net.MongoDB
         }
 
         /// <inheritdoc/>
-        async Task<TEntity> ICollection<TEntity>.FindOne(string id, string partitionKey)
+        async Task<TEntity> IEntityCollection<TEntity>.Find(string id, string partitionKey)
         {
             IAsyncCursor<TEntity> cursor = await _mongoCollection.FindAsync(e => e.id == id && e.PartitionKey == partitionKey).ConfigureAwait(false);
             TEntity entity = await cursor.FirstOrDefaultAsync().ConfigureAwait(false);

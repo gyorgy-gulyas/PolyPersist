@@ -42,8 +42,6 @@ namespace PolyPersist
 		/// This method removes the provided data store from the system and returns a boolean indicating success.
 		/// Arguments:
 		///   dataStore (IDataStore): The data store to delete.
-		/// Returns:
-		///   boolean: True if the data store was successfully deleted, false otherwise.
-		public Task<bool> DropDataStore( IDataStore dataStore );
+		public Task DropDataStore( IDataStore dataStore );
 	}
 }

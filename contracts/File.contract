@@ -1,0 +1,31 @@
+#---------------------------------------------------------------------------------------------------
+# These files are part of the PolyPersist project and are intended to be processed by the unicontract tool.
+# After modifying these files, running unicontract is required to propagate the changes to the interface files in every supported programming language.
+# unicontract will generate the necessary interface files in .NET, Java, and Python, reflecting the modifications made in this file.
+#---------------------------------------------------------------------------------------------------
+
+namespace PolyPersist {
+
+    interface IFile {
+        
+        # The 'fileName' property represents the unique identifier for the file.
+        # This is typically used to reference and retrieve the file from the data store.
+        property fileName: string
+
+        # The 'PartitionKey' property represents the key used to partition data in distributed data stores.
+        # This allows for more efficient storage and retrieval of files, especially in large-scale, partitioned systems.
+        #
+        # Why PartitionKey is Important:
+        # - It ensures that related data is grouped together in the same partition, reducing cross-partition queries.
+        # - It improves the performance of read and write operations by minimizing data distribution overhead.
+        # - It is crucial for ensuring scalability in cloud-based systems like Azure Cosmos DB or Amazon DynamoDB.
+        #
+        # Example Use Case:
+        # In a multi-tenant application, the 'PartitionKey' could be the tenant ID, ensuring that all data
+        # for a particular tenant is stored and queried efficiently.
+        #
+        # This property is marked as 'readonly' to ensure that the partition key remains immutable,
+        # as changing it would lead to significant system inconsistencies.
+        readonly property PartitionKey: string
+    }
+}

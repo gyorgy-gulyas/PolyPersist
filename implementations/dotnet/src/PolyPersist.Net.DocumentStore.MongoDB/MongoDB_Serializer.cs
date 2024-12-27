@@ -3,7 +3,7 @@ using MongoDB.Bson.IO;
 using MongoDB.Bson.Serialization;
 using MongoDB.Bson.Serialization.Conventions;
 
-namespace PolyPersist.Net.MongoDB
+namespace PolyPersist.Net.DocumentStore.MongoDB
 {
     public static class MongoDB_Serializer
     {

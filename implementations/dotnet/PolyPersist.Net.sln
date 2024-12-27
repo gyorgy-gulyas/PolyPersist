@@ -10,14 +10,19 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Contract Files", "Contract Files", "{7DAB9E54-AB65-4076-AF2F-AB55855B125C}"
 	ProjectSection(SolutionItems) = preProject
 		..\..\contracts\Collection.contract = ..\..\contracts\Collection.contract
-		..\..\contracts\Entity.contract = ..\..\contracts\Entity.contract
-		..\..\contracts\DataStore.contract = ..\..\contracts\DataStore.contract
 		..\..\contracts\Connection.contract = ..\..\contracts\Connection.contract
+		..\..\contracts\DataStore.contract = ..\..\contracts\DataStore.contract
+		..\..\contracts\Entity.contract = ..\..\contracts\Entity.contract
+		..\..\contracts\File.contract = ..\..\contracts\File.contract
 		..\..\contracts\PolyPersist.contract = ..\..\contracts\PolyPersist.contract
 		..\..\contracts\Validation.contract = ..\..\contracts\Validation.contract
 	EndProjectSection
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PolyPersist.Net.MongoDB", "src\PolyPersist.Net.MongoDB\PolyPersist.Net.MongoDB.csproj", "{56011EB0-BD1A-4B32-B490-EB54A8B05BAF}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PolyPersist.Net.DocumentStore.MongoDB", "src\PolyPersist.Net.DocumentStore.MongoDB\PolyPersist.Net.DocumentStore.MongoDB.csproj", "{56011EB0-BD1A-4B32-B490-EB54A8B05BAF}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PolyPersist.Net.DocumentStore.Memory", "src\PolyPersist.Net.DocumentStore.Memory\PolyPersist.Net.DocumentStore.Memory.csproj", "{5C42408F-BA30-4D61-BD25-316B9C8DD0CD}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PolyPersist.Net.BlobStore.AzureBlob", "src\PolyPersist.Net.BlobStore.AzureBlob\PolyPersist.Net.BlobStore.AzureBlob.csproj", "{F6305201-BF3A-41AB-88EC-1CEF1ECF2B07}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -37,6 +42,14 @@ Global
 		{56011EB0-BD1A-4B32-B490-EB54A8B05BAF}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{56011EB0-BD1A-4B32-B490-EB54A8B05BAF}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{56011EB0-BD1A-4B32-B490-EB54A8B05BAF}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5C42408F-BA30-4D61-BD25-316B9C8DD0CD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5C42408F-BA30-4D61-BD25-316B9C8DD0CD}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5C42408F-BA30-4D61-BD25-316B9C8DD0CD}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5C42408F-BA30-4D61-BD25-316B9C8DD0CD}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F6305201-BF3A-41AB-88EC-1CEF1ECF2B07}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F6305201-BF3A-41AB-88EC-1CEF1ECF2B07}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F6305201-BF3A-41AB-88EC-1CEF1ECF2B07}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F6305201-BF3A-41AB-88EC-1CEF1ECF2B07}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

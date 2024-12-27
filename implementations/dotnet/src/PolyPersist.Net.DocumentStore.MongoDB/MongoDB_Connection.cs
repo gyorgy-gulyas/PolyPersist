@@ -1,8 +1,7 @@
 ﻿using MongoDB.Driver;
-using System.Security.Cryptography.X509Certificates;
 
 
-namespace PolyPersist.Net.MongoDB
+namespace PolyPersist.Net.DocumentStore.MongoDB
 {
     /// <inheritdoc/>
     internal class MongoDB_Connection : IConnection
@@ -30,7 +29,7 @@ namespace PolyPersist.Net.MongoDB
         async Task<IDataStore> IConnection.GetDataStoreByName(string storeName)
         {
             if (await (this as IConnection).IsDataStoreExists(storeName) == false)
-                return null;
+                throw new Exception($"DataStore: {storeName} does not exists");
 
             IMongoDatabase mondoDatabase = _mongoClient.GetDatabase(storeName);
             return new MongoDB_Database(mondoDatabase, this);
@@ -40,7 +39,7 @@ namespace PolyPersist.Net.MongoDB
         async Task<IDataStore> IConnection.CreateDataStore(string storeName)
         {
             if (await (this as IConnection).IsDataStoreExists(storeName) == false)
-                return await (this as IConnection).GetDataStoreByName(storeName);
+                throw new Exception($"DataStore: {storeName} is already exists");
 
             IMongoDatabase mondoDatabase = _mongoClient.GetDatabase(storeName);
             await mondoDatabase.CreateCollectionAsync("__system");
@@ -49,13 +48,12 @@ namespace PolyPersist.Net.MongoDB
         }
 
         /// <inheritdoc/>
-        async Task<bool> IConnection.DropDataStore(IDataStore dataStore)
+        async Task IConnection.DropDataStore(IDataStore dataStore)
         {
             if (await (this as IConnection).IsDataStoreExists(dataStore.Name) == false)
-                return false;
+                throw new Exception($"DataStore: {dataStore.Name} does not exists");
 
             await _mongoClient.DropDatabaseAsync(dataStore.Name);
-            return true;
         }
     }
 }

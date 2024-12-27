@@ -27,30 +27,30 @@ namespace PolyPersist
 		/// Each entry represents a different data storage model suitable for specific data types and use cases.
 		public enum StorageModels
 		{
-		/// Relational databases (SQL) store data in structured tables and support complex queries through SQL.
-		/// Examples include MySQL, PostgreSQL, SQL Server, etc.
+			/// Relational databases (SQL) store data in structured tables and support complex queries through SQL.
+			/// Examples include MySQL, PostgreSQL, SQL Server, etc.
 			Relational,
-		/// Document-oriented databases store data in flexible formats like JSON or BSON.
-		/// They are ideal for semi-structured data and are used by systems like MongoDB, CouchDB, and CosmosDB.
+			/// Document-oriented databases store data in flexible formats like JSON or BSON.
+			/// They are ideal for semi-structured data and are used by systems like MongoDB, CouchDB, and CosmosDB.
 			Document,
-		/// Vector databases are specialized for storing and searching large-scale, high-dimensional vector data.
-		/// These are used in machine learning, AI, and search systems, with examples like Faiss and Milvus.
+			/// Vector databases are specialized for storing and searching large-scale, high-dimensional vector data.
+			/// These are used in machine learning, AI, and search systems, with examples like Faiss and Milvus.
 			Vector,
-		/// Graph databases store data as nodes and edges, representing entities and their relationships.
-		/// They are particularly useful for modeling complex networks, social graphs, and interconnected data.
+			/// Graph databases store data as nodes and edges, representing entities and their relationships.
+			/// They are particularly useful for modeling complex networks, social graphs, and interconnected data.
 			Graph,
-		/// Key-value stores are simple and fast databases where data is stored as key-value pairs.
-		/// These are typically used for caching and simple lookups, such as Redis, DynamoDB, and Riak.
+			/// Key-value stores are simple and fast databases where data is stored as key-value pairs.
+			/// These are typically used for caching and simple lookups, such as Redis, DynamoDB, and Riak.
 			KeyValue,
-		/// Column store databases organize data into columns rather than rows, optimized for read-heavy workloads.
-		/// They are widely used in big data systems and include databases like Cassandra, ScyllaDB, and HBase.
+			/// Column store databases organize data into columns rather than rows, optimized for read-heavy workloads.
+			/// They are widely used in big data systems and include databases like Cassandra, ScyllaDB, and HBase.
 			ColumnStore,
-		/// Spatial databases store geographical or spatial data and are used for location-based queries and analysis.
-		/// Examples include PostGIS (an extension for PostgreSQL) and Oracle Spatial.
+			/// Spatial databases store geographical or spatial data and are used for location-based queries and analysis.
+			/// Examples include PostGIS (an extension for PostgreSQL) and Oracle Spatial.
 			Spatial,
-		/// File storage systems are used for storing unstructured data, such as files, images, or blobs.
-		/// Azure Blob Storage and Amazon S3 are prime examples of file storage systems.
-			FileStore,
+			/// File or File storage systems are used for storing unstructured data, such as files, images, or blobs.
+			/// Azure Blob Storage and Amazon S3 are prime examples of file storage systems.
+			BlobStore,
 		}
 
 		/// Connection property represents the connection object used to interact with the data store.
@@ -81,24 +81,22 @@ namespace PolyPersist
 		/// @returns A boolean value indicating if the collection is present in the data store.
 		public Task<bool> IsCollectionExists( string collectionName );
 		/// Asynchronous method to retrieve a collection by its name from the data store.
-		/// This method returns the collection as an ICollection of entities that implement the IEntity interface.
+		/// This method returns the collection as an ICollection of entities or files or vectors.
 		/// 
 		/// @param collectionName - The name of the collection to retrieve from the data store.
 		/// @returns An ICollection representing the collection with the specified name.
-		public Task<ICollection<TEntity>> GetCollectionByName<TEntity>( string collectionName ) where TEntity: IEntity;
+		public Task<ICollection> GetCollectionByName<T>( string collectionName );
 		/// Asynchronous method to create a new collection in the data store.
-		/// This method creates a collection with the specified name and returns it as an ICollection of type <T>,
-		/// where <T> is the entity type constrained to implement IEntity.
+		/// This method creates a collection with the specified name and returns it as an ICollection of entities of files,
 		///
 		/// @param collectionName - The name of the new collection to be created.
-		/// @returns The newly created collection, represented as an ICollection<T>.
-		public Task<ICollection<TEntity>> CreateCollection<TEntity>( string collectionName ) where TEntity: IEntity;
+		/// @returns The newly created collection, represented as an ICollection
+		public Task<ICollection> CreateCollection<T>( string collectionName );
 		/// Asynchronous method to drop (delete) an existing collection from the data store.
 		/// This method removes the specified collection, returning a boolean indicating whether the operation was successful.
-		/// The collection is represented as an ICollection of type <T>, where T is the entity type.
+		/// The collection is represented as an ICollection of entities, files or vectors 
 		///
-		/// @param collection - The collection to be dropped from the data store.
-		/// @returns A boolean value indicating whether the collection was successfully dropped.
-		public Task<bool> DropCollection<TEntity>( ICollection<TEntity> collection ) where TEntity: IEntity;
+		/// @param collectionName - The name of the collection to be dropped from the data store.
+		public Task DropCollection( string collectionName );
 	}
 }
