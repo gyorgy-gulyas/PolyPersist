@@ -85,13 +85,13 @@ namespace PolyPersist
 		/// 
 		/// @param collectionName - The name of the collection to retrieve from the data store.
 		/// @returns An ICollection representing the collection with the specified name.
-		public Task<ICollection> GetCollectionByName<T>( string collectionName );
+		public Task<ICollection<TEntity>> GetCollectionByName<TEntity>( string collectionName ) where TEntity: IEntity, new();
 		/// Asynchronous method to create a new collection in the data store.
 		/// This method creates a collection with the specified name and returns it as an ICollection of entities of files,
 		///
 		/// @param collectionName - The name of the new collection to be created.
 		/// @returns The newly created collection, represented as an ICollection
-		public Task<ICollection> CreateCollection<T>( string collectionName );
+		public Task<ICollection<TEntity>> CreateCollection<TEntity>( string collectionName ) where TEntity: IEntity, new();
 		/// Asynchronous method to drop (delete) an existing collection from the data store.
 		/// This method removes the specified collection, returning a boolean indicating whether the operation was successful.
 		/// The collection is represented as an ICollection of entities, files or vectors 

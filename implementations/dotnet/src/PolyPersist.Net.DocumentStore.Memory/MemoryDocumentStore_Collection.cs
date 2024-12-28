@@ -3,8 +3,8 @@ using System.Text.Json;
 
 namespace PolyPersist.Net.DocumentStore.Memory
 {
-    internal class MemoryDocumentDB_Collection<TEntity> : IEntityCollection<TEntity>
-        where TEntity : IEntity
+    internal class MemoryDocumentDB_Collection<TEntity> : ICollection<TEntity>
+        where TEntity : IEntity, new()
     {
         internal string _name;
         internal _CollectionData _collectionData;
@@ -18,10 +18,10 @@ namespace PolyPersist.Net.DocumentStore.Memory
         }
 
         /// <inheritdoc/>
-        string ICollection.Name => _name;
+        string ICollection<TEntity>.Name => _name;
 
         /// <inheritdoc/>
-        async Task IEntityCollection<TEntity>.Insert(TEntity entity)
+        async Task ICollection<TEntity>.Insert(TEntity entity)
         {
             if (entity is IValidable validable)
                 await Validator.Validate(validable).ConfigureAwait(false);
@@ -50,7 +50,7 @@ namespace PolyPersist.Net.DocumentStore.Memory
         }
 
         /// <inheritdoc/>
-        async Task IEntityCollection<TEntity>.Update(TEntity entity)
+        async Task ICollection<TEntity>.Update(TEntity entity)
         {
             if (entity is IValidable validable)
                 await Validator.Validate(validable).ConfigureAwait(false);
@@ -70,13 +70,13 @@ namespace PolyPersist.Net.DocumentStore.Memory
         }
 
         /// <inheritdoc/>
-        Task IEntityCollection<TEntity>.Delete(TEntity entity)
+        Task ICollection<TEntity>.Delete(TEntity entity)
         {
-            return (this as IEntityCollection<TEntity>).Delete(entity.id, entity.PartitionKey);
+            return (this as ICollection<TEntity>).Delete(entity.id, entity.PartitionKey);
         }
 
         /// <inheritdoc/>
-        Task IEntityCollection<TEntity>.Delete(string id, string partitionKey)
+        Task ICollection<TEntity>.Delete(string id, string partitionKey)
         {
             if (_collectionData.MapOfDocments.TryGetValue((id, partitionKey), out _RowData row) == false)
                 throw new Exception($"Entity '{typeof(TEntity).Name}' {id} can not be removed because it is already removed or changed.");
@@ -88,7 +88,7 @@ namespace PolyPersist.Net.DocumentStore.Memory
         }
 
         /// <inheritdoc/>
-        Task<TEntity> IEntityCollection<TEntity>.Find(string id, string partitionKey)
+        Task<TEntity> ICollection<TEntity>.Find(string id, string partitionKey)
         {
             if (_collectionData.MapOfDocments.TryGetValue((id, partitionKey), out _RowData row) == true)
                 return Task.FromResult(JsonSerializer.Deserialize<TEntity>(row.Value, JsonOptionsProvider.Options));

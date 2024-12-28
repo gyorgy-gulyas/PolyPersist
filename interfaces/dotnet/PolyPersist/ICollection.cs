@@ -12,10 +12,29 @@ using System.Collections.Generic;
 
 namespace PolyPersist
 {
-	/// The ICollection interface defines a read-only property for the name of a collection.
-	public interface ICollection
+	/// The IEntityCollection interface extends ICollection and adds methods for CRUD operations on entities.
+	/// This interface is used for collections that store entities.
+	public interface ICollection<TEntity>
+		where TEntity: IEntity, new()
 	{
 		/// Read-only property representing the name of the collection.
 		public string Name { get; }
+
+		/// Asynchronous method to insert an entity into the collection.
+		/// The 'entity' parameter is the entity that will be inserted into the collection.
+		public Task Insert( TEntity entity );
+		/// Asynchronous method to update an existing entity in the collection.
+		/// The 'entity' parameter represents the entity to be updated in the collection.
+		public Task Update( TEntity entity );
+		/// Asynchronous method to delete an entity from the collection.
+		/// The 'entity' parameter represents the entity that will be deleted.
+		public Task Delete( TEntity entity );
+		/// Asynchronous method to delete an entity using its ID and PartitionKey.
+		/// The 'id' parameter is the unique identifier of the entity, and 'partitionKey' is used for partitioning the data in distributed data stores.
+		public Task Delete( string id, string partitionKey );
+		/// Asynchronous method to find an entity by its ID and PartitionKey.
+		/// The 'id' parameter is the unique identifier of the entity, and 'partitionKey' is used to partition data.
+		/// Returns the entity if found, or null if not found.
+		public Task<TEntity> Find( string id, string partitionKey );
 	}
 }

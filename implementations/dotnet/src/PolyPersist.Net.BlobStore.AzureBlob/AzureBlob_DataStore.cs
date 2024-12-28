@@ -32,33 +32,24 @@ namespace PolyPersist.Net.BlobStore.AzureBlob
         }
 
         /// <inheritdoc/>
-        async Task<ICollection> IDataStore.CreateCollection<TFile>(string collectionName)
+        async Task<ICollection<TEntity>> IDataStore.CreateCollection<TEntity>(string collectionName)
         {
             BlobContainerClient containerClient = _blobServiceClient.GetBlobContainerClient(_containerName(_storeName, collectionName));
             if (await containerClient.ExistsAsync().ConfigureAwait(false) == true)
                 throw new Exception($"Collection '{collectionName}' is already exist in AzureBlob storage '{_storeName}'");
 
             await containerClient.CreateAsync().ConfigureAwait(false);
-
-            ICollection collection = Activator
-                .CreateInstance(typeof(AzureBlob_Container<>)
-                .MakeGenericType(typeof(TFile)), containerClient) as ICollection;
-
-            return collection;
+            return new AzureBlob_Container<TEntity>(containerClient);
         }
 
         /// <inheritdoc/>
-        async Task<ICollection> IDataStore.GetCollectionByName<TFile>(string collectionName)
+        async Task<ICollection<TEntity>> IDataStore.GetCollectionByName<TEntity>(string collectionName)
         {
             BlobContainerClient containerClient = _blobServiceClient.GetBlobContainerClient(_containerName(_storeName, collectionName));
             if (await containerClient.ExistsAsync().ConfigureAwait(false) == false)
                 throw new Exception($"Collection '{collectionName}' does not exist in AzureBlob storage '{_storeName}'");
 
-            ICollection collection = Activator
-                .CreateInstance(typeof(AzureBlob_Container<>)
-                .MakeGenericType(typeof(TFile)), containerClient) as ICollection;
-
-            return collection;
+            return new AzureBlob_Container<TEntity>(containerClient);
         }
 
         /// <inheritdoc/>

@@ -24,6 +24,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PolyPersist.Net.DocumentSto
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PolyPersist.Net.BlobStore.AzureBlob", "src\PolyPersist.Net.BlobStore.AzureBlob\PolyPersist.Net.BlobStore.AzureBlob.csproj", "{F6305201-BF3A-41AB-88EC-1CEF1ECF2B07}"
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PolyPersist.Net.BlobStore.GridFS", "src\PolyPersist.Net.BlobStore.GridFS\PolyPersist.Net.BlobStore.GridFS.csproj", "{3D7926B7-976D-4D59-B8C5-09C4972F1234}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -50,6 +52,10 @@ Global
 		{F6305201-BF3A-41AB-88EC-1CEF1ECF2B07}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{F6305201-BF3A-41AB-88EC-1CEF1ECF2B07}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{F6305201-BF3A-41AB-88EC-1CEF1ECF2B07}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3D7926B7-976D-4D59-B8C5-09C4972F1234}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3D7926B7-976D-4D59-B8C5-09C4972F1234}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3D7926B7-976D-4D59-B8C5-09C4972F1234}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3D7926B7-976D-4D59-B8C5-09C4972F1234}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

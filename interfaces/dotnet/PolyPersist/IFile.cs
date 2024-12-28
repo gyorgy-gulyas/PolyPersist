@@ -12,25 +12,37 @@ using System.Collections.Generic;
 
 namespace PolyPersist
 {
-	public interface IFile
+	public interface IFile : IEntity
 	{
-		/// The 'fileName' property represents the unique identifier for the file.
-		/// This is typically used to reference and retrieve the file from the data store.
+		/// The 'fileName' property represents the name of the file as it is stored in the data store.
+		/// This property can be used for human-readable identification or naming conventions.
+		///
+		/// Example:
+		/// For a report named 'Monthly_Sales_Report.pdf', the 'fileName' would store the value 'Monthly_Sales_Report.pdf'.
+		/// Applications can use this property to display the file's name in the user interface.
 		public string fileName { get; set;}
-		/// The 'PartitionKey' property represents the key used to partition data in distributed data stores.
-		/// This allows for more efficient storage and retrieval of files, especially in large-scale, partitioned systems.
+		/// The 'contentType' property represents the MIME type of the file.
+		/// This property is crucial for understanding the type of content stored in the file and determining
+		/// how it should be processed or displayed to the user.
 		///
-		/// Why PartitionKey is Important:
-		/// - It ensures that related data is grouped together in the same partition, reducing cross-partition queries.
-		/// - It improves the performance of read and write operations by minimizing data distribution overhead.
-		/// - It is crucial for ensuring scalability in cloud-based systems like Azure Cosmos DB or Amazon DynamoDB.
+		/// Example MIME Types:
+		/// - 'application/pdf' for PDF documents.
+		/// - 'image/png' for PNG images.
+		/// - 'text/plain' for plain text files.
 		///
-		/// Example Use Case:
-		/// In a multi-tenant application, the 'PartitionKey' could be the tenant ID, ensuring that all data
-		/// for a particular tenant is stored and queried efficiently.
+		/// Applications can use this property to perform actions such as setting the appropriate headers
+		/// for file downloads or displaying a file preview in the correct format.
+		public string contentType { get; set;}
+		/// The 'content' property represents the actual content or data of the file.
+		/// This property stores the file data in a stream format, allowing for efficient handling
+		/// of potentially large files that may not fit into memory all at once.
 		///
-		/// This property is marked as 'readonly' to ensure that the partition key remains immutable,
-		/// as changing it would lead to significant system inconsistencies.
-		public string PartitionKey { get; }
+		/// Example:
+		/// For a file, 'example.pdf', the 'content' would store the binary data of the PDF file,
+		/// enabling it to be uploaded, downloaded, or processed as needed.
+		///
+		/// The 'stream' format allows for the file's content to be processed in chunks or sequentially,
+		/// making it ideal for large files or network transfers.
+		public Stream content { get; set;}
 	}
 }

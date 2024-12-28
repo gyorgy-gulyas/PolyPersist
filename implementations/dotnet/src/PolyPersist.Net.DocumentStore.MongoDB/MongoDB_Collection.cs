@@ -3,8 +3,8 @@ using PolyPersist.Net.Common;
 
 namespace PolyPersist.Net.DocumentStore.MongoDB
 {
-    internal class MongoDB_Collection<TEntity> : IEntityCollection<TEntity>
-        where TEntity : IEntity
+    internal class MongoDB_Collection<TEntity> : ICollection<TEntity>
+        where TEntity : IEntity, new()
     {
         private readonly IMongoCollection<TEntity> _mongoCollection;
         private readonly MongoDB_Database _mongoDB_Database;
@@ -16,36 +16,21 @@ namespace PolyPersist.Net.DocumentStore.MongoDB
         }
 
         /// <inheritdoc/>
-        string ICollection.Name => _mongoCollection.CollectionNamespace.CollectionName;
+        string ICollection<TEntity>.Name => _mongoCollection.CollectionNamespace.CollectionName;
 
         /// <inheritdoc/>
-        async Task IEntityCollection<TEntity>.Insert(TEntity entity)
+        async Task ICollection<TEntity>.Insert(TEntity entity)
         {
-            if (entity is IValidable validable)
-                await Validator.Validate(validable).ConfigureAwait(false);
-
-            if (string.IsNullOrEmpty(entity.etag) == false)
-                throw new Exception($"ETag is already filled at Insert operation in entity '{typeof(TEntity).Name}' id: {entity.id}");
-
-            if (string.IsNullOrEmpty(entity.PartitionKey) == true)
-                throw new Exception($"PartionKey must be filled at Insert operation in entity '{typeof(TEntity).Name}' id: {entity.id}");
-
+            await CollectionCommon.CheckBeforeInsert(entity).ConfigureAwait(false);
             entity.etag = Guid.NewGuid().ToString();
-
-            if (string.IsNullOrEmpty(entity.id) == true)
-                entity.id = Guid.NewGuid().ToString();
 
             await _mongoCollection.InsertOneAsync(entity).ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
-        async Task IEntityCollection<TEntity>.Update(TEntity entity)
+        async Task ICollection<TEntity>.Update(TEntity entity)
         {
-            if (entity is IValidable validable)
-                await Validator.Validate(validable).ConfigureAwait(false);
-
-            if (string.IsNullOrEmpty(entity.etag) == true)
-                throw new Exception($"ETag must be filled at Update operation in entity '{typeof(TEntity).Name}' id: {entity.id}");
+            await CollectionCommon.CheckBeforeUpdate(entity).ConfigureAwait(false);
 
             string oldETag = entity.etag;
             entity.etag = Guid.NewGuid().ToString();
@@ -56,13 +41,13 @@ namespace PolyPersist.Net.DocumentStore.MongoDB
         }
 
         /// <inheritdoc/>
-        Task IEntityCollection<TEntity>.Delete(TEntity entity)
+        Task ICollection<TEntity>.Delete(TEntity entity)
         {
-            return (this as IEntityCollection<TEntity>).Delete(entity.id, entity.PartitionKey);
+            return (this as ICollection<TEntity>).Delete(entity.id, entity.PartitionKey);
         }
 
         /// <inheritdoc/>
-        async Task IEntityCollection<TEntity>.Delete(string id, string partitionKey)
+        async Task ICollection<TEntity>.Delete(string id, string partitionKey)
         {
             DeleteResult result = await _mongoCollection.DeleteOneAsync(e => e.id == id && e.PartitionKey == partitionKey).ConfigureAwait(false);
             if (result.IsAcknowledged == false)
@@ -73,7 +58,7 @@ namespace PolyPersist.Net.DocumentStore.MongoDB
         }
 
         /// <inheritdoc/>
-        async Task<TEntity> IEntityCollection<TEntity>.Find(string id, string partitionKey)
+        async Task<TEntity> ICollection<TEntity>.Find(string id, string partitionKey)
         {
             IAsyncCursor<TEntity> cursor = await _mongoCollection.FindAsync(e => e.id == id && e.PartitionKey == partitionKey).ConfigureAwait(false);
             TEntity entity = await cursor.FirstOrDefaultAsync().ConfigureAwait(false);

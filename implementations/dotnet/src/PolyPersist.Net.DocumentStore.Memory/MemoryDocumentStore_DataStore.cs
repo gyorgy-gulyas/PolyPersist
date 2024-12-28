@@ -31,15 +31,23 @@
         }
 
         /// <inheritdoc/>
-        Task<ICollection> IDataStore.CreateCollection<TEntity>(string collectionName)
+        Task<ICollection<TEntity>> IDataStore.GetCollectionByName<TEntity>(string collectionName)
+        {
+            _CollectionData collectionData = _Collections.Find(c => c.Name == collectionName);
+            if (collectionData == null)
+                throw new Exception($"Collection '{collectionName}' does not exist in Mongo Database '{_storeName}'");
+
+            ICollection<TEntity> collection = new MemoryDocumentDB_Collection<TEntity>( collectionName, collectionData, this);
+            return Task.FromResult(collection);
+        }
+
+        /// <inheritdoc/>
+        Task<ICollection<TEntity>> IDataStore.CreateCollection<TEntity>(string collectionName)
         {
             _CollectionData collectionData = new(collectionName);
             _Collections.Add(collectionData);
 
-            ICollection collection = Activator
-                .CreateInstance(typeof(MemoryDocumentDB_Collection<>)
-                .MakeGenericType(typeof(TEntity)), collectionName, collectionData, this) as ICollection;
-
+            ICollection<TEntity> collection = new MemoryDocumentDB_Collection<TEntity>(collectionName, collectionData, this);
             return Task.FromResult(collection);
         }
 
@@ -54,18 +62,6 @@
             return Task.CompletedTask;
         }
 
-        /// <inheritdoc/>
-        Task<ICollection> IDataStore.GetCollectionByName<TEntity>(string collectionName)
-        {
-            _CollectionData collectionData = _Collections.Find(c => c.Name == collectionName);
-            if (collectionData == null)
-                throw new Exception($"Collection '{collectionName}' does not exist in Mongo Database '{_storeName}'");
-
-            ICollection collection = Activator
-                .CreateInstance(typeof(MemoryDocumentDB_Collection<>)
-                .MakeGenericType(typeof(TEntity)), collectionName, collectionData, this) as ICollection;
-            return Task.FromResult(collection);
-        }
     }
 
     public class _CollectionData
