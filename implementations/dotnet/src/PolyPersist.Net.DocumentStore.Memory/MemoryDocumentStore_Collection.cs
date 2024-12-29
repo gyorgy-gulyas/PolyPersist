@@ -23,14 +23,7 @@ namespace PolyPersist.Net.DocumentStore.Memory
         /// <inheritdoc/>
         async Task ICollection<TEntity>.Insert(TEntity entity)
         {
-            if (entity is IValidable validable)
-                await Validator.Validate(validable).ConfigureAwait(false);
-
-            if (string.IsNullOrEmpty(entity.etag) == false)
-                throw new Exception($"ETag is already filled at Insert operation in entity '{typeof(TEntity).Name}' id: {entity.id}");
-
-            if (string.IsNullOrEmpty(entity.PartitionKey) == true)
-                throw new Exception($"PartionKey must be filled at Insert operation in entity '{typeof(TEntity).Name}' id: {entity.id}");
+            await CollectionCommon.CheckBeforeInsert(entity).ConfigureAwait(false);
 
             entity.etag = Guid.NewGuid().ToString();
 
@@ -52,17 +45,13 @@ namespace PolyPersist.Net.DocumentStore.Memory
         /// <inheritdoc/>
         async Task ICollection<TEntity>.Update(TEntity entity)
         {
-            if (entity is IValidable validable)
-                await Validator.Validate(validable).ConfigureAwait(false);
-
-            if (string.IsNullOrEmpty(entity.etag) == true)
-                throw new Exception($"ETag must be filled at Update operation in entity '{typeof(TEntity).Name}' id: {entity.id}");
+            await CollectionCommon.CheckBeforeUpdate(entity).ConfigureAwait(false);
 
             if (_collectionData.MapOfDocments.TryGetValue((entity.id, entity.PartitionKey), out _RowData row) == false)
-                throw new Exception($"Entity '{typeof(TEntity).Name}' {entity.id} can not be removed because it is already removed or changed.");
+                throw new Exception($"Entity '{typeof(TEntity).Name}' {entity.id} can not be removed because it is already removed");
 
             if (row.etag != entity.etag)
-                throw new Exception($"Entity '{typeof(TEntity).Name}' {entity.id} can not be updated because it is already changed or removed.");
+                throw new Exception($"Entity '{typeof(TEntity).Name}' {entity.id} can not be updated because it is already changed");
 
             entity.etag = Guid.NewGuid().ToString();
             row.etag = entity.etag;
@@ -79,7 +68,7 @@ namespace PolyPersist.Net.DocumentStore.Memory
         Task ICollection<TEntity>.Delete(string id, string partitionKey)
         {
             if (_collectionData.MapOfDocments.TryGetValue((id, partitionKey), out _RowData row) == false)
-                throw new Exception($"Entity '{typeof(TEntity).Name}' {id} can not be removed because it is already removed or changed.");
+                throw new Exception($"Entity '{typeof(TEntity).Name}' {id} can not be removed because it is already removed");
 
             _collectionData.MapOfDocments.Remove((id, partitionKey));
             _collectionData.ListOfDocments.Remove(row);

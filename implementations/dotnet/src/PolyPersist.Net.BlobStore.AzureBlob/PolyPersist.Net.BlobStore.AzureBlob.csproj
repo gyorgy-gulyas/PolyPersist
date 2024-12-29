@@ -8,6 +8,5 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\..\..\interfaces\dotnet\PolyPersist\PolyPersist.Net.csproj" />
-    <ProjectReference Include="..\PolyPersist.Net.Common\PolyPersist.Net.Common.csproj" />
   </ItemGroup>
 </Project>

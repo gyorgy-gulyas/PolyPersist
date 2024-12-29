@@ -76,7 +76,7 @@ namespace PolyPersist.Net.BlobStore.GridFS
         {
             GridFSFileInfo fileInfo = await _getFileInfo(partitionKey, id).ConfigureAwait(false);
             if (fileInfo == null)
-                throw default;
+                return default;
 
             TEntity entity = BsonSerializer.Deserialize<TEntity>(fileInfo.Metadata, null);
 

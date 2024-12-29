@@ -5,7 +5,6 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\..\..\interfaces\dotnet\PolyPersist\PolyPersist.Net.csproj" />
-    <ProjectReference Include="..\PolyPersist.Net.Common\PolyPersist.Net.Common.csproj" />
     <ProjectReference Include="..\PolyPersist.Net.DocumentStore.MongoDB\PolyPersist.Net.DocumentStore.MongoDB.csproj" />
   </ItemGroup>
 </Project>
