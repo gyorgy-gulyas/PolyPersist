@@ -86,10 +86,26 @@ namespace PolyPersist.Net.BlobStore.AzureBlob
                 return default;
 
             var properties = await blobClient.GetPropertiesAsync().ConfigureAwait(false);
-            byte[] bytes = Convert.FromBase64String(properties.Value.Metadata["content"]);
-            TEntity file = JsonSerializer.Deserialize<TEntity>(Encoding.UTF8.GetString(bytes), JsonOptionsProvider.Options);
+            return _deserialize(properties.Value.Metadata);
+        }
 
-            return file;
+        /// <inheritdoc/>
+        TQuery ICollection<TEntity>.Query<TQuery>()
+        {
+            bool isQueryable = typeof(IQueryable<TEntity>).IsAssignableFrom(typeof(TQuery));
+            if (isQueryable == false)
+                throw new Exception($"TQuery is must be 'IQueryable<TEntity>' in dotnet implementation");
+
+            return (TQuery)_containerClient
+                .GetBlobs()
+                .Select( b => _deserialize(b.Metadata ) )
+                .AsQueryable();
+        }
+
+        /// <inheritdoc/>
+        object ICollection<TEntity>.GetUnderlyingImplementation()
+        {
+            return _containerClient;
         }
 
         private string _makePath(IFile file)
@@ -112,5 +128,14 @@ namespace PolyPersist.Net.BlobStore.AzureBlob
                 { "content", content }
             };
         }
+
+        private TEntity _deserialize( IDictionary<string, string> metadata )
+        {
+            byte[] bytes = Convert.FromBase64String(metadata["content"]);
+            TEntity entity = JsonSerializer.Deserialize<TEntity>(Encoding.UTF8.GetString(bytes), JsonOptionsProvider.Options);
+
+            return entity;
+        }
+
     }
 }

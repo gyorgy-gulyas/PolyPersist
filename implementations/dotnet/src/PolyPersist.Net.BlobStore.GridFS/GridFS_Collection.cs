@@ -87,6 +87,26 @@ namespace PolyPersist.Net.BlobStore.GridFS
             return entity;
         }
 
+        /// <inheritdoc/>
+        TQuery ICollection<TEntity>.Query<TQuery>()
+        {
+            bool isQueryable = typeof(IQueryable<TEntity>).IsAssignableFrom(typeof(TQuery));
+            if (isQueryable == false)
+                throw new Exception($"TQuery is must be 'IQueryable<TEntity>' in dotnet implementation");
+
+            return (TQuery)_filesCollection
+                .AsQueryable()
+                .ToList()
+                .Select(fileinfo => BsonSerializer.Deserialize<TEntity>(fileinfo.Metadata, null))
+                .AsQueryable();
+        }
+
+        /// <inheritdoc/>
+        object ICollection<TEntity>.GetUnderlyingImplementation()
+        {
+            return _gridFSBucket;
+        }
+
         private ObjectId _makeId(IFile file)
             => _makeId(file.PartitionKey, file.id);
 
@@ -98,6 +118,5 @@ namespace PolyPersist.Net.BlobStore.GridFS
             IAsyncCursor<GridFSFileInfo> cursor = await _filesCollection.FindAsync(fi => fi.Id == _makeId(partitionKey, id)).ConfigureAwait(false);
             return await cursor.FirstOrDefaultAsync().ConfigureAwait(false);
         }
-
     }
 }

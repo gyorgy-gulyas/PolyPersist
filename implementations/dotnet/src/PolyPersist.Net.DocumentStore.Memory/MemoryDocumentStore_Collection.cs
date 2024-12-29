@@ -84,5 +84,21 @@ namespace PolyPersist.Net.DocumentStore.Memory
 
             return Task.FromResult(default(TEntity));
         }
+
+        /// <inheritdoc/>
+        TQuery ICollection<TEntity>.Query<TQuery>()
+        {
+            bool isQueryable = typeof(IQueryable<TEntity>).IsAssignableFrom(typeof(TQuery));
+            if (isQueryable == false)
+                throw new Exception($"TQuery is must be 'IQueryable<TEntity>' in dotnet implementation");
+
+            return (TQuery)_collectionData.ListOfDocments.AsQueryable();
+        }
+
+        /// <inheritdoc/>
+        object ICollection<TEntity>.GetUnderlyingImplementation()
+        {
+            return _collectionData;
+        }
     }
 }

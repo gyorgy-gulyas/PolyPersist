@@ -65,5 +65,21 @@ namespace PolyPersist.Net.DocumentStore.MongoDB
 
             return entity;
         }
+
+        /// <inheritdoc/>
+        TQuery ICollection<TEntity>.Query<TQuery>()
+        {
+            bool isQueryable = typeof(IQueryable<TEntity>).IsAssignableFrom(typeof(TQuery));
+            if(isQueryable==false)
+                throw new Exception($"TQuery is must be 'IQueryable<TEntity>' in dotnet implementation");
+
+            return (TQuery)_mongoCollection.AsQueryable();
+        }
+
+        /// <inheritdoc/>
+        object ICollection<TEntity>.GetUnderlyingImplementation()
+        {
+            return _mongoCollection;
+        }
     }
 }

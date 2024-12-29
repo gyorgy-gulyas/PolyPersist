@@ -11,7 +11,7 @@ namespace PolyPersist {
     interface ICollection<TEntity constraint IEntity instantiable> {
 
         # Read-only property representing the name of the collection.
-        readonly property Name: string;
+        readonly property Name: string
 
         # Asynchronous method to insert an entity into the collection.
         # The 'entity' parameter is the entity that will be inserted into the collection.
@@ -33,5 +33,14 @@ namespace PolyPersist {
         # The 'id' parameter is the unique identifier of the entity, and 'partitionKey' is used to partition data.
         # Returns the entity if found, or null if not found.
         async method Find(id: string, partitionKey:string) => TEntity
+
+        # Asynchronous method to query the entiies
+        # the return value generic, so the implementation can define what are the real types
+        # In dotnet is can be IQueryable, in java it can be Java Streams, or Querydsl etc...
+        method Query<TQuery>() => TQuery
+
+        # getting the underlying implementation
+        # please use this method carefully, because the returned value is different in every implementation
+        method GetUnderlyingImplementation() => any
     }
 }

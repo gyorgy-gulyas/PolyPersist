@@ -36,5 +36,12 @@ namespace PolyPersist
 		/// The 'id' parameter is the unique identifier of the entity, and 'partitionKey' is used to partition data.
 		/// Returns the entity if found, or null if not found.
 		public Task<TEntity> Find( string id, string partitionKey );
+		/// Asynchronous method to query the entiies
+		/// the return value generic, so the implementation can define what are the real types
+		/// In dotnet is can be IQueryable, in java it can be Java Streams, or Querydsl etc...
+		public TQuery Query<TQuery>(  );
+		/// getting the underlying implementation
+		/// please use this method carefully, because the returned value is different in every implementation
+		public object GetUnderlyingImplementation(  );
 	}
 }
