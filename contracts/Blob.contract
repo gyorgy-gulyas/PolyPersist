@@ -4,10 +4,11 @@
 # unicontract will generate the necessary interface files in .NET, Java, and Python, reflecting the modifications made in this file.
 #---------------------------------------------------------------------------------------------------
 import Entity
+import Collection
 
 namespace PolyPersist {
 
-    interface IFile inherits IEntity {
+    interface IBlob inherits IEntity {
         
         # The 'fileName' property represents the name of the file as it is stored in the data store.
         # This property can be used for human-readable identification or naming conventions.
@@ -29,17 +30,24 @@ namespace PolyPersist {
         # Applications can use this property to perform actions such as setting the appropriate headers
         # for file downloads or displaying a file preview in the correct format.
         property contentType: string
+    }
 
-        # The 'content' property represents the actual content or data of the file.
-        # This property stores the file data in a stream format, allowing for efficient handling
-        # of potentially large files that may not fit into memory all at once.
+    interface IBlobCollection<TBlob constraint IEntity instantiable> inherits ICollection<TBlob>
+    {
+        # The 'UploadContent' method is responsible for reading the file's binary or textual content
+        # from the given 'source' stream and storing it in the data store.
         #
-        # Example:
-        # For a file, 'example.pdf', the 'content' would store the binary data of the PDF file,
-        # enabling it to be uploaded, downloaded, or processed as needed.
+        # This method should handle the reading of the entire 'source' stream
+        # and associate its contents with the underlying data record for this file.
+        # Implementations may perform additional tasks such as validating file size or type before saving.
+        async method UploadContent( entity:TBlob, source:stream )
+
+        # The 'DownloadContentTo' method is responsible for retrieving the file's content
+        # from the data store and writing it to the provided 'destination' stream.
         #
-        # The 'stream' format allows for the file's content to be processed in chunks or sequentially,
-        # making it ideal for large files or network transfers.
-        property content: stream
+        # This method should read the entire stored file content and write it to 'destination'.
+        # It is typically used whenever an application needs to serve or transfer the file to another medium,
+        # such as returning it in an HTTP response for download, or saving it to local disk.
+        async method DownloadContentTo( entity:TBlob, destination:stream )
     }
 }

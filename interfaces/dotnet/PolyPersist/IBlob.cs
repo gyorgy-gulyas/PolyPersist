@@ -12,7 +12,7 @@ using System.Collections.Generic;
 
 namespace PolyPersist
 {
-	public interface IFile : IEntity
+	public interface IBlob : IEntity
 	{
 		/// The 'fileName' property represents the name of the file as it is stored in the data store.
 		/// This property can be used for human-readable identification or naming conventions.
@@ -33,16 +33,5 @@ namespace PolyPersist
 		/// Applications can use this property to perform actions such as setting the appropriate headers
 		/// for file downloads or displaying a file preview in the correct format.
 		public string contentType { get; set;}
-		/// The 'content' property represents the actual content or data of the file.
-		/// This property stores the file data in a stream format, allowing for efficient handling
-		/// of potentially large files that may not fit into memory all at once.
-		///
-		/// Example:
-		/// For a file, 'example.pdf', the 'content' would store the binary data of the PDF file,
-		/// enabling it to be uploaded, downloaded, or processed as needed.
-		///
-		/// The 'stream' format allows for the file's content to be processed in chunks or sequentially,
-		/// making it ideal for large files or network transfers.
-		public Stream content { get; set;}
 	}
 }

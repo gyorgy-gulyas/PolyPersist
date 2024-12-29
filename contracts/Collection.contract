@@ -6,7 +6,7 @@
 
 namespace PolyPersist {
 
-    # The IEntityCollection interface extends ICollection and adds methods for CRUD operations on entities.
+    # The ICollection interface defines methods for CRUD operations on entities.
     # This interface is used for collections that store entities.
     interface ICollection<TEntity constraint IEntity instantiable> {
 

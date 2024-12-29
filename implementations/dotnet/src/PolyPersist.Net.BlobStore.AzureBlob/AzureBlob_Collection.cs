@@ -5,11 +5,11 @@ using System.Text.Json;
 
 namespace PolyPersist.Net.BlobStore.AzureBlob
 {
-    internal class AzureBlob_Collection<TEntity> : ICollection<TEntity>
+    internal class AzureBlob_Collection<TEntity> : IBlobCollection<TEntity>
         where TEntity : IEntity, new()
     {
         private BlobContainerClient _containerClient;
-        private Dictionary<string,TEntity> _entities = [];
+        private Dictionary<string, TEntity> _entities = [];
 
         public AzureBlob_Collection(BlobContainerClient containerClient)
         {
@@ -31,19 +31,16 @@ namespace PolyPersist.Net.BlobStore.AzureBlob
             await CollectionCommon.CheckBeforeInsert(entity).ConfigureAwait(false);
 
             // create blob client
-            IFile file = (IFile)entity;
-            BlobClient blobClient = _containerClient.GetBlobClient(_makePath(file));
+            BlobClient blobClient = _containerClient.GetBlobClient(_makePath(entity));
 
             // new etag
-            file.etag = Guid.NewGuid().ToString();
+            entity.etag = Guid.NewGuid().ToString();
 
             // set metadata
-            await blobClient.SetMetadataAsync(_getMetadata(file)).ConfigureAwait(false);
-            // upload content
-            await blobClient.UploadAsync(file.content, overwrite: false).ConfigureAwait(false);
+            await blobClient.SetMetadataAsync(_getMetadata(entity)).ConfigureAwait(false);
 
-            _entities[_makePath(file)] = entity;
-            await _writeEntities().ConfigureAwait( false );
+            _entities[_makePath(entity)] = entity;
+            await _writeEntities().ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
@@ -52,25 +49,22 @@ namespace PolyPersist.Net.BlobStore.AzureBlob
             await CollectionCommon.CheckBeforeUpdate(entity).ConfigureAwait(false);
 
             // create blob client
-            IFile file = (IFile)entity;
-            BlobClient blobClient = _containerClient.GetBlobClient(_makePath(file));
+            BlobClient blobClient = _containerClient.GetBlobClient(_makePath(entity));
 
             if (await blobClient.ExistsAsync().ConfigureAwait(false) == false)
                 throw new Exception($"Entity '{typeof(TEntity).Name}' {entity.id} can not be updated because it does not exist.");
 
             var properties = await blobClient.GetPropertiesAsync().ConfigureAwait(false);
-            if (properties.Value.Metadata[nameof(file.etag)] != file.etag)
+            if (properties.Value.Metadata[nameof(entity.etag)] != entity.etag)
                 throw new Exception($"Entity '{typeof(TEntity).Name}' {entity.id} can not be updated because it is already changed.");
 
             // new etag
-            file.etag = Guid.NewGuid().ToString();
+            entity.etag = Guid.NewGuid().ToString();
 
             // overwrite metadata
-            await blobClient.SetMetadataAsync(_getMetadata(file)).ConfigureAwait(false);
-            // upload content with overwrite
-            await blobClient.UploadAsync(file.content, overwrite: true).ConfigureAwait(false);
+            await blobClient.SetMetadataAsync(_getMetadata(entity)).ConfigureAwait(false);
 
-            _entities[_makePath(file)] = entity;
+            _entities[_makePath(entity)] = entity;
             await _writeEntities().ConfigureAwait(false);
         }
 
@@ -97,10 +91,10 @@ namespace PolyPersist.Net.BlobStore.AzureBlob
         /// <inheritdoc/>
         Task<TEntity> ICollection<TEntity>.Find(string id, string partitionKey)
         {
-            if( _entities.TryGetValue(_makePath(partitionKey, id), out TEntity entity ) == false )
+            if (_entities.TryGetValue(_makePath(partitionKey, id), out TEntity entity) == false)
                 return default;
 
-            return Task.FromResult( entity );
+            return Task.FromResult(entity);
         }
 
         /// <inheritdoc/>
@@ -119,24 +113,46 @@ namespace PolyPersist.Net.BlobStore.AzureBlob
             return _containerClient;
         }
 
-        private string _makePath(IFile file)
-            => _makePath(file.PartitionKey, file.id);
+        /// <inheritdoc/>
+        async Task IBlobCollection<TEntity>.UploadContent(TEntity entity, Stream source)
+        {
+            BlobClient blobClient = _containerClient.GetBlobClient(_makePath(entity));
+            if (await blobClient.ExistsAsync().ConfigureAwait(false) == false)
+                throw new Exception($"Entity '{typeof(TEntity).Name}' {entity.id} can not be upload content, because it does not exist.");
+
+            await blobClient.UploadAsync(source, overwrite: true).ConfigureAwait(false);
+        }
+
+        /// <inheritdoc/>
+        async Task IBlobCollection<TEntity>.DownloadContentTo(TEntity entity, Stream destination)
+        {
+            BlobClient blobClient = _containerClient.GetBlobClient(_makePath(entity));
+            if (await blobClient.ExistsAsync().ConfigureAwait(false) == false)
+                throw new Exception($"Entity '{typeof(TEntity).Name}' {entity.id} can not be download content, because it does not exist.");
+
+            await blobClient.DownloadToAsync(destination).ConfigureAwait(false);
+        }
+
+
+        private string _makePath(IEntity entity)
+            => _makePath(entity.PartitionKey, entity.id);
 
         private string _makePath(string partitionKey, string id)
             => $"{partitionKey}/{id}";
 
-        private Dictionary<string, string> _getMetadata(IFile file)
+        private Dictionary<string, string> _getMetadata(TEntity entity)
         {
-            string json = JsonSerializer.Serialize(file, typeof(TEntity), JsonOptionsProvider.Options);
-            string content = Convert.ToBase64String(Encoding.UTF8.GetBytes(json));
+            IBlob blob = (IBlob)entity;
+            string json = JsonSerializer.Serialize(blob, typeof(TEntity), JsonOptionsProvider.Options);
+            string base64Values = Convert.ToBase64String(Encoding.UTF8.GetBytes(json));
 
             return new Dictionary<string, string>() {
-                { nameof(file.id), file.id },
-                { nameof(file.PartitionKey), file.PartitionKey },
-                { nameof(file.etag), file.etag },
-                { nameof(file.fileName), file.fileName },
-                { nameof(file.contentType), file.contentType },
-                { "content", content }
+                { nameof(blob.id), blob.id },
+                { nameof(blob.PartitionKey), blob.PartitionKey },
+                { nameof(blob.etag), blob.etag },
+                { nameof(blob.fileName), blob.fileName },
+                { nameof(blob.contentType), blob.contentType },
+                { "base64values", base64Values }
             };
         }
 
@@ -157,8 +173,7 @@ namespace PolyPersist.Net.BlobStore.AzureBlob
 
             string json = JsonSerializer.Serialize(_entities);
             using var memoryStream = new MemoryStream(Encoding.UTF8.GetBytes(json));
-            await blobClient.UploadAsync(memoryStream, overwrite: true).ConfigureAwait( false );
+            await blobClient.UploadAsync(memoryStream, overwrite: true).ConfigureAwait(false);
         }
-
     }
 }

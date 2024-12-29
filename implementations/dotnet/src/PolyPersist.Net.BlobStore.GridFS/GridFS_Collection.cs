@@ -1,12 +1,11 @@
 ﻿using MongoDB.Bson;
-using MongoDB.Bson.Serialization;
 using MongoDB.Driver;
 using MongoDB.Driver.GridFS;
 using PolyPersist.Net.Common;
 
 namespace PolyPersist.Net.BlobStore.GridFS
 {
-    internal class GridFS_Collection<TEntity> : ICollection<TEntity>
+    internal class GridFS_Collection<TEntity> : IBlobCollection<TEntity>
         where TEntity : IEntity, new()
     {
         private GridFSBucket _gridFSBucket;
@@ -30,12 +29,14 @@ namespace PolyPersist.Net.BlobStore.GridFS
         {
             await CollectionCommon.CheckBeforeInsert(entity).ConfigureAwait(false);
 
-            IFile file = (IFile)entity;
-            file.etag = Guid.NewGuid().ToString();
+            entity.etag = Guid.NewGuid().ToString();
 
-            // Upload the file to GridFS
-            await _gridFSBucket.UploadFromStreamAsync(id: _makeId(file), filename: file.fileName, file.content).ConfigureAwait(false);
+            // insertt metadata
             await _metadataCollection.InsertOneAsync(entity).ConfigureAwait(false);
+
+            // Upload empty content to GridFS, to create a entity is database
+            IBlob blob = (IBlob)entity;
+            await _gridFSBucket.UploadFromBytesAsync(_makeId(entity), blob.fileName, [0]).ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
@@ -52,11 +53,7 @@ namespace PolyPersist.Net.BlobStore.GridFS
 
             entity = await _metadataCollection.FindOneAndReplaceAsync(e => e.id == entity.id && e.PartitionKey == entity.PartitionKey && e.etag != oldETag, entity).ConfigureAwait(false);
             if (entity == null)
-                throw new Exception($"Entity '{typeof(TEntity).Name}' {entity.id} can not be updated because it is already changed or removed.");
-
-            IFile file = (IFile)entity;
-            await _gridFSBucket.DeleteAsync(fileInfo.Id).ConfigureAwait(false);
-            await _gridFSBucket.UploadFromStreamAsync(id: _makeId(file), filename: file.fileName, file.content, new GridFSUploadOptions() { Metadata = file.ToBsonDocument() }).ConfigureAwait(false);
+                throw new Exception($"Entity '{typeof(TEntity).Name}' {entity.id} can not be updated because it is already changed");
         }
 
         /// <inheritdoc/>
@@ -88,10 +85,6 @@ namespace PolyPersist.Net.BlobStore.GridFS
             IAsyncCursor<TEntity> cursor = await _metadataCollection.FindAsync(e => e.id == id && e.PartitionKey == partitionKey).ConfigureAwait(false);
             TEntity entity = await cursor.FirstOrDefaultAsync().ConfigureAwait(false);
 
-            IFile file = (IFile)entity;
-            file.content = new MemoryStream();
-            await _gridFSBucket.DownloadToStreamAsync(_makeId(file), file.content).ConfigureAwait(false);
-
             return entity;
         }
 
@@ -111,8 +104,29 @@ namespace PolyPersist.Net.BlobStore.GridFS
             return _gridFSBucket;
         }
 
-        private ObjectId _makeId(IFile file)
-            => _makeId(file.PartitionKey, file.id);
+        async Task IBlobCollection<TEntity>.UploadContent(TEntity entity, Stream source)
+        {
+            GridFSFileInfo fileInfo = await _getFileInfo(entity.PartitionKey, entity.id).ConfigureAwait(false);
+            if (fileInfo == null )
+                throw new Exception($"Entity '{typeof(TEntity).Name}' {entity.id} can not upload, because it is does not exist");
+
+            await _gridFSBucket.DeleteAsync(fileInfo.Id).ConfigureAwait(false);
+
+            IBlob blob = (IBlob)entity;
+            await _gridFSBucket.UploadFromStreamAsync(_makeId(entity), blob.fileName, source).ConfigureAwait(false);
+        }
+
+        async Task IBlobCollection<TEntity>.DownloadContentTo(TEntity entity, Stream destination)
+        {
+            GridFSFileInfo fileInfo = await _getFileInfo(entity.PartitionKey, entity.id).ConfigureAwait(false);
+            if (fileInfo == null )
+                throw new Exception($"Entity '{typeof(TEntity).Name}' {entity.id} can not download, because it is does not exist");
+
+            await _gridFSBucket.DownloadToStreamAsync(fileInfo.Id, destination).ConfigureAwait(false);
+        }
+
+        private ObjectId _makeId(TEntity blob)
+            => _makeId(blob.PartitionKey, blob.id);
 
         private ObjectId _makeId(string partitionKey, string id)
             => new ObjectId($"{partitionKey}/{id}");

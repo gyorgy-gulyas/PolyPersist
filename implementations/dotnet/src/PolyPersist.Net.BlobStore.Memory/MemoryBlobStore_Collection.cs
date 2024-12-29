@@ -3,7 +3,7 @@ using System.Text.Json;
 
 namespace PolyPersist.Net.BlobStore.Memory
 {
-    internal class MemoryBlobStore_Collection<TEntity> : ICollection<TEntity>
+    internal class MemoryBlobStore_Collection<TEntity> : IBlobCollection<TEntity>
         where TEntity : IEntity, new()
     {
         internal string _name;
@@ -30,18 +30,17 @@ namespace PolyPersist.Net.BlobStore.Memory
             if (string.IsNullOrEmpty(entity.id) == true)
                 entity.id = Guid.NewGuid().ToString();
 
-            IFile file = (IFile)entity;
-            _BlobData blob = new()
+            IBlob blob = (IBlob)entity;
+            _BlobData blobData = new()
             {
                 id = entity.id,
                 partionKey = entity.PartitionKey,
                 etag = entity.etag,
                 MetadataJSON = JsonSerializer.Serialize(entity, typeof(TEntity), JsonOptionsProvider.Options),
-                Content = _streamToByteArray(file.content),
             };
 
-            _collectionData.MapOfBlobs.Add((entity.id, entity.PartitionKey), blob);
-            _collectionData.ListOfBlobs.Add(blob);
+            _collectionData.MapOfBlobs.Add((entity.id, entity.PartitionKey), blobData);
+            _collectionData.ListOfBlobs.Add(blobData);
         }
 
         /// <inheritdoc/>
@@ -49,17 +48,16 @@ namespace PolyPersist.Net.BlobStore.Memory
         {
             await CollectionCommon.CheckBeforeUpdate(entity).ConfigureAwait(false);
 
-            if (_collectionData.MapOfBlobs.TryGetValue((entity.id, entity.PartitionKey), out _BlobData blob) == false)
-                throw new Exception($"Entity '{typeof(TEntity).Name}' {entity.id} can not be removed because it is already removed");
+            if (_collectionData.MapOfBlobs.TryGetValue((entity.id, entity.PartitionKey), out _BlobData blobData) == false)
+                throw new Exception($"Entity '{typeof(TEntity).Name}' {entity.id} can not be removed because it is does dot exist");
 
-            if (blob.etag != entity.etag)
+            if (blobData.etag != entity.etag)
                 throw new Exception($"Entity '{typeof(TEntity).Name}' {entity.id} can not be updated because it is already changed");
 
-            IFile file = (IFile)entity;
+            IBlob blob = (IBlob)entity;
             entity.etag = Guid.NewGuid().ToString();
-            blob.etag = entity.etag;
-            blob.MetadataJSON = JsonSerializer.Serialize(entity, typeof(TEntity), JsonOptionsProvider.Options);
-            blob.Content = _streamToByteArray(file.content);
+            blobData.etag = entity.etag;
+            blobData.MetadataJSON = JsonSerializer.Serialize(entity, typeof(TEntity), JsonOptionsProvider.Options);
         }
 
         /// <inheritdoc/>
@@ -72,7 +70,7 @@ namespace PolyPersist.Net.BlobStore.Memory
         Task ICollection<TEntity>.Delete(string id, string partitionKey)
         {
             if (_collectionData.MapOfBlobs.TryGetValue((id, partitionKey), out _BlobData blob) == false)
-                throw new Exception($"Entity '{typeof(TEntity).Name}' {id} can not be removed because it is already removed");
+                throw new Exception($"Entity '{typeof(TEntity).Name}' {id} can not be removed because it is does not exist");
 
             _collectionData.MapOfBlobs.Remove((id, partitionKey));
             _collectionData.ListOfBlobs.Remove(blob);
@@ -86,9 +84,6 @@ namespace PolyPersist.Net.BlobStore.Memory
             if (_collectionData.MapOfBlobs.TryGetValue((id, partitionKey), out _BlobData blob) == true)
             {
                 TEntity entity = JsonSerializer.Deserialize<TEntity>(blob.MetadataJSON, JsonOptionsProvider.Options);
-                IFile file = (IFile)entity;
-                file.content = _byteArrayToStream(blob.Content);
-
                 return Task.FromResult(entity);
             }
 
@@ -102,7 +97,10 @@ namespace PolyPersist.Net.BlobStore.Memory
             if (isQueryable == false)
                 throw new Exception($"TQuery is must be 'IQueryable<TEntity>' in dotnet implementation");
 
-            return (TQuery)_collectionData.ListOfBlobs.AsQueryable();
+            return (TQuery)_collectionData
+            .ListOfBlobs
+                .Select( b => JsonSerializer.Deserialize<TEntity>(b.MetadataJSON, JsonOptionsProvider.Options))
+                .AsQueryable();
         }
 
         /// <inheritdoc/>s
@@ -111,16 +109,30 @@ namespace PolyPersist.Net.BlobStore.Memory
             return _collectionData;
         }
 
+        Task IBlobCollection<TEntity>.UploadContent(TEntity entity, Stream source)
+        {
+            if (_collectionData.MapOfBlobs.TryGetValue((entity.id, entity.PartitionKey), out _BlobData blob) == false)
+                throw new Exception($"Entity '{typeof(TEntity).Name}' {entity.id} can not upload, because it is does not exist");
+
+            blob.Content = _streamToByteArray(source);
+            return Task.CompletedTask;
+        }
+
+        Task IBlobCollection<TEntity>.DownloadContentTo(TEntity entity, Stream destination)
+        {
+            if (_collectionData.MapOfBlobs.TryGetValue((entity.id, entity.PartitionKey), out _BlobData blob) == false)
+                throw new Exception($"Entity '{typeof(TEntity).Name}' {entity.id} can not download, because it is does not exist");
+
+            destination.Write(blob.Content, 0, blob.Content.Length);
+            return Task.CompletedTask;
+        }
+
+
         public static byte[] _streamToByteArray(Stream input)
         {
             using MemoryStream ms = new MemoryStream();
             input.CopyTo(ms);
             return ms.ToArray();
-        }
-
-        public static Stream _byteArrayToStream(byte[] byteArray)
-        {
-            return new MemoryStream(byteArray);
         }
     }
 }
