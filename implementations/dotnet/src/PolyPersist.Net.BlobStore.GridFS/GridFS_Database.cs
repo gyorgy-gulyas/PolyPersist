@@ -36,7 +36,8 @@ namespace PolyPersist.Net.BlobStore.GridFS
             GridFSBucket gridFSBucket = new GridFSBucket(_mongoDatabase, new GridFSBucketOptions() { BucketName = collectionName });
 
             return collections.Contains(gridFSBucket.Options.BucketName + ".chunks")
-                && collections.Contains(gridFSBucket.Options.BucketName + ".files");
+                && collections.Contains(gridFSBucket.Options.BucketName + ".files")
+                && collections.Contains(gridFSBucket.Options.BucketName + ".metadata");
         }
 
         /// <inheritdoc/>
@@ -64,6 +65,7 @@ namespace PolyPersist.Net.BlobStore.GridFS
             GridFSBucket gridFSBucket = new GridFSBucket(_mongoDatabase, new GridFSBucketOptions() { BucketName = collectionName });
             await _mongoDatabase.CreateCollectionAsync(gridFSBucket.Options.BucketName + ".files").ConfigureAwait(false);
             await _mongoDatabase.CreateCollectionAsync(gridFSBucket.Options.BucketName + ".chunks").ConfigureAwait(false);
+            await _mongoDatabase.CreateCollectionAsync(gridFSBucket.Options.BucketName + ".metadata").ConfigureAwait(false);
             return new GridFS_Collection<TEntity>(gridFSBucket, this);
         }
 
@@ -75,7 +77,8 @@ namespace PolyPersist.Net.BlobStore.GridFS
 
             GridFSBucket gridFSBucket = new GridFSBucket(_mongoDatabase, new GridFSBucketOptions() { BucketName = collectionName });
             await _mongoDatabase.DropCollectionAsync(gridFSBucket.Options.BucketName + ".files").ConfigureAwait(false);
-            await _mongoDatabase.DropCollectionAsync(gridFSBucket.Options.BucketName + ".chunks").ConfigureAwait( false );
+            await _mongoDatabase.DropCollectionAsync(gridFSBucket.Options.BucketName + ".chunks").ConfigureAwait(false);
+            await _mongoDatabase.DropCollectionAsync(gridFSBucket.Options.BucketName + ".metadata").ConfigureAwait(false);
         }
     }
 }

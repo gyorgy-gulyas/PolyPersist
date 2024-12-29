@@ -35,7 +35,7 @@ namespace PolyPersist.Net.DocumentStore.MongoDB
             string oldETag = entity.etag;
             entity.etag = Guid.NewGuid().ToString();
 
-            entity = await _mongoCollection.FindOneAndReplaceAsync(e => e.id == entity.id && e.PartitionKey == entity.PartitionKey && e.etag != entity.etag, entity).ConfigureAwait(false);
+            entity = await _mongoCollection.FindOneAndReplaceAsync(e => e.id == entity.id && e.PartitionKey == entity.PartitionKey && e.etag != oldETag, entity).ConfigureAwait(false);
             if(entity== null)
                 throw new Exception($"Entity '{typeof(TEntity).Name}' {entity.id} can not be updated because it is already changed or removed.");
         }

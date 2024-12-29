@@ -39,7 +39,7 @@ namespace PolyPersist.Net.BlobStore.AzureBlob
                 throw new Exception($"Collection '{collectionName}' is already exist in AzureBlob storage '{_storeName}'");
 
             await containerClient.CreateAsync().ConfigureAwait(false);
-            return new AzureBlob_Container<TEntity>(containerClient);
+            return new AzureBlob_Collection<TEntity>(containerClient);
         }
 
         /// <inheritdoc/>
@@ -49,7 +49,7 @@ namespace PolyPersist.Net.BlobStore.AzureBlob
             if (await containerClient.ExistsAsync().ConfigureAwait(false) == false)
                 throw new Exception($"Collection '{collectionName}' does not exist in AzureBlob storage '{_storeName}'");
 
-            return new AzureBlob_Container<TEntity>(containerClient);
+            return new AzureBlob_Collection<TEntity>(containerClient);
         }
 
         /// <inheritdoc/>

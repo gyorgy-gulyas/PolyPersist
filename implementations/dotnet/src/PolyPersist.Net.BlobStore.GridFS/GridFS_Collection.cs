@@ -12,12 +12,14 @@ namespace PolyPersist.Net.BlobStore.GridFS
         private GridFSBucket _gridFSBucket;
         private GridFS_Database _database;
         public IMongoCollection<GridFSFileInfo> _filesCollection;
+        public IMongoCollection<TEntity> _metadataCollection;
 
         public GridFS_Collection(GridFSBucket gridFSBucket, GridFS_Database database)
         {
             _gridFSBucket = gridFSBucket;
             _database = database;
             _filesCollection = _database._mongoDatabase.GetCollection<GridFSFileInfo>(gridFSBucket.Options.BucketName + ".files");
+            _metadataCollection = _database._mongoDatabase.GetCollection<TEntity>(gridFSBucket.Options.BucketName + ".metadata");
         }
 
         /// <inheritdoc/>
@@ -32,7 +34,8 @@ namespace PolyPersist.Net.BlobStore.GridFS
             file.etag = Guid.NewGuid().ToString();
 
             // Upload the file to GridFS
-            await _gridFSBucket.UploadFromStreamAsync(id: _makeId(file), filename: file.fileName, file.content, new GridFSUploadOptions() { Metadata = file.ToBsonDocument() }).ConfigureAwait(false);
+            await _gridFSBucket.UploadFromStreamAsync(id: _makeId(file), filename: file.fileName, file.content).ConfigureAwait(false);
+            await _metadataCollection.InsertOneAsync(entity).ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
@@ -40,17 +43,18 @@ namespace PolyPersist.Net.BlobStore.GridFS
         {
             await CollectionCommon.CheckBeforeUpdate(entity).ConfigureAwait(false);
 
-            IFile file = (IFile)entity;
-            GridFSFileInfo fileInfo = await _getFileInfo(file.PartitionKey, file.id).ConfigureAwait(false);
+            GridFSFileInfo fileInfo = await _getFileInfo(entity.PartitionKey, entity.id).ConfigureAwait(false);
             if (fileInfo == null)
                 throw new Exception($"Entity '{typeof(TEntity).Name}' {entity.id} can not be updated because it does not exist.");
 
-            TEntity oldEntity = BsonSerializer.Deserialize<TEntity>(fileInfo.Metadata, null);
-            if (oldEntity.etag != entity.etag)
-                throw new Exception($"Entity '{typeof(TEntity).Name}' {entity.id} can not be updated because it is already changed.");
+            string oldETag = entity.etag;
+            entity.etag = Guid.NewGuid().ToString();
 
-            file.etag = Guid.NewGuid().ToString();
+            entity = await _metadataCollection.FindOneAndReplaceAsync(e => e.id == entity.id && e.PartitionKey == entity.PartitionKey && e.etag != oldETag, entity).ConfigureAwait(false);
+            if (entity == null)
+                throw new Exception($"Entity '{typeof(TEntity).Name}' {entity.id} can not be updated because it is already changed or removed.");
 
+            IFile file = (IFile)entity;
             await _gridFSBucket.DeleteAsync(fileInfo.Id).ConfigureAwait(false);
             await _gridFSBucket.UploadFromStreamAsync(id: _makeId(file), filename: file.fileName, file.content, new GridFSUploadOptions() { Metadata = file.ToBsonDocument() }).ConfigureAwait(false);
         }
@@ -64,7 +68,14 @@ namespace PolyPersist.Net.BlobStore.GridFS
         /// <inheritdoc/>
         async Task ICollection<TEntity>.Delete(string id, string partitionKey)
         {
-            GridFSFileInfo fileInfo = await _getFileInfo( partitionKey, id).ConfigureAwait(false);
+            DeleteResult result = await _metadataCollection.DeleteOneAsync(e => e.id == id && e.PartitionKey == partitionKey).ConfigureAwait(false);
+            if (result.IsAcknowledged == false)
+                throw new Exception($"Entity '{typeof(TEntity).Name}' {id} can not be removed. Database refused to acknowledge the operation.");
+
+            if (result.DeletedCount != 1)
+                throw new Exception($"Entity '{typeof(TEntity).Name}'{id} can not be removed because it is already removed or changed.");
+
+            GridFSFileInfo fileInfo = await _getFileInfo(partitionKey, id).ConfigureAwait(false);
             if (fileInfo == null)
                 throw new Exception($"Entity '{typeof(TEntity).Name}' {id} can not be delete because it does not exist.");
 
@@ -74,15 +85,12 @@ namespace PolyPersist.Net.BlobStore.GridFS
         /// <inheritdoc/>
         async Task<TEntity> ICollection<TEntity>.Find(string id, string partitionKey)
         {
-            GridFSFileInfo fileInfo = await _getFileInfo(partitionKey, id).ConfigureAwait(false);
-            if (fileInfo == null)
-                return default;
-
-            TEntity entity = BsonSerializer.Deserialize<TEntity>(fileInfo.Metadata, null);
+            IAsyncCursor<TEntity> cursor = await _metadataCollection.FindAsync(e => e.id == id && e.PartitionKey == partitionKey).ConfigureAwait(false);
+            TEntity entity = await cursor.FirstOrDefaultAsync().ConfigureAwait(false);
 
             IFile file = (IFile)entity;
             file.content = new MemoryStream();
-            await _gridFSBucket.DownloadToStreamAsync(fileInfo.Id, file.content).ConfigureAwait(false);
+            await _gridFSBucket.DownloadToStreamAsync(_makeId(file), file.content).ConfigureAwait(false);
 
             return entity;
         }
@@ -94,11 +102,7 @@ namespace PolyPersist.Net.BlobStore.GridFS
             if (isQueryable == false)
                 throw new Exception($"TQuery is must be 'IQueryable<TEntity>' in dotnet implementation");
 
-            return (TQuery)_filesCollection
-                .AsQueryable()
-                .ToList()
-                .Select(fileinfo => BsonSerializer.Deserialize<TEntity>(fileinfo.Metadata, null))
-                .AsQueryable();
+            return (TQuery)_metadataCollection.AsQueryable();
         }
 
         /// <inheritdoc/>
