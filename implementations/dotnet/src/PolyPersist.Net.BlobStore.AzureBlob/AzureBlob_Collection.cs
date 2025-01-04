@@ -1,7 +1,8 @@
-﻿using Azure.Storage.Blobs;
+﻿using Azure;
+using Azure.Data.Tables;
+using Azure.Storage.Blobs;
+using PolyPersist.Net.BlobStore.AzureBlob.AzureTable;
 using PolyPersist.Net.Common;
-using System.Text;
-using System.Text.Json;
 
 namespace PolyPersist.Net.BlobStore.AzureBlob
 {
@@ -9,17 +10,14 @@ namespace PolyPersist.Net.BlobStore.AzureBlob
         where TEntity : IEntity, new()
     {
         private BlobContainerClient _containerClient;
-        private Dictionary<string, TEntity> _entities = [];
+        internal TableClient _tableClient;
 
-        public AzureBlob_Collection(BlobContainerClient containerClient)
+
+
+        public AzureBlob_Collection(BlobContainerClient containerClient, TableClient tableClient)
         {
             _containerClient = containerClient;
-
-            BlobClient blobClient = _containerClient.GetBlobClient("__entities.json");
-            if (blobClient.Exists() == true)
-                _readEntities(blobClient);
-            else
-                _writeEntities().Wait();
+            _tableClient = tableClient;
         }
 
         /// <inheritdoc/>
@@ -39,8 +37,8 @@ namespace PolyPersist.Net.BlobStore.AzureBlob
             // set metadata
             await blobClient.SetMetadataAsync(_getMetadata(entity)).ConfigureAwait(false);
 
-            _entities[_makePath(entity)] = entity;
-            await _writeEntities().ConfigureAwait(false);
+            // add all members to table storage
+            await _tableClient.AddEntityAsync(new AzureTable_Entity<TEntity>(entity)).ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
@@ -64,8 +62,8 @@ namespace PolyPersist.Net.BlobStore.AzureBlob
             // overwrite metadata
             await blobClient.SetMetadataAsync(_getMetadata(entity)).ConfigureAwait(false);
 
-            _entities[_makePath(entity)] = entity;
-            await _writeEntities().ConfigureAwait(false);
+            // add update table storage
+            await _tableClient.UpdateEntityAsync(new AzureTable_Entity<TEntity>(entity), ETag.All).ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
@@ -84,17 +82,19 @@ namespace PolyPersist.Net.BlobStore.AzureBlob
 
             await blobClient.DeleteAsync().ConfigureAwait(false);
 
-            _entities.Remove(_makePath(partitionKey, id));
-            await _writeEntities().ConfigureAwait(false);
+            // add delet from table storage
+            await _tableClient.DeleteEntityAsync(partitionKey,id, ETag.All).ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
-        Task<TEntity> ICollection<TEntity>.Find(string id, string partitionKey)
+        async Task<TEntity> ICollection<TEntity>.Find(string id, string partitionKey)
         {
-            if (_entities.TryGetValue(_makePath(partitionKey, id), out TEntity entity) == false)
-                return default;
+            NullableResponse<AzureTable_Entity<TEntity>> tableEnity = await _tableClient.GetEntityIfExistsAsync<AzureTable_Entity<TEntity>>(partitionKey, id).ConfigureAwait(false);
 
-            return Task.FromResult(entity);
+            if (tableEnity.HasValue == true)
+                return tableEnity.Value.Entity;
+
+            return default;
         }
 
         /// <inheritdoc/>
@@ -104,7 +104,9 @@ namespace PolyPersist.Net.BlobStore.AzureBlob
             if (isQueryable == false)
                 throw new Exception($"TQuery is must be 'IQueryable<TEntity>' in dotnet implementation");
 
-            return (TQuery)_entities.Values.AsQueryable();
+            AzureTable_Queryable<TableEntity> queryable = new AzureTable_Queryable<TableEntity>(_tableClient);
+
+            return (TQuery)queryable.AsQueryable();
         }
 
         /// <inheritdoc/>
@@ -143,8 +145,6 @@ namespace PolyPersist.Net.BlobStore.AzureBlob
         private Dictionary<string, string> _getMetadata(TEntity entity)
         {
             IBlob blob = (IBlob)entity;
-            string json = JsonSerializer.Serialize(blob, typeof(TEntity), JsonOptionsProvider.Options);
-            string base64Values = Convert.ToBase64String(Encoding.UTF8.GetBytes(json));
 
             return new Dictionary<string, string>() {
                 { nameof(blob.id), blob.id },
@@ -152,28 +152,9 @@ namespace PolyPersist.Net.BlobStore.AzureBlob
                 { nameof(blob.etag), blob.etag },
                 { nameof(blob.fileName), blob.fileName },
                 { nameof(blob.contentType), blob.contentType },
-                { "base64values", base64Values }
             };
         }
-
-        void _readEntities(BlobClient blobClient)
-        {
-            using var memoryStream = new MemoryStream();
-            blobClient.DownloadTo(memoryStream);
-
-            memoryStream.Position = 0;
-            using var streamReader = new StreamReader(memoryStream, Encoding.UTF8);
-            var json = streamReader.ReadToEnd();
-            _entities = JsonSerializer.Deserialize<Dictionary<string, TEntity>>(json, JsonOptionsProvider.Options);
-        }
-
-        async Task _writeEntities()
-        {
-            BlobClient blobClient = _containerClient.GetBlobClient("__entities.json");
-
-            string json = JsonSerializer.Serialize(_entities);
-            using var memoryStream = new MemoryStream(Encoding.UTF8.GetBytes(json));
-            await blobClient.UploadAsync(memoryStream, overwrite: true).ConfigureAwait(false);
-        }
     }
+
+    
 }

@@ -1,4 +1,5 @@
-﻿using Azure.Storage.Blobs;
+﻿using Azure.Data.Tables;
+using Azure.Storage.Blobs;
 using System.Text;
 
 namespace PolyPersist.Net.BlobStore.AzureBlob
@@ -7,12 +8,14 @@ namespace PolyPersist.Net.BlobStore.AzureBlob
     {
         internal string _connectionString;
         internal BlobServiceClient _blobServiceClient;
+        internal TableServiceClient _tableServiceClient;
         internal BlobContainerClient _systemContainer;
 
         public AzureBlob_Connection(string connectionString)
         {
             _connectionString = connectionString;
             _blobServiceClient = new BlobServiceClient(connectionString);
+            _tableServiceClient = new TableServiceClient(connectionString);
             _systemContainer = _blobServiceClient.GetBlobContainerClient("__system");
         }
 

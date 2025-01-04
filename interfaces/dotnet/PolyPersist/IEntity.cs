@@ -38,6 +38,6 @@ namespace PolyPersist
 		///
 		/// This property is marked as 'readonly' to ensure that the partition key remains immutable,
 		/// as changing it would lead to significant system inconsistencies.
-		public string PartitionKey { get; }
+		public string PartitionKey { get; set;}
 	}
 }
