@@ -1,0 +1,73 @@
+#---------------------------------------------------------------------------------------------------
+# These files are part of the PolyPersist project and are intended to be processed by the unicontract tool.
+# After modifying these files, running unicontract is required to propagate the changes to the interface files in every supported programming language.
+# unicontract will generate the necessary interface files in .NET, Java, and Python, reflecting the modifications made in this file.
+#---------------------------------------------------------------------------------------------------
+
+namespace PolyPersist {
+
+    # IDataStore is the representation of a generic "data store" abstraction.
+    # This can be any type of database such as a SQL database, Document Database, ColumnStore (keyspace), Vector Database, etc.
+    # 
+    # The interface defines basic functionality that can be implemented on any type of database,
+    # regardless of whether it is a relational database, a NoSQL document store, a wide-column store, or a vector database.
+    #
+    # This abstraction ensures a uniform way to interact with various types of databases,
+    # while allowing flexibility for specific implementations tailored to the database type.
+    interface IStore {
+
+        # This enum defines various types of data stores or database representations.
+        # Each entry represents a different data storage model suitable for specific data types and use cases.
+        enum StorageModels {
+            # Relational databases (SQL) store data in structured tables and support complex queries through SQL.
+            # Examples include MySQL, PostgreSQL, SQL Server, etc.
+            Relational,
+
+            # Document-oriented databases store data in flexible formats like JSON or BSON.
+            # They are ideal for semi-structured data and are used by systems like MongoDB, CouchDB, and CosmosDB.
+            Document,
+
+            # Vector databases are specialized for storing and searching large-scale, high-dimensional vector data.
+            # These are used in machine learning, AI, and search systems, with examples like Faiss and Milvus.
+            Vector,
+
+            # Graph databases store data as nodes and edges, representing entities and their relationships.
+            # They are particularly useful for modeling complex networks, social graphs, and interconnected data.
+            Graph,
+
+            # Key-value stores are simple and fast databases where data is stored as key-value pairs.
+            # These are typically used for caching and simple lookups, such as Redis, DynamoDB, and Riak.
+            KeyValue,
+
+            # Column store databases organize data into columns rather than rows, optimized for read-heavy workloads.
+            # They are widely used in big data systems and include databases like Cassandra, ScyllaDB, and HBase.
+            ColumnStore,
+
+            # Spatial databases store geographical or spatial data and are used for location-based queries and analysis.
+            # Examples include PostGIS (an extension for PostgreSQL) and Oracle Spatial.
+            Spatial,
+
+            # File or File storage systems are used for storing unstructured data, such as files, images, or blobs.
+            # Azure Blob Storage and Amazon S3 are prime examples of file storage systems.
+            BlobStore
+        }
+
+        # The StorageModel property represents the type of data storage or model that the IDataStore is designed to handle.
+        # It defines the underlying storage model used by the data store, such as Relational, Document, Vector, etc.
+        # This property helps identify what kind of data the store can manage and supports operations specific to the selected model.
+        readonly property StorageModel: StorageModels
+
+        # The ProviderName property represents the name of the underlying database or data provider that the IDataStore is connected to.
+        # It identifies the specific database system or service behind the IDataStore implementation.
+        # This could be a name like "MongoDB", "Cassandra", "PostgreSQL", etc., depending on which provider is being used.
+        # The ProviderName is useful for understanding the context of the data store, such as its behavior, features, and limitations.
+        readonly property ProviderName: string
+
+        # The Name property represents the name of the data store instance.
+        # It can refer to the name of a database (e.g., "MyDatabase"), a keyspace in a NoSQL database (e.g., "MyKeyspace"), 
+        # or any logical identifier used to distinguish the data store within the context of the application.
+        # This property is essential for identifying the target data store when performing operations
+        # such as querying, updating, or managing collections.
+        readonly property Name: string
+    }
+}
