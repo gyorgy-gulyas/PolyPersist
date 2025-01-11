@@ -1,70 +1,66 @@
 ﻿namespace PolyPersist.Net.BlobStore.Memory
 {
-    internal class MemoryBlobStore_DataStore : IDataStore
+    internal class MemoryBlobStore_DataStore : IBlobStore
     {
         internal string _storeName;
-        internal MemoryBlobStore_Connection _connection;
-        internal List<_CollectionData> _Collections = [];
+        internal List<_ContainerData> _Containers = [];
 
-        public MemoryBlobStore_DataStore(string storeName, MemoryBlobStore_Connection connection)
+        public MemoryBlobStore_DataStore(string storeName)
         {
             _storeName = storeName;
-            _connection = connection;
         }
 
         /// <inheritdoc/>
-        IConnection IDataStore.Connection => _connection;
+        IStore.StorageModels IStore.StorageModel => IStore.StorageModels.Document;
         /// <inheritdoc/>
-        IDataStore.StorageModels IDataStore.StorageModel => IDataStore.StorageModels.Document;
+        string IStore.ProviderName => "Memory_BlobStore";
         /// <inheritdoc/>
-        string IDataStore.ProviderName => "Memory_BlobStore";
-        /// <inheritdoc/>
-        string IDataStore.Name => _storeName;
+        string IStore.Name => _storeName;
 
         /// <inheritdoc/>
-        Task<bool> IDataStore.IsCollectionExists(string collectionName)
+        Task<bool> IBlobStore.IsContainerExists(string containerName)
         {
-            if (_Collections.FindIndex(c => c.Name == collectionName) != -1)
+            if (_Containers.FindIndex(c => c.Name == containerName) != -1)
                 return Task.FromResult(true);
             else
                 return Task.FromResult(false);
         }
 
         /// <inheritdoc/>
-        Task<ICollection<TEntity>> IDataStore.GetCollectionByName<TEntity>(string collectionName)
+        Task<IBlobContainer<TBlob>> IBlobStore.GetContainerByName<TBlob>(string containerName)
         {
-            _CollectionData collectionData = _Collections.Find(c => c.Name == collectionName);
-            if (collectionData == null)
-                throw new Exception($"Collection '{collectionName}' does not exist in Mongo Database '{_storeName}'");
+            _ContainerData containerData = _Containers.Find(c => c.Name == containerName);
+            if (containerData == null)
+                throw new Exception($"Container '{containerName}' does not exist in Mongo Database '{_storeName}'");
 
-            ICollection<TEntity> collection = new MemoryBlobStore_Collection<TEntity>(collectionName, collectionData, this);
-            return Task.FromResult(collection);
+            IBlobContainer<TBlob> container = new MemoryBlobStore_Container<TBlob>(containerName, containerData, this);
+            return Task.FromResult(container);
         }
 
         /// <inheritdoc/>
-        Task<ICollection<TEntity>> IDataStore.CreateCollection<TEntity>(string collectionName)
+        Task<IBlobContainer<TBlob>> IBlobStore.CreateContainer<TBlob>(string containerName)
         {
-            _CollectionData collectionData = new(collectionName);
-            _Collections.Add(collectionData);
+            _ContainerData containerData = new(containerName);
+            _Containers.Add(containerData);
 
-            ICollection<TEntity> collection = new MemoryBlobStore_Collection<TEntity>(collectionName, collectionData, this);
-            return Task.FromResult(collection);
+            IBlobContainer<TBlob> container = new MemoryBlobStore_Container<TBlob>(containerName, containerData, this);
+            return Task.FromResult(container);
         }
 
         /// <inheritdoc/>
-        Task IDataStore.DropCollection(string collectionName)
+        Task IBlobStore.DropContainer(string containerName)
         {
-            _CollectionData collectionData = _Collections.Find(c => c.Name == collectionName);
-            if (collectionData == null)
-                throw new Exception($"Collection '{collectionName}' does not exist in Mongo Database '{_storeName}'");
+            _ContainerData containerData = _Containers.Find(c => c.Name == containerName);
+            if (containerData == null)
+                throw new Exception($"Container '{containerName}' does not exist in Mongo Database '{_storeName}'");
 
-            _Collections.Remove(collectionData);
+            _Containers.Remove(containerData);
             return Task.CompletedTask;
         }
     }
-    public class _CollectionData
+    public class _ContainerData
     {
-        internal _CollectionData(string name)
+        internal _ContainerData(string name)
         {
             Name = name;
         }

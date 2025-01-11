@@ -35,7 +35,7 @@ namespace PolyPersist
 		///
 		/// Use Case:
 		/// Add a new file to the container with its associated metadata.
-		public Task UploadBlob( TBlob blob, Stream content );
+		public Task Upload( TBlob blob, Stream content );
 		/// Downloads the content of a blob from the container.
 		///
 		/// Parameters:
@@ -67,7 +67,7 @@ namespace PolyPersist
 		///
 		/// Use Case:
 		/// Locate and retrieve a specific file from the container.
-		public Task<Stream> Find( string partitionKey, string id );
+		public Task<TBlob> Find( string partitionKey, string id );
 		/// Updates the content of an existing blob in the container.
 		///
 		/// Parameters:

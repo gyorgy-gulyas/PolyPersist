@@ -12,13 +12,13 @@ using System.Collections.Generic;
 
 namespace PolyPersist
 {
-	/// The IBlobStoreStore interface defines operations for managing blob storage containers.
+	/// The IBlobStore interface defines operations for managing blob storage containers.
 	/// Containers serve as logical units for organizing and isolating blobs.
 	///
 	/// Examples:
 	/// - A container named 'UserUploads' storing all user-uploaded files.
 	/// - A container named 'Logs' for storing application logs.
-	public interface IBlobStoreStore : IStore
+	public interface IBlobStore : IStore
 	{
 		/// Checks whether a container exists in the blob storage.
 		///
