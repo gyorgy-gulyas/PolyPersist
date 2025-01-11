@@ -81,7 +81,7 @@ namespace PolyPersist {
         #
         # Use Case:
         # Retrieve a container to perform blob operations like uploading or downloading files.
-        async method GetContainerByName<TBlob constraint IBlob>(containerName: string) => IBlobContainer<TBlob>
+        async method GetContainerByName<TBlob constraint IBlob instantiable>(containerName: string) => IBlobContainer<TBlob>
 
         # Creates a new container in the blob storage.
         #
@@ -96,7 +96,7 @@ namespace PolyPersist {
         #
         # Use Case:
         # Create a container for a specific group of files, such as user uploads or application logs.
-        async method CreateContainer<TBlob constraint IBlob>(containerName: string) => IBlobContainer<TBlob>
+        async method CreateContainer<TBlob constraint IBlob instantiable>(containerName: string) => IBlobContainer<TBlob>
 
         # Deletes an existing container from the blob storage.
         #
@@ -114,7 +114,7 @@ namespace PolyPersist {
     # Examples:
     # - A container for user-uploaded photos, where each blob represents an image.
     # - A container for logs, where each blob is a log file.
-    interface IBlobContainer<TBlob constraint IBlob> {
+    interface IBlobContainer<TBlob constraint IBlob instantiable> {
 
         # Read-only property representing the name of the container.
         #

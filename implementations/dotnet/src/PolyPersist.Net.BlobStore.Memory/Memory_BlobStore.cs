@@ -1,11 +1,11 @@
 ﻿namespace PolyPersist.Net.BlobStore.Memory
 {
-    internal class MemoryBlobStore_DataStore : IBlobStore
+    internal class Memory_BlobStore : IBlobStore
     {
         internal string _storeName;
         internal List<_ContainerData> _Containers = [];
 
-        public MemoryBlobStore_DataStore(string storeName)
+        public Memory_BlobStore(string storeName)
         {
             _storeName = storeName;
         }
@@ -33,7 +33,7 @@
             if (containerData == null)
                 throw new Exception($"Container '{containerName}' does not exist in Mongo Database '{_storeName}'");
 
-            IBlobContainer<TBlob> container = new MemoryBlobStore_Container<TBlob>(containerName, containerData, this);
+            IBlobContainer<TBlob> container = new Memory_BlobContainer<TBlob>(containerName, containerData, this);
             return Task.FromResult(container);
         }
 
@@ -43,7 +43,7 @@
             _ContainerData containerData = new(containerName);
             _Containers.Add(containerData);
 
-            IBlobContainer<TBlob> container = new MemoryBlobStore_Container<TBlob>(containerName, containerData, this);
+            IBlobContainer<TBlob> container = new Memory_BlobContainer<TBlob>(containerName, containerData, this);
             return Task.FromResult(container);
         }
 

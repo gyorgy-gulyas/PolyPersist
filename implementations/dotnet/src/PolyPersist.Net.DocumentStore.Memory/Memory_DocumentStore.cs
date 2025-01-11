@@ -1,11 +1,11 @@
 ﻿namespace PolyPersist.Net.DocumentStore.Memory
 {
-    internal class MemoryDocumentDB_DataStore : IDocumentStore
+    internal class Memory_DocumentStore : IDocumentStore
     {
         internal string _storeName;
         internal List<_CollectionData> _Collections = [];
 
-        public MemoryDocumentDB_DataStore(string storeName )
+        public Memory_DocumentStore(string storeName )
         {
             _storeName = storeName;
         }
@@ -33,7 +33,7 @@
             if (collectionData == null)
                 throw new Exception($"Collection '{collectionName}' does not exist in Mongo Database '{_storeName}'");
 
-            IDocumentCollection<TDocument> collection = new MemoryDocumentDB_Collection<TDocument>( collectionName, collectionData, this);
+            IDocumentCollection<TDocument> collection = new Memory_DocumentCollection<TDocument>( collectionName, collectionData, this);
             return Task.FromResult(collection);
         }
 
@@ -43,7 +43,7 @@
             _CollectionData collectionData = new(collectionName);
             _Collections.Add(collectionData);
 
-            IDocumentCollection<TDocument> collection = new MemoryDocumentDB_Collection<TDocument>(collectionName, collectionData, this);
+            IDocumentCollection<TDocument> collection = new Memory_DocumentCollection<TDocument>(collectionName, collectionData, this);
             return Task.FromResult(collection);
         }
 

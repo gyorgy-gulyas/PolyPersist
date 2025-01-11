@@ -2,11 +2,11 @@
 
 namespace PolyPersist.Net.DocumentStore.MongoDB
 {
-    internal class MongoDB_Database : IDocumentStore
+    internal class MongoDB_DocumentStore : IDocumentStore
     {
         internal readonly IMongoDatabase _mongoDatabase;
 
-        public MongoDB_Database(IMongoDatabase mongoDatabase)
+        public MongoDB_DocumentStore(IMongoDatabase mongoDatabase)
         {
             _mongoDatabase = mongoDatabase;
         }
@@ -38,7 +38,7 @@ namespace PolyPersist.Net.DocumentStore.MongoDB
 
             IMongoCollection<TEntity> mongoCollection = _mongoDatabase.GetCollection<TEntity>(collectionName);
 
-            return new MongoDB_Collection<TEntity>(mongoCollection, this);
+            return new MongoDB_DocumentCollection<TEntity>(mongoCollection, this);
         }
 
         /// <inheritdoc/>
@@ -52,7 +52,7 @@ namespace PolyPersist.Net.DocumentStore.MongoDB
             await _mongoDatabase.CreateCollectionAsync(collectionName).ConfigureAwait(false);
             IMongoCollection<TEntity> mongoCollection = _mongoDatabase.GetCollection<TEntity>(collectionName);
 
-            return new MongoDB_Collection<TEntity>(mongoCollection, this);
+            return new MongoDB_DocumentCollection<TEntity>(mongoCollection, this);
         }
 
         /// <inheritdoc/>

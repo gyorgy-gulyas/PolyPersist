@@ -3,14 +3,14 @@ using System.Text.Json;
 
 namespace PolyPersist.Net.DocumentStore.Memory
 {
-    internal class MemoryDocumentDB_Collection<TDocument> : IDocumentCollection<TDocument>
+    internal class Memory_DocumentCollection<TDocument> : IDocumentCollection<TDocument>
         where TDocument : IDocument, new()
     {
         internal string _name;
         internal _CollectionData _collectionData;
-        internal MemoryDocumentDB_DataStore _dataStore;
+        internal Memory_DocumentStore _dataStore;
 
-        internal MemoryDocumentDB_Collection(string name, _CollectionData collectionData, MemoryDocumentDB_DataStore dataStore)
+        internal Memory_DocumentCollection(string name, _CollectionData collectionData, Memory_DocumentStore dataStore)
         {
             _name = name;
             _collectionData = collectionData;

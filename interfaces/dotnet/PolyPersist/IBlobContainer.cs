@@ -19,7 +19,7 @@ namespace PolyPersist
 	/// - A container for user-uploaded photos, where each blob represents an image.
 	/// - A container for logs, where each blob is a log file.
 	public interface IBlobContainer<TBlob>
-		where TBlob: IBlob
+		where TBlob: IBlob, new()
 	{
 		/// Read-only property representing the name of the container.
 		///

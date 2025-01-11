@@ -3,13 +3,13 @@ using PolyPersist.Net.Common;
 
 namespace PolyPersist.Net.DocumentStore.MongoDB
 {
-    internal class MongoDB_Collection<TDocument> : IDocumentCollection<TDocument>
+    internal class MongoDB_DocumentCollection<TDocument> : IDocumentCollection<TDocument>
         where TDocument : IDocument, new()
     {
         private readonly IMongoCollection<TDocument> _mongoCollection;
-        private readonly MongoDB_Database _mongoDB_Database;
+        private readonly MongoDB_DocumentStore _mongoDB_Database;
 
-        public MongoDB_Collection(IMongoCollection<TDocument> mongoCollection, MongoDB_Database mongoDB_Database)
+        public MongoDB_DocumentCollection(IMongoCollection<TDocument> mongoCollection, MongoDB_DocumentStore mongoDB_Database)
         {
             _mongoCollection = mongoCollection;
             _mongoDB_Database = mongoDB_Database;

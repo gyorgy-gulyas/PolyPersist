@@ -3,14 +3,14 @@ using System.Text.Json;
 
 namespace PolyPersist.Net.BlobStore.Memory
 {
-    internal class MemoryBlobStore_Container<TBlob> : IBlobContainer<TBlob>
-        where TBlob : IBlob
+    internal class Memory_BlobContainer<TBlob> : IBlobContainer<TBlob>
+        where TBlob : IBlob, new()
     {
         internal string _name;
         internal _ContainerData _collectionData;
-        internal MemoryBlobStore_DataStore _dataStore;
+        internal Memory_BlobStore _dataStore;
 
-        internal MemoryBlobStore_Container(string name, _ContainerData collectionData, MemoryBlobStore_DataStore dataStore)
+        internal Memory_BlobContainer(string name, _ContainerData collectionData, Memory_BlobStore dataStore)
         {
             _name = name;
             _collectionData = collectionData;

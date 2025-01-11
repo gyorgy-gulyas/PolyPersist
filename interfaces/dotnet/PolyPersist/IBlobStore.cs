@@ -44,7 +44,7 @@ namespace PolyPersist
 		///
 		/// Use Case:
 		/// Retrieve a container to perform blob operations like uploading or downloading files.
-		public Task<IBlobContainer<TBlob>> GetContainerByName<TBlob>( string containerName ) where TBlob: IBlob;
+		public Task<IBlobContainer<TBlob>> GetContainerByName<TBlob>( string containerName ) where TBlob: IBlob, new();
 		/// Creates a new container in the blob storage.
 		///
 		/// Parameters:
@@ -58,7 +58,7 @@ namespace PolyPersist
 		///
 		/// Use Case:
 		/// Create a container for a specific group of files, such as user uploads or application logs.
-		public Task<IBlobContainer<TBlob>> CreateContainer<TBlob>( string containerName ) where TBlob: IBlob;
+		public Task<IBlobContainer<TBlob>> CreateContainer<TBlob>( string containerName ) where TBlob: IBlob, new();
 		/// Deletes an existing container from the blob storage.
 		///
 		/// Parameters:

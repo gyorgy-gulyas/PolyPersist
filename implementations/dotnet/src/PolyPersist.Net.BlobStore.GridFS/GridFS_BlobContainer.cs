@@ -2,21 +2,18 @@
 using MongoDB.Driver;
 using MongoDB.Driver.GridFS;
 using PolyPersist.Net.Common;
-using PolyPersist.Net.Core;
-using SharpCompress.Common;
-using System.Reflection.Metadata;
 
 namespace PolyPersist.Net.BlobStore.GridFS
 {
-    internal class GridFS_Container<TBlob> : IBlobContainer<TBlob>
-        where TBlob : IBlob
+    internal class GridFS_BlobContainer<TBlob> : IBlobContainer<TBlob>
+        where TBlob : IBlob, new()
     {
         private GridFSBucket _gridFSBucket;
         private GridFS_BlobStore _database;
         public IMongoCollection<GridFSFileInfo> _filesCollection;
         public IMongoCollection<TBlob> _metadataCollection;
 
-        public GridFS_Container(GridFSBucket gridFSBucket, GridFS_BlobStore database)
+        public GridFS_BlobContainer(GridFSBucket gridFSBucket, GridFS_BlobStore database)
         {
             _gridFSBucket = gridFSBucket;
             _database = database;
