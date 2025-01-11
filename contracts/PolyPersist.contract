@@ -4,10 +4,9 @@
 # unicontract will generate the necessary interface files in .NET, Java, and Python, reflecting the modifications made in this file.
 #---------------------------------------------------------------------------------------------------
 
-import DataStore
-import Collection
-import Connection
-import Entity
-import Blob
+import Store
 import Validation
+import Entity
+import Document
+import Blob
 

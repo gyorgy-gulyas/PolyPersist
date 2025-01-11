@@ -12,26 +12,42 @@ using System.Collections.Generic;
 
 namespace PolyPersist
 {
+	/// The IBlob interface represents a single blob entity in the storage system.
+	/// It extends the IEntity interface to inherit basic entity properties like ID and ETag.
+	/// This interface adds file-specific metadata, such as the file's name and content type.
+	///
+	/// Examples:
+	/// - A PDF document with the file name "Report.pdf" and MIME type "application/pdf".
+	/// - An image with the file name "photo.png" and MIME type "image/png".
 	public interface IBlob : IEntity
 	{
-		/// The 'fileName' property represents the name of the file as it is stored in the data store.
-		/// This property can be used for human-readable identification or naming conventions.
+		/// The 'fileName' property represents the name of the file as stored in the system.
+		/// It is primarily used for identification and user-friendly display purposes.
+		///
+		/// Key Characteristics:
+		/// - Human-readable.
+		/// - May include file extensions like '.pdf' or '.txt'.
+		/// - Used in UI to display file names.
 		///
 		/// Example:
-		/// For a report named 'Monthly_Sales_Report.pdf', the 'fileName' would store the value 'Monthly_Sales_Report.pdf'.
-		/// Applications can use this property to display the file's name in the user interface.
+		/// If a report is stored as 'Monthly_Report.pdf', this property holds the value 'Monthly_Report.pdf'.
+		/// Applications might use this value to display file names in lists or download dialogs.
 		public string fileName { get; set;}
 		/// The 'contentType' property represents the MIME type of the file.
-		/// This property is crucial for understanding the type of content stored in the file and determining
-		/// how it should be processed or displayed to the user.
+		/// It helps systems understand the type of content stored and how to handle or render it.
 		///
-		/// Example MIME Types:
-		/// - 'application/pdf' for PDF documents.
-		/// - 'image/png' for PNG images.
-		/// - 'text/plain' for plain text files.
+		/// Key Characteristics:
+		/// - Standardized MIME type format (e.g., 'text/plain', 'application/pdf', 'image/png').
+		/// - Critical for setting HTTP headers or determining file previews.
 		///
-		/// Applications can use this property to perform actions such as setting the appropriate headers
-		/// for file downloads or displaying a file preview in the correct format.
+		/// Examples of MIME Types:
+		/// - 'text/plain': Plain text files.
+		/// - 'application/pdf': PDF documents.
+		/// - 'image/jpeg': JPEG images.
+		///
+		/// Use Cases:
+		/// - When downloading files, this property can be used to set the correct `Content-Type` header.
+		/// - In a document viewer, it determines how the file should be displayed (e.g., as a PDF preview).
 		public string contentType { get; set;}
 	}
 }

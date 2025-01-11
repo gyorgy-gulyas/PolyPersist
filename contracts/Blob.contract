@@ -4,50 +4,196 @@
 # unicontract will generate the necessary interface files in .NET, Java, and Python, reflecting the modifications made in this file.
 #---------------------------------------------------------------------------------------------------
 import Entity
-import Collection
+import Store
 
 namespace PolyPersist {
 
+    # The IBlob interface represents a single blob entity in the storage system.
+    # It extends the IEntity interface to inherit basic entity properties like ID and ETag.
+    # This interface adds file-specific metadata, such as the file's name and content type.
+    #
+    # Examples:
+    # - A PDF document with the file name "Report.pdf" and MIME type "application/pdf".
+    # - An image with the file name "photo.png" and MIME type "image/png".
     interface IBlob inherits IEntity {
         
-        # The 'fileName' property represents the name of the file as it is stored in the data store.
-        # This property can be used for human-readable identification or naming conventions.
+        # The 'fileName' property represents the name of the file as stored in the system.
+        # It is primarily used for identification and user-friendly display purposes.
+        #
+        # Key Characteristics:
+        # - Human-readable.
+        # - May include file extensions like '.pdf' or '.txt'.
+        # - Used in UI to display file names.
         #
         # Example:
-        # For a report named 'Monthly_Sales_Report.pdf', the 'fileName' would store the value 'Monthly_Sales_Report.pdf'.
-        # Applications can use this property to display the file's name in the user interface.
+        # If a report is stored as 'Monthly_Report.pdf', this property holds the value 'Monthly_Report.pdf'.
+        # Applications might use this value to display file names in lists or download dialogs.
         property fileName: string
 
         # The 'contentType' property represents the MIME type of the file.
-        # This property is crucial for understanding the type of content stored in the file and determining
-        # how it should be processed or displayed to the user.
+        # It helps systems understand the type of content stored and how to handle or render it.
         #
-        # Example MIME Types:
-        # - 'application/pdf' for PDF documents.
-        # - 'image/png' for PNG images.
-        # - 'text/plain' for plain text files.
+        # Key Characteristics:
+        # - Standardized MIME type format (e.g., 'text/plain', 'application/pdf', 'image/png').
+        # - Critical for setting HTTP headers or determining file previews.
         #
-        # Applications can use this property to perform actions such as setting the appropriate headers
-        # for file downloads or displaying a file preview in the correct format.
+        # Examples of MIME Types:
+        # - 'text/plain': Plain text files.
+        # - 'application/pdf': PDF documents.
+        # - 'image/jpeg': JPEG images.
+        #
+        # Use Cases:
+        # - When downloading files, this property can be used to set the correct `Content-Type` header.
+        # - In a document viewer, it determines how the file should be displayed (e.g., as a PDF preview).
         property contentType: string
     }
 
-    interface IBlobCollection<TBlob constraint IEntity instantiable> inherits ICollection<TBlob>
-    {
-        # The 'UploadContent' method is responsible for reading the file's binary or textual content
-        # from the given 'source' stream and storing it in the data store.
-        #
-        # This method should handle the reading of the entire 'source' stream
-        # and associate its contents with the underlying data record for this file.
-        # Implementations may perform additional tasks such as validating file size or type before saving.
-        async method UploadContent( entity:TBlob, source:stream )
+    # The IBlobStore interface defines operations for managing blob storage containers.
+    # Containers serve as logical units for organizing and isolating blobs.
+    #
+    # Examples:
+    # - A container named 'UserUploads' storing all user-uploaded files.
+    # - A container named 'Logs' for storing application logs.
+    interface IBlobStore inherits IStore {
 
-        # The 'DownloadContentTo' method is responsible for retrieving the file's content
-        # from the data store and writing it to the provided 'destination' stream.
+        # Checks whether a container exists in the blob storage.
         #
-        # This method should read the entire stored file content and write it to 'destination'.
-        # It is typically used whenever an application needs to serve or transfer the file to another medium,
-        # such as returning it in an HTTP response for download, or saving it to local disk.
-        async method DownloadContentTo( entity:TBlob, destination:stream )
+        # Parameters:
+        # - containerName: The name of the container to check.
+        #
+        # Returns:
+        # - Boolean value indicating whether the container exists.
+        #
+        # Use Case:
+        # Before attempting to access or create a container, check if it already exists.
+        async method IsContainerExists(containerName: string) => boolean
+
+        # Retrieves a container by its name.
+        #
+        # Parameters:
+        # - containerName: The name of the container to retrieve.
+        #
+        # Returns:
+        # - An instance of IBlobContainer representing the requested container.
+        #
+        # Generic Constraint:
+        # - TBlob must implement the IBlob interface, ensuring type safety for blob operations.
+        #
+        # Use Case:
+        # Retrieve a container to perform blob operations like uploading or downloading files.
+        async method GetContainerByName<TBlob constraint IBlob instantiable>(containerName: string) => IBlobContainer<TBlob>
+
+        # Creates a new container in the blob storage.
+        #
+        # Parameters:
+        # - containerName: The name of the container to create.
+        #
+        # Returns:
+        # - An instance of IBlobContainer representing the newly created container.
+        #
+        # Generic Constraint:
+        # - TBlob must implement the IBlob interface, ensuring type safety for blob operations.
+        #
+        # Use Case:
+        # Create a container for a specific group of files, such as user uploads or application logs.
+        async method CreateContainer<TBlob constraint IBlob instantiable>(containerName: string) => IBlobContainer<TBlob>
+
+        # Deletes an existing container from the blob storage.
+        #
+        # Parameters:
+        # - containerName: The name of the container to delete.
+        #
+        # Use Case:
+        # Remove containers that are no longer needed, freeing up storage space and reducing costs.
+        async method DropContainer(containerName: string)
+    }
+
+    # The IBlobContainer interface defines operations for managing blobs within a specific container.
+    # It provides functionality for uploading, downloading, deleting, and updating blobs, as well as retrieving metadata.
+    #
+    # Examples:
+    # - A container for user-uploaded photos, where each blob represents an image.
+    # - A container for logs, where each blob is a log file.
+    interface IBlobContainer<TBlob constraint IBlob instantiable> {
+
+        # Read-only property representing the name of the container.
+        #
+        # Example:
+        # If the container is named 'UserFiles', this property holds the value 'UserFiles'.
+        readonly property Name: string
+
+        # Uploads a blob and its content to the container.
+        #
+        # Parameters:
+        # - blob: The blob entity to upload.
+        # - content: The stream containing the blob's content.
+        #
+        # Use Case:
+        # Add a new file to the container with its associated metadata.
+        async method Upload(blob: TBlob, content: stream)
+
+        # Downloads the content of a blob from the container.
+        #
+        # Parameters:
+        # - blob: The blob entity to download.
+        #
+        # Returns:
+        # - A stream containing the blob's content.
+        #
+        # Use Case:
+        # Retrieve a file for viewing or processing.
+        async method Download(blob: TBlob) => stream
+
+        # Deletes a blob from the container.
+        #
+        # Parameters:
+        # - partitionKey: The partition key of the blob.
+        # - id: The unique identifier of the blob.
+        #
+        # Use Case:
+        # Remove a file that is no longer needed from the container.
+        async method Delete(partitionKey: string, id: string)
+
+        # Finds a blob in the container by its partition key and ID.
+        #
+        # Parameters:
+        # - partitionKey: The partition key of the blob.
+        # - id: The unique identifier of the blob.
+        #
+        # Returns:
+        # - A stream containing the blob's content.
+        #
+        # Use Case:
+        # Locate and retrieve a specific file from the container.
+        async method Find(partitionKey: string, id: string) => TBlob
+
+        # Updates the content of an existing blob in the container.
+        #
+        # Parameters:
+        # - blob: The blob entity to update.
+        # - content: The stream containing the new content.
+        #
+        # Use Case:
+        # Modify the content of an existing file, such as updating a document.
+        async method UpdateContent(blob: TBlob, content: stream)
+        
+        # Updates the metadata of an existing blob in the container.
+        #
+        # Parameters:
+        # - blob: The blob entity whose metadata is to be updated.
+        #
+        # Use Case:
+        # Modify metadata, such as changing the description or tags associated with a file.
+        async method UpdateMetadata(blob: TBlob)
+
+        # Retrieves the underlying implementation of the blob container.
+        #
+        # Returns:
+        # - A value of type `any` that provides direct access to the underlying storage implementation.
+        #
+        # Use Case:
+        # Use this method for advanced operations that are not covered by the standard interface.
+        # Note: This method should be used cautiously, as the returned object is implementation-specific.
+        method GetUnderlyingImplementation() => any
     }
 }
