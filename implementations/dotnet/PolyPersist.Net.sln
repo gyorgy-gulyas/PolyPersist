@@ -19,7 +19,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PolyPersist.Net.DocumentSto
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PolyPersist.Net.DocumentStore.Memory", "src\PolyPersist.Net.DocumentStore.Memory\PolyPersist.Net.DocumentStore.Memory.csproj", "{5C42408F-BA30-4D61-BD25-316B9C8DD0CD}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PolyPersist.Net.BlobStore.AzureBlob", "src\PolyPersist.Net.BlobStore.AzureBlob\PolyPersist.Net.BlobStore.AzureBlob.csproj", "{F6305201-BF3A-41AB-88EC-1CEF1ECF2B07}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PolyPersist.Net.BlobStore.AzureStorage", "src\PolyPersist.Net.BlobStore.AzureStorage\PolyPersist.Net.BlobStore.AzureStorage.csproj", "{F6305201-BF3A-41AB-88EC-1CEF1ECF2B07}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PolyPersist.Net.BlobStore.GridFS", "src\PolyPersist.Net.BlobStore.GridFS\PolyPersist.Net.BlobStore.GridFS.csproj", "{3D7926B7-976D-4D59-B8C5-09C4972F1234}"
 EndProject

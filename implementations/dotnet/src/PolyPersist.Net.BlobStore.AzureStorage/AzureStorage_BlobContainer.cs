@@ -5,7 +5,7 @@ using System.Globalization;
 using System.Linq.Expressions;
 using System.Reflection;
 
-namespace PolyPersist.Net.BlobStore.AzureBlob
+namespace PolyPersist.Net.BlobStore.AzureStorage
 {
     internal class AzureStorage_BlobContainer<TBlob> : IBlobContainer<TBlob>
         where TBlob : IBlob, new()

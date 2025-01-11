@@ -1,6 +1,6 @@
 ﻿using Azure.Storage.Blobs;
 
-namespace PolyPersist.Net.BlobStore.AzureBlob
+namespace PolyPersist.Net.BlobStore.AzureStorage
 {
     internal class AzureStorage_BlobStore : IBlobStore
     {
@@ -32,7 +32,7 @@ namespace PolyPersist.Net.BlobStore.AzureBlob
         {
             BlobContainerClient containerClient = _blobServiceClient.GetBlobContainerClient(_containerName(_storeName, containerName));
             if (await containerClient.ExistsAsync().ConfigureAwait(false) == true)
-                throw new Exception($"Container '{containerName}' is already exist in AzureBlob storage '{_storeName}'");
+                throw new Exception($"Container '{containerName}' is already exist in blob storage '{_storeName}'");
 
             await containerClient.CreateAsync().ConfigureAwait(false);
             return new AzureStorage_BlobContainer<TBlob>(containerClient);
@@ -43,7 +43,7 @@ namespace PolyPersist.Net.BlobStore.AzureBlob
         {
             BlobContainerClient containerClient = _blobServiceClient.GetBlobContainerClient(_containerName(_storeName, containerName));
             if (await containerClient.ExistsAsync().ConfigureAwait(false) == false)
-                throw new Exception($"Container '{containerName}' does not exist in AzureBlob storage '{_storeName}'");
+                throw new Exception($"Container '{containerName}' does not exist in blob storage '{_storeName}'");
 
             return new AzureStorage_BlobContainer<TBlob>(containerClient);
         }
@@ -53,7 +53,7 @@ namespace PolyPersist.Net.BlobStore.AzureBlob
         {
             BlobContainerClient containerClient = _blobServiceClient.GetBlobContainerClient(_containerName(_storeName, containerName));
             if (await containerClient.ExistsAsync().ConfigureAwait(false) == false)
-                throw new Exception($"Container '{containerName}' does not exist in AzureBlob storage '{_storeName}'");
+                throw new Exception($"Container '{containerName}' does not exist in blob storage '{_storeName}'");
 
             await containerClient.DeleteAsync().ConfigureAwait(false);
         }
