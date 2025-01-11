@@ -4,6 +4,7 @@
 # unicontract will generate the necessary interface files in .NET, Java, and Python, reflecting the modifications made in this file.
 #---------------------------------------------------------------------------------------------------
 import Entity
+import Store
 
 namespace PolyPersist {
 
@@ -53,7 +54,7 @@ namespace PolyPersist {
     # Examples:
     # - A container named 'UserUploads' storing all user-uploaded files.
     # - A container named 'Logs' for storing application logs.
-    interface IBlobStoreStore {
+    interface IBlobStoreStore inherits IStore {
 
         # Checks whether a container exists in the blob storage.
         #

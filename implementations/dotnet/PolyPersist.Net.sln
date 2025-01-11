@@ -7,12 +7,11 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PolyPersist.Net", "..\..\in
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Contract Files", "Contract Files", "{7DAB9E54-AB65-4076-AF2F-AB55855B125C}"
 	ProjectSection(SolutionItems) = preProject
-		..\..\contracts\Collection.contract = ..\..\contracts\Collection.contract
 		..\..\contracts\Blob.contract = ..\..\contracts\Blob.contract
-		..\..\contracts\Connection.contract = ..\..\contracts\Connection.contract
-		..\..\contracts\DataStore.contract = ..\..\contracts\DataStore.contract
+		..\..\contracts\Document.contract = ..\..\contracts\Document.contract
 		..\..\contracts\Entity.contract = ..\..\contracts\Entity.contract
 		..\..\contracts\PolyPersist.contract = ..\..\contracts\PolyPersist.contract
+		..\..\contracts\Store.contract = ..\..\contracts\Store.contract
 		..\..\contracts\Validation.contract = ..\..\contracts\Validation.contract
 	EndProjectSection
 EndProject

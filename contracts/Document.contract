@@ -3,15 +3,15 @@
 # After modifying these files, running unicontract is required to propagate the changes to the interface files in every supported programming language.
 # unicontract will generate the necessary interface files in .NET, Java, and Python, reflecting the modifications made in this file.
 #---------------------------------------------------------------------------------------------------
-
 import Entity
+import Store
 
 namespace PolyPersist {
 
     interface IDocument inherits IEntity {
     }
 
-    interface IDocumentStore {
+    interface IDocumentStore inherits IStore {
         # Asynchronous method to check if a collection exists in the data store.
         # It returns a boolean value, indicating whether the collection with the specified name exists or not.
         # This can be used to verify the presence of a collection before performing operations like retrieval or deletion.
@@ -25,14 +25,14 @@ namespace PolyPersist {
         # 
         # @param collectionName - The name of the collection to retrieve from the data store.
         # @returns An ICollection representing the collection with the specified name.
-        async method GetCollectionByName<TEntity constraint IEntity instantiable>(collectionName: string) => IDocumentCollection<TEntity>
+        async method GetCollectionByName<TDocument constraint IDocument instantiable>(collectionName: string) => IDocumentCollection<TDocument>
 
         # Asynchronous method to create a new collection in the data store.
         # This method creates a collection with the specified name and returns it as an ICollection of entities of files,
         #
         # @param collectionName - The name of the new collection to be created.
         # @returns The newly created collection, represented as an ICollection
-        async method CreateCollection<TEntity constraint IEntity instantiable>(collectionName: string) => IDocumentCollection<TEntity>
+        async method CreateCollection<TDocument constraint IDocument instantiable>(collectionName: string) => IDocumentCollection<TDocument>
 
         # Asynchronous method to drop (delete) an existing collection from the data store.
         # This method removes the specified collection, returning a boolean indicating whether the operation was successful.
@@ -49,21 +49,21 @@ namespace PolyPersist {
         # Read-only property representing the name of the collection.
         readonly property Name: string
 
-        # Asynchronous method to insert an entity into the collection.
-        # The 'entity' parameter is the entity that will be inserted into the collection.
-        async method Insert(entity: TDocument)
+        # Asynchronous method to insert an document into the collection.
+        # The 'document' parameter is the document that will be inserted into the collection.
+        async method Insert(document: TDocument)
 
-        # Asynchronous method to update an existing entity in the collection.
-        # The 'entity' parameter represents the entity to be updated in the collection.
-        async method Update(entity: TDocument)
+        # Asynchronous method to update an existing document in the collection.
+        # The 'document' parameter represents the document to be updated in the collection.
+        async method Update(document: TDocument)
 
-        # Asynchronous method to delete an entity using its ID and PartitionKey.
-        # The 'id' parameter is the unique identifier of the entity, and 'partitionKey' is used for partitioning the data in distributed data stores.
+        # Asynchronous method to delete an document using its ID and PartitionKey.
+        # The 'id' parameter is the unique identifier of the document, and 'partitionKey' is used for partitioning the data in distributed data stores.
         async method Delete(partitionKey:string, id: string)
 
-        # Asynchronous method to find an entity by its ID and PartitionKey.
-        # The 'id' parameter is the unique identifier of the entity, and 'partitionKey' is used to partition data.
-        # Returns the entity if found, or null if not found.
+        # Asynchronous method to find an document by its ID and PartitionKey.
+        # The 'id' parameter is the unique identifier of the document, and 'partitionKey' is used to partition data.
+        # Returns the document if found, or null if not found.
         async method Find(partitionKey:string, id: string) => TDocument
 
         # Asynchronous method to query the entiies

@@ -2,28 +2,24 @@
 
 namespace PolyPersist.Net.DocumentStore.MongoDB
 {
-    internal class MongoDB_Database : IDataStore
+    internal class MongoDB_Database : IDocumentStore
     {
         internal readonly IMongoDatabase _mongoDatabase;
-        internal readonly MongoDB_Connection _connection;
 
-        public MongoDB_Database(IMongoDatabase mongoDatabase, MongoDB_Connection connection)
+        public MongoDB_Database(IMongoDatabase mongoDatabase)
         {
             _mongoDatabase = mongoDatabase;
-            _connection = connection;
         }
 
         /// <inheritdoc/>
-        IConnection IDataStore.Connection => _connection;
+        IStore.StorageModels IStore.StorageModel => IStore.StorageModels.Document;
         /// <inheritdoc/>
-        IDataStore.StorageModels IDataStore.StorageModel => IDataStore.StorageModels.Document;
+        string IStore.ProviderName => "MongoDB";
         /// <inheritdoc/>
-        string IDataStore.ProviderName => "MongoDB";
-        /// <inheritdoc/>
-        string IDataStore.Name => _mongoDatabase.DatabaseNamespace.DatabaseName;
+        string IStore.Name => _mongoDatabase.DatabaseNamespace.DatabaseName;
 
         /// <inheritdoc/>
-        async Task<bool> IDataStore.IsCollectionExists(string collectionName)
+        async Task<bool> IDocumentStore.IsCollectionExists(string collectionName)
         {
             IAsyncCursor<string> collectionCursor = await _mongoDatabase.ListCollectionNamesAsync();
             collectionCursor.MoveNext();
@@ -33,11 +29,11 @@ namespace PolyPersist.Net.DocumentStore.MongoDB
         }
 
         /// <inheritdoc/>
-        async Task<ICollection<TEntity>> IDataStore.GetCollectionByName<TEntity>(string collectionName)
+        async Task<IDocumentCollection<TEntity>> IDocumentStore.GetCollectionByName<TEntity>(string collectionName)
         {
             MongoDB_Serializer.RegisterType<TEntity>(typeof(TEntity));
 
-            if (await (this as IDataStore).IsCollectionExists(collectionName).ConfigureAwait(false) == false)
+            if (await (this as IDocumentStore).IsCollectionExists(collectionName).ConfigureAwait(false) == false)
                 return null;
 
             IMongoCollection<TEntity> mongoCollection = _mongoDatabase.GetCollection<TEntity>(collectionName);
@@ -46,11 +42,11 @@ namespace PolyPersist.Net.DocumentStore.MongoDB
         }
 
         /// <inheritdoc/>
-        async Task<ICollection<TEntity>> IDataStore.CreateCollection<TEntity>(string collectionName)
+        async Task<IDocumentCollection<TEntity>> IDocumentStore.CreateCollection<TEntity>(string collectionName)
         {
             MongoDB_Serializer.RegisterType<TEntity>(typeof(TEntity));
 
-            if (await (this as IDataStore).IsCollectionExists(collectionName).ConfigureAwait(false) == true)
+            if (await (this as IDocumentStore).IsCollectionExists(collectionName).ConfigureAwait(false) == true)
                 throw new Exception($"Collection '{collectionName}' is already exist in Mongo Database '{_mongoDatabase.DatabaseNamespace.DatabaseName}'");
 
             await _mongoDatabase.CreateCollectionAsync(collectionName).ConfigureAwait(false);
@@ -60,9 +56,9 @@ namespace PolyPersist.Net.DocumentStore.MongoDB
         }
 
         /// <inheritdoc/>
-        async Task IDataStore.DropCollection(string collectionName)
+        async Task IDocumentStore.DropCollection(string collectionName)
         {
-            if (await (this as IDataStore).IsCollectionExists(collectionName).ConfigureAwait(false) == false)
+            if (await (this as IDocumentStore).IsCollectionExists(collectionName).ConfigureAwait(false) == false)
                 throw new Exception($"Collection '{collectionName}' does not exist in Mongo Database '{_mongoDatabase.DatabaseNamespace.DatabaseName}'");
 
             await _mongoDatabase.DropCollectionAsync(collectionName).ConfigureAwait(false);

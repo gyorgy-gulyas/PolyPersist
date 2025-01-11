@@ -35,9 +35,21 @@ namespace PolyPersist
 		/// Example Use Case:
 		/// In a multi-tenant application, the 'PartitionKey' could be the tenant ID, ensuring that all data
 		/// for a particular tenant is stored and queried efficiently.
+		public string PartitionKey { get; set;}
+		/// The 'LastUpdate' property represents the timestamp of the most recent modification to the entity.
+		/// This property is crucial for tracking changes and implementing update or audit mechanisms in the system.
 		///
-		/// This property is marked as 'readonly' to ensure that the partition key remains immutable,
-		/// as changing it would lead to significant system inconsistencies.
-		public string PartitionKey { get; }
+		/// Why 'LastUpdate' is Important:
+		/// - It provides a reliable way to determine when an entity was last modified.
+		/// - Useful for synchronization processes, where only recently modified entities need to be updated.
+		/// - Enables efficient audit trails by recording the time of changes.
+		///
+		/// Example Use Case:
+		/// In a content management system, the 'LastUpdate' could be used to display the "Last Modified" date
+		/// for articles, enabling users to see the freshness of the content.
+		///
+		/// This property is marked as 'readonly' to ensure that the value is managed solely by the system
+		/// and not directly modified by users, maintaining data integrity.
+		public DateTime LastUpdate { get; }
 	}
 }

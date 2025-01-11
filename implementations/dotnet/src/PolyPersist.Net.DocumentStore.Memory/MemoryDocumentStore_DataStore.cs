@@ -1,28 +1,24 @@
 ﻿namespace PolyPersist.Net.DocumentStore.Memory
 {
-    internal class MemoryDocumentDB_DataStore : IDataStore
+    internal class MemoryDocumentDB_DataStore : IDocumentStore
     {
         internal string _storeName;
-        internal MemoryDocumentDB_Connection _connection;
         internal List<_CollectionData> _Collections = [];
 
-        public MemoryDocumentDB_DataStore(string storeName, MemoryDocumentDB_Connection connection)
+        public MemoryDocumentDB_DataStore(string storeName )
         {
             _storeName = storeName;
-            _connection = connection;
         }
 
         /// <inheritdoc/>
-        IConnection IDataStore.Connection => _connection;
+        IStore.StorageModels IStore.StorageModel => IStore.StorageModels.Document;
         /// <inheritdoc/>
-        IDataStore.StorageModels IDataStore.StorageModel => IDataStore.StorageModels.Document;
+        string IStore.ProviderName => "Memory_DocumentStore";
         /// <inheritdoc/>
-        string IDataStore.ProviderName => "Memory_DocumentStore";
-        /// <inheritdoc/>
-        string IDataStore.Name => _storeName;
+        string IStore.Name => _storeName;
 
         /// <inheritdoc/>
-        Task<bool> IDataStore.IsCollectionExists(string collectionName)
+        Task<bool> IDocumentStore.IsCollectionExists(string collectionName)
         {
             if (_Collections.FindIndex(c => c.Name == collectionName) != -1)
                 return Task.FromResult(true);
@@ -31,28 +27,28 @@
         }
 
         /// <inheritdoc/>
-        Task<ICollection<TEntity>> IDataStore.GetCollectionByName<TEntity>(string collectionName)
+        Task<IDocumentCollection<TDocument>> IDocumentStore.GetCollectionByName<TDocument>(string collectionName)
         {
             _CollectionData collectionData = _Collections.Find(c => c.Name == collectionName);
             if (collectionData == null)
                 throw new Exception($"Collection '{collectionName}' does not exist in Mongo Database '{_storeName}'");
 
-            ICollection<TEntity> collection = new MemoryDocumentDB_Collection<TEntity>( collectionName, collectionData, this);
+            IDocumentCollection<TDocument> collection = new MemoryDocumentDB_Collection<TDocument>( collectionName, collectionData, this);
             return Task.FromResult(collection);
         }
 
         /// <inheritdoc/>
-        Task<ICollection<TEntity>> IDataStore.CreateCollection<TEntity>(string collectionName)
+        Task<IDocumentCollection<TDocument>> IDocumentStore.CreateCollection<TDocument>(string collectionName)
         {
             _CollectionData collectionData = new(collectionName);
             _Collections.Add(collectionData);
 
-            ICollection<TEntity> collection = new MemoryDocumentDB_Collection<TEntity>(collectionName, collectionData, this);
+            IDocumentCollection<TDocument> collection = new MemoryDocumentDB_Collection<TDocument>(collectionName, collectionData, this);
             return Task.FromResult(collection);
         }
 
         /// <inheritdoc/>
-        Task IDataStore.DropCollection(string collectionName)
+        Task IDocumentStore.DropCollection(string collectionName)
         {
             _CollectionData collectionData = _Collections.Find(c => c.Name == collectionName);
             if (collectionData == null)

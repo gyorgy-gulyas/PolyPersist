@@ -3,8 +3,8 @@ using System.Text.Json;
 
 namespace PolyPersist.Net.DocumentStore.Memory
 {
-    internal class MemoryDocumentDB_Collection<TEntity> : ICollection<TEntity>
-        where TEntity : IEntity, new()
+    internal class MemoryDocumentDB_Collection<TDocument> : IDocumentCollection<TDocument>
+        where TDocument : IDocument, new()
     {
         internal string _name;
         internal _CollectionData _collectionData;
@@ -18,57 +18,51 @@ namespace PolyPersist.Net.DocumentStore.Memory
         }
 
         /// <inheritdoc/>
-        string ICollection<TEntity>.Name => _name;
+        string IDocumentCollection<TDocument>.Name => _name;
 
         /// <inheritdoc/>
-        async Task ICollection<TEntity>.Insert(TEntity entity)
+        async Task IDocumentCollection<TDocument>.Insert(TDocument document)
         {
-            await CollectionCommon.CheckBeforeInsert(entity).ConfigureAwait(false);
+            await CollectionCommon.CheckBeforeInsert(document).ConfigureAwait(false);
 
-            entity.etag = Guid.NewGuid().ToString();
+            document.etag = Guid.NewGuid().ToString();
 
-            if (string.IsNullOrEmpty(entity.id) == true)
-                entity.id = Guid.NewGuid().ToString();
+            if (string.IsNullOrEmpty(document.id) == true)
+                document.id = Guid.NewGuid().ToString();
 
             _RowData row = new()
             {
-                id = entity.id,
-                partionKey = entity.PartitionKey,
-                etag = entity.etag,
-                Value = JsonSerializer.Serialize(entity, typeof(TEntity), JsonOptionsProvider.Options)
+                id = document.id,
+                partionKey = document.PartitionKey,
+                etag = document.etag,
+                Value = JsonSerializer.Serialize(document, typeof(TDocument), JsonOptionsProvider.Options)
             };
 
-            _collectionData.MapOfDocments.Add((entity.id, entity.PartitionKey), row);
+            _collectionData.MapOfDocments.Add((document.id, document.PartitionKey), row);
             _collectionData.ListOfDocments.Add(row);
         }
 
         /// <inheritdoc/>
-        async Task ICollection<TEntity>.Update(TEntity entity)
+        async Task IDocumentCollection<TDocument>.Update(TDocument document)
         {
-            await CollectionCommon.CheckBeforeUpdate(entity).ConfigureAwait(false);
+            await CollectionCommon.CheckBeforeUpdate(document).ConfigureAwait(false);
 
-            if (_collectionData.MapOfDocments.TryGetValue((entity.id, entity.PartitionKey), out _RowData row) == false)
-                throw new Exception($"Entity '{typeof(TEntity).Name}' {entity.id} can not be removed because it is already removed");
+            if (_collectionData.MapOfDocments.TryGetValue((document.id, document.PartitionKey), out _RowData row) == false)
+                throw new Exception($"Document '{typeof(TDocument).Name}' {document.id} can not be removed because it is already removed");
 
-            if (row.etag != entity.etag)
-                throw new Exception($"Entity '{typeof(TEntity).Name}' {entity.id} can not be updated because it is already changed");
+            if (row.etag != document.etag)
+                throw new Exception($"Document '{typeof(TDocument).Name}' {document.id} can not be updated because it is already changed");
 
-            entity.etag = Guid.NewGuid().ToString();
-            row.etag = entity.etag;
-            row.Value = JsonSerializer.Serialize(entity, typeof(TEntity), JsonOptionsProvider.Options);
+            document.etag = Guid.NewGuid().ToString();
+            row.etag = document.etag;
+            row.Value = JsonSerializer.Serialize(document, typeof(TDocument), JsonOptionsProvider.Options);
         }
 
         /// <inheritdoc/>
-        Task ICollection<TEntity>.Delete(TEntity entity)
-        {
-            return (this as ICollection<TEntity>).Delete(entity.id, entity.PartitionKey);
-        }
-
-        /// <inheritdoc/>
-        Task ICollection<TEntity>.Delete(string id, string partitionKey)
+        Task IDocumentCollection<TDocument>.Delete(string id, string partitionKey)
         {
             if (_collectionData.MapOfDocments.TryGetValue((id, partitionKey), out _RowData row) == false)
-                throw new Exception($"Entity '{typeof(TEntity).Name}' {id} can not be removed because it is already removed");
+                throw new Exception($"Document '{typeof(TDocument).Name}' {id} can not be removed because it is already removed");
 
             _collectionData.MapOfDocments.Remove((id, partitionKey));
             _collectionData.ListOfDocments.Remove(row);
@@ -77,26 +71,26 @@ namespace PolyPersist.Net.DocumentStore.Memory
         }
 
         /// <inheritdoc/>
-        Task<TEntity> ICollection<TEntity>.Find(string id, string partitionKey)
+        Task<TDocument> IDocumentCollection<TDocument>.Find(string id, string partitionKey)
         {
             if (_collectionData.MapOfDocments.TryGetValue((id, partitionKey), out _RowData row) == true)
-                return Task.FromResult(JsonSerializer.Deserialize<TEntity>(row.Value, JsonOptionsProvider.Options));
+                return Task.FromResult(JsonSerializer.Deserialize<TDocument>(row.Value, JsonOptionsProvider.Options));
 
-            return Task.FromResult(default(TEntity));
+            return Task.FromResult(default(TDocument));
         }
 
         /// <inheritdoc/>
-        TQuery ICollection<TEntity>.Query<TQuery>()
+        TQuery IDocumentCollection<TDocument>.Query<TQuery>()
         {
-            bool isQueryable = typeof(IQueryable<TEntity>).IsAssignableFrom(typeof(TQuery));
+            bool isQueryable = typeof(IQueryable<TDocument>).IsAssignableFrom(typeof(TQuery));
             if (isQueryable == false)
-                throw new Exception($"TQuery is must be 'IQueryable<TEntity>' in dotnet implementation");
+                throw new Exception($"TQuery is must be 'IQueryable<TDocument>' in dotnet implementation");
 
             return (TQuery)_collectionData.ListOfDocments.AsQueryable();
         }
 
         /// <inheritdoc/>
-        object ICollection<TEntity>.GetUnderlyingImplementation()
+        object IDocumentCollection<TDocument>.GetUnderlyingImplementation()
         {
             return _collectionData;
         }
