@@ -1,0 +1,133 @@
+﻿using Amazon.S3;
+using Amazon.S3.Model;
+using Amazon.S3.Util;
+using Amazon.S3.Transfer;
+using PolyPersist.Net.Common;
+
+namespace PolyPersist.Net.BlobStore.AmazonS3
+{
+    internal class AmazonS3_BlobContainer<TBlob> : IBlobContainer<TBlob>
+        where TBlob : IBlob, new()
+    {
+        private readonly string _bucketName;
+        internal IAmazonS3 _amazonS3Client;
+
+
+        public AmazonS3_BlobContainer(string containerName, IAmazonS3 amazonS3Client)
+        {
+            _bucketName = containerName;
+            _amazonS3Client = amazonS3Client;
+        }
+
+        string IBlobContainer<TBlob>.Name => _bucketName;
+
+        async Task IBlobContainer<TBlob>.Upload(TBlob blob, Stream content)
+        {
+            await CollectionCommon.CheckBeforeInsert(blob).ConfigureAwait(false);
+
+            var key = BuildKey(blob.PartitionKey, blob.id);
+
+            var request = new PutObjectRequest
+            {
+                BucketName = _bucketName,
+                Key = key,
+                InputStream = content,
+                ContentType = blob.contentType ?? "application/octet-stream"
+            };
+
+            foreach (var kv in MetadataHelper.GetMetadata(blob))
+            {
+                request.Metadata[kv.Key] = kv.Value;
+            }
+
+            await _amazonS3Client.PutObjectAsync(request).ConfigureAwait(false);
+        }
+
+        async Task<Stream> IBlobContainer<TBlob>.Download(TBlob blob)
+        {
+            var key = BuildKey(blob.PartitionKey, blob.id);
+            var response = await _amazonS3Client.GetObjectAsync(_bucketName, key).ConfigureAwait(false);
+            var ms = new MemoryStream();
+            await response.ResponseStream.CopyToAsync(ms);
+            ms.Position = 0;
+            return ms;
+        }
+
+        async Task<TBlob> IBlobContainer<TBlob>.Find(string partitionKey, string id)
+        {
+            var key = BuildKey(partitionKey, id);
+            try
+            {
+                var @object = await _amazonS3Client.GetObjectMetadataAsync(_bucketName, key).ConfigureAwait(false);
+                var blob = new TBlob
+                {
+                    id = id,
+                    PartitionKey = partitionKey,
+                    contentType = @object.Headers.ContentType
+                };
+                MetadataHelper.SetMetadata(blob, MetadataConverter.ToDictionary(@object.Metadata) );
+                return blob;
+            }
+            catch (AmazonS3Exception ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
+            {
+                return default(TBlob);
+            }
+        }
+
+        async Task IBlobContainer<TBlob>.Delete(string partitionKey, string id)
+        {
+            var key = BuildKey(partitionKey, id);
+            try
+            {
+                await _amazonS3Client.GetObjectMetadataAsync(_bucketName, key).ConfigureAwait(false);
+            }
+            catch (AmazonS3Exception ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
+            {
+                throw new Exception($"Blob '{typeof(TBlob).Name}' {id} can not be deleted because it does not exist.");
+            }
+
+            await _amazonS3Client.DeleteObjectAsync(_bucketName, key).ConfigureAwait(false);
+        }
+
+        async Task IBlobContainer<TBlob>.UpdateContent(TBlob blob, Stream content)
+        {
+            await ((IBlobContainer<TBlob>)this).Upload(blob, content);
+        }
+
+        async Task IBlobContainer<TBlob>.UpdateMetadata(TBlob blob)
+        {
+            var key = BuildKey(blob.PartitionKey, blob.id);
+            var response = await _amazonS3Client.GetObjectAsync(_bucketName, key).ConfigureAwait(false);
+            using var ms = new MemoryStream();
+            await response.ResponseStream.CopyToAsync(ms);
+            ms.Position = 0;
+
+            await ((IBlobContainer<TBlob>)this).Upload(blob, ms);
+        }
+
+        object IBlobContainer<TBlob>.GetUnderlyingImplementation()
+        {
+            return _amazonS3Client;
+        }
+
+        private string BuildKey(string partitionKey, string id)
+        {
+            return $"{partitionKey}/{id}";
+        }
+    }
+
+    public static class MetadataConverter
+    {
+        public static Dictionary<string, string> ToDictionary(MetadataCollection metadata)
+        {
+            var dict = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var key in metadata.Keys)
+            {
+                dict[key] = metadata[key];
+            }
+
+            return dict;
+        }
+    }
+}
