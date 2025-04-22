@@ -93,6 +93,6 @@ namespace PolyPersist
 		/// Use Case:
 		/// Use this method for advanced operations that are not covered by the standard interface.
 		/// Note: This method should be used cautiously, as the returned object is implementation-specific.
-		public object GetUnderlyingImplementation(  );
+		public object GetUnderlyingImplementation();
 	}
 }
