@@ -22,7 +22,7 @@ namespace PolyPersist
 		/// @returns A boolean value indicating if the collection is present in the data store.
 		public Task<bool> IsCollectionExists( string collectionName );
 		/// Asynchronous method to retrieve a collection by its name from the data store.
-		/// This method returns the collection as an ICollection of entities or files or vectors.
+		/// This method returns the collection as an ICollection of entities.
 		/// 
 		/// @param collectionName - The name of the collection to retrieve from the data store.
 		/// @returns An ICollection representing the collection with the specified name.

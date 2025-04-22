@@ -9,4 +9,5 @@ import Validation
 import Entity
 import Document
 import Blob
+import ColumnStore
 

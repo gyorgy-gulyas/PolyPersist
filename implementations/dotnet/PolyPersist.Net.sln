@@ -8,6 +8,7 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Contract Files", "Contract Files", "{7DAB9E54-AB65-4076-AF2F-AB55855B125C}"
 	ProjectSection(SolutionItems) = preProject
 		..\..\contracts\Blob.contract = ..\..\contracts\Blob.contract
+		..\..\contracts\ColumnStore.contract = ..\..\contracts\ColumnStore.contract
 		..\..\contracts\Document.contract = ..\..\contracts\Document.contract
 		..\..\contracts\Entity.contract = ..\..\contracts\Entity.contract
 		..\..\contracts\PolyPersist.contract = ..\..\contracts\PolyPersist.contract

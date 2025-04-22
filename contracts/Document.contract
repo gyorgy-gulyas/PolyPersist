@@ -21,7 +21,7 @@ namespace PolyPersist {
         async method IsCollectionExists(collectionName: string) => boolean
 
         # Asynchronous method to retrieve a collection by its name from the data store.
-        # This method returns the collection as an ICollection of entities or files or vectors.
+        # This method returns the collection as an ICollection of entities.
         # 
         # @param collectionName - The name of the collection to retrieve from the data store.
         # @returns An ICollection representing the collection with the specified name.
