@@ -1,7 +1,5 @@
 ﻿using Amazon.S3;
 using Amazon.S3.Model;
-using Amazon.S3.Util;
-using Amazon.S3.Transfer;
 using PolyPersist.Net.Common;
 
 namespace PolyPersist.Net.BlobStore.AmazonS3

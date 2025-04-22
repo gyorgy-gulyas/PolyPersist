@@ -29,6 +29,10 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PolyPersist.Net.BlobStore.M
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PolyPersist.Net.BlobStore.AmazonS3", "src\PolyPersist.Net.BlobStore.AmazonS3\PolyPersist.Net.BlobStore.AmazonS3.csproj", "{A78446B1-7AB7-45AF-BEC2-FFF9E61E6373}"
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PolyPersist.Net.BlobStore.GoogleCloudStorage", "src\PolyPersist.Net.BlobStore.GoogleCloudStorage\PolyPersist.Net.BlobStore.GoogleCloudStorage.csproj", "{7FBE9D73-A56A-4D38-A2A7-DEC98D834C2F}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PolyPersist.Net.BlobStore.FileSystem", "src\PolyPersist.Net.BlobStore.FileSystem\PolyPersist.Net.BlobStore.FileSystem.csproj", "{B27153A6-FBFB-412A-AC43-DDA7B7307BAA}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -67,6 +71,14 @@ Global
 		{A78446B1-7AB7-45AF-BEC2-FFF9E61E6373}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{A78446B1-7AB7-45AF-BEC2-FFF9E61E6373}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{A78446B1-7AB7-45AF-BEC2-FFF9E61E6373}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7FBE9D73-A56A-4D38-A2A7-DEC98D834C2F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7FBE9D73-A56A-4D38-A2A7-DEC98D834C2F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7FBE9D73-A56A-4D38-A2A7-DEC98D834C2F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7FBE9D73-A56A-4D38-A2A7-DEC98D834C2F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B27153A6-FBFB-412A-AC43-DDA7B7307BAA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B27153A6-FBFB-412A-AC43-DDA7B7307BAA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B27153A6-FBFB-412A-AC43-DDA7B7307BAA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B27153A6-FBFB-412A-AC43-DDA7B7307BAA}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
