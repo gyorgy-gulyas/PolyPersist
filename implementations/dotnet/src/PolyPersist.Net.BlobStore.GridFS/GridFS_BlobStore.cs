@@ -18,8 +18,6 @@ namespace PolyPersist.Net.BlobStore.GridFS
         IStore.StorageModels IStore.StorageModel => IStore.StorageModels.BlobStore;
         /// <inheritdoc/>
         string IStore.ProviderName => "GridFS";
-        /// <inheritdoc/>
-        string IStore.Name => _mongoDatabase.DatabaseNamespace.DatabaseName;
 
         /// <inheritdoc/>
         async Task<bool> IBlobStore.IsContainerExists(string containerName)

@@ -2,20 +2,16 @@
 {
     internal class Memory_BlobStore : IBlobStore
     {
-        internal string _storeName;
         internal List<_ContainerData> _Containers = [];
 
-        public Memory_BlobStore(string storeName)
+        public Memory_BlobStore(string connectionString)
         {
-            _storeName = storeName;
         }
 
         /// <inheritdoc/>
         IStore.StorageModels IStore.StorageModel => IStore.StorageModels.Document;
         /// <inheritdoc/>
         string IStore.ProviderName => "Memory_BlobStore";
-        /// <inheritdoc/>
-        string IStore.Name => _storeName;
 
         /// <inheritdoc/>
         Task<bool> IBlobStore.IsContainerExists(string containerName)
@@ -31,7 +27,7 @@
         {
             _ContainerData containerData = _Containers.Find(c => c.Name == containerName);
             if (containerData == null)
-                throw new Exception($"Container '{containerName}' does not exist in Mongo Database '{_storeName}'");
+                throw new Exception($"Container '{containerName}' does not exist in Memory Blob Strore");
 
             IBlobContainer<TBlob> container = new Memory_BlobContainer<TBlob>(containerName, containerData, this);
             return Task.FromResult(container);
@@ -52,7 +48,7 @@
         {
             _ContainerData containerData = _Containers.Find(c => c.Name == containerName);
             if (containerData == null)
-                throw new Exception($"Container '{containerName}' does not exist in Mongo Database '{_storeName}'");
+                throw new Exception($"Container '{containerName}' does not exist in Memory Blob Strore");
 
             _Containers.Remove(containerData);
             return Task.CompletedTask;

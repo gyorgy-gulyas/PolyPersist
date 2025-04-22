@@ -2,20 +2,16 @@
 {
     internal class Memory_DocumentStore : IDocumentStore
     {
-        internal string _storeName;
         internal List<_CollectionData> _Collections = [];
 
-        public Memory_DocumentStore(string storeName )
+        public Memory_DocumentStore(string connectionString )
         {
-            _storeName = storeName;
         }
 
         /// <inheritdoc/>
         IStore.StorageModels IStore.StorageModel => IStore.StorageModels.Document;
         /// <inheritdoc/>
         string IStore.ProviderName => "Memory_DocumentStore";
-        /// <inheritdoc/>
-        string IStore.Name => _storeName;
 
         /// <inheritdoc/>
         Task<bool> IDocumentStore.IsCollectionExists(string collectionName)
@@ -31,7 +27,7 @@
         {
             _CollectionData collectionData = _Collections.Find(c => c.Name == collectionName);
             if (collectionData == null)
-                throw new Exception($"Collection '{collectionName}' does not exist in Mongo Database '{_storeName}'");
+                throw new Exception($"Collection '{collectionName}' does not exist in Memory Documnet Store");
 
             IDocumentCollection<TDocument> collection = new Memory_DocumentCollection<TDocument>( collectionName, collectionData, this);
             return Task.FromResult(collection);
@@ -52,7 +48,7 @@
         {
             _CollectionData collectionData = _Collections.Find(c => c.Name == collectionName);
             if (collectionData == null)
-                throw new Exception($"Collection '{collectionName}' does not exist in Mongo Database '{_storeName}'");
+                throw new Exception($"Collection '{collectionName}' does not exist in Memory Documnet Store");
 
             _Collections.Remove(collectionData);
             return Task.CompletedTask;

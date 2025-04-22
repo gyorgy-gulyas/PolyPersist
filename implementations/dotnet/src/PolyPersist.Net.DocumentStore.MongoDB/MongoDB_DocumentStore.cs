@@ -15,8 +15,6 @@ namespace PolyPersist.Net.DocumentStore.MongoDB
         IStore.StorageModels IStore.StorageModel => IStore.StorageModels.Document;
         /// <inheritdoc/>
         string IStore.ProviderName => "MongoDB";
-        /// <inheritdoc/>
-        string IStore.Name => _mongoDatabase.DatabaseNamespace.DatabaseName;
 
         /// <inheritdoc/>
         async Task<bool> IDocumentStore.IsCollectionExists(string collectionName)

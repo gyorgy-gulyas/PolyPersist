@@ -62,12 +62,5 @@ namespace PolyPersist {
         # This could be a name like "MongoDB", "Cassandra", "PostgreSQL", etc., depending on which provider is being used.
         # The ProviderName is useful for understanding the context of the data store, such as its behavior, features, and limitations.
         readonly property ProviderName: string
-
-        # The Name property represents the name of the data store instance.
-        # It can refer to the name of a database (e.g., "MyDatabase"), a keyspace in a NoSQL database (e.g., "MyKeyspace"), 
-        # or any logical identifier used to distinguish the data store within the context of the application.
-        # This property is essential for identifying the target data store when performing operations
-        # such as querying, updating, or managing collections.
-        readonly property Name: string
     }
 }

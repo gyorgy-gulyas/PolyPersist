@@ -5,13 +5,10 @@ namespace PolyPersist.Net.BlobStore.MinIO
 {
     internal class MinIO_BlobStore : IBlobStore
     {
-        private string _storeName;
         internal IMinioClient _minioClient;
 
-        public MinIO_BlobStore(string storeName, string connectionString)
+        public MinIO_BlobStore(string connectionString)
         {
-            _storeName = storeName;
-
             var config = MinioConnectionStringParser.Parse(connectionString);
 
             IMinioClient client = new MinioClient()
@@ -27,8 +24,6 @@ namespace PolyPersist.Net.BlobStore.MinIO
         IStore.StorageModels IStore.StorageModel => IStore.StorageModels.BlobStore;
         /// <inheritdoc/>
         string IStore.ProviderName => "MinIO_Blobs";
-        /// <inheritdoc/>
-        string IStore.Name => _storeName;
 
         /// <inheritdoc/>
         async Task<bool> IBlobStore.IsContainerExists(string containerName)
@@ -40,7 +35,7 @@ namespace PolyPersist.Net.BlobStore.MinIO
         async Task<IBlobContainer<TBlob>> IBlobStore.CreateContainer<TBlob>(string containerName)
         {
             if (await _minioClient.BucketExistsAsync(new BucketExistsArgs().WithBucket(containerName)).ConfigureAwait(false) == true)
-                throw new Exception($"Container '{containerName}' is already exist in blob storage '{_storeName}'");
+                throw new Exception($"Container '{containerName}' is already exist in MinIO Blob Store");
 
             await _minioClient.MakeBucketAsync(new MakeBucketArgs().WithBucket(containerName));
 
@@ -51,7 +46,7 @@ namespace PolyPersist.Net.BlobStore.MinIO
         async Task<IBlobContainer<TBlob>> IBlobStore.GetContainerByName<TBlob>(string containerName)
         {
             if (await _minioClient.BucketExistsAsync(new BucketExistsArgs().WithBucket(containerName)).ConfigureAwait(false) == false)
-                throw new Exception($"Container '{containerName}' does not exist in blob storage '{_storeName}'");
+                throw new Exception($"Container '{containerName}' does not exist in Azure Storage");
 
             return new MinIO_BlobContainer<TBlob>(containerName,_minioClient);
         }
@@ -60,7 +55,7 @@ namespace PolyPersist.Net.BlobStore.MinIO
         async Task IBlobStore.DropContainer(string containerName)
         {
             if (await _minioClient.BucketExistsAsync(new BucketExistsArgs().WithBucket(containerName)).ConfigureAwait(false) == false)
-                throw new Exception($"Container '{containerName}' does not exist in blob storage '{_storeName}'");
+                throw new Exception($"Container '{containerName}' does not exist in Azure Storage");
 
             // remove all objects in bucket before deleting
             // MinIO does not allow removing non-empty buckets

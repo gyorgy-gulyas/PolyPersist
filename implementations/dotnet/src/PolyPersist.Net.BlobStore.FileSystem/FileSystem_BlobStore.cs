@@ -1,22 +1,17 @@
-﻿using PolyPersist;
-
-namespace PolyPersist.Net.BlobStore.FileSystem
+﻿namespace PolyPersist.Net.BlobStore.FileSystem
 {
     internal class FileSystemBlobStore : IBlobStore
     {
         private readonly string _rootPath;
-        private readonly string _storeName;
 
-        public FileSystemBlobStore(string storeName, string basePath)
+        public FileSystemBlobStore(string basePath)
         {
-            _storeName = storeName;
-            _rootPath = Path.Combine(basePath, storeName);
+            _rootPath = basePath;
             Directory.CreateDirectory(_rootPath);
         }
 
         public IStore.StorageModels StorageModel => IStore.StorageModels.BlobStore;
         public string ProviderName => "FileSystem";
-        public string Name => _storeName;
 
         public Task<bool> IsContainerExists(string containerName)
         {

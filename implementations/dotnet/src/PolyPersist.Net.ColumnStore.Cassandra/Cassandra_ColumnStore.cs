@@ -7,7 +7,7 @@ namespace PolyPersist.Net.ColumnStore.Cassandra
         private readonly ISession _session;
         private readonly string _keyspace;
 
-        public Cassandra_ColumnStore(string storeName, string connectionString)
+        public Cassandra_ColumnStore(string connectionString)
         {
             var config = CassandraConnectionStringParser.Parse(connectionString);
             var cluster = Cluster.Builder()
@@ -16,8 +16,8 @@ namespace PolyPersist.Net.ColumnStore.Cassandra
                 .WithCredentials(config.Username, config.Password)
                 .Build();
 
-            _session = cluster.Connect(storeName);
-            _keyspace = storeName;
+            _session = cluster.Connect(config.Keyspace);
+            _keyspace = config.Keyspace;
         }
 
         public IStore.StorageModels StorageModel => IStore.StorageModels.ColumnStore;
@@ -71,6 +71,7 @@ namespace PolyPersist.Net.ColumnStore.Cassandra
         public int Port { get; set; }
         public string Username { get; set; }
         public string Password { get; set; }
+        public string Keyspace { get; set; }
     }
 
     public static class CassandraConnectionStringParser
@@ -94,6 +95,7 @@ namespace PolyPersist.Net.ColumnStore.Cassandra
             dict.TryGetValue("port", out var port);
             dict.TryGetValue("username", out var username);
             dict.TryGetValue("password", out var password);
+            dict.TryGetValue("keyspace", out var keyspace);
 
             return new CassandraConnectionInfo
             {
@@ -101,6 +103,7 @@ namespace PolyPersist.Net.ColumnStore.Cassandra
                 Port = int.TryParse(port, out var p) ? p : 9042,
                 Username = username,
                 Password = password,
+                Keyspace = keyspace,
             };
         }
     }

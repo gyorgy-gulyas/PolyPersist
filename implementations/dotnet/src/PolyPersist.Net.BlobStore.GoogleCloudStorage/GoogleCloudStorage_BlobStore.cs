@@ -4,12 +4,10 @@ namespace PolyPersist.Net.BlobStore.GoogleCloudStorage
 {
     internal class GoogleCloudStorageBlobStore : IBlobStore
     {
-        private readonly string _storeName;
         internal readonly StorageClient _gcsClient;
 
-        public GoogleCloudStorageBlobStore(string storeName, string connectionString)
+        public GoogleCloudStorageBlobStore(string connectionString)
         {
-            _storeName = storeName;
             var config = GoogleCloudStorageConnectionStringParser.Parse(connectionString);
 
             var builder = new StorageClientBuilder();
@@ -22,7 +20,6 @@ namespace PolyPersist.Net.BlobStore.GoogleCloudStorage
 
         IStore.StorageModels IStore.StorageModel => IStore.StorageModels.BlobStore;
         string IStore.ProviderName => "GCS_Blobs";
-        string IStore.Name => _storeName;
 
         async Task<bool> IBlobStore.IsContainerExists(string containerName)
         {
@@ -40,7 +37,7 @@ namespace PolyPersist.Net.BlobStore.GoogleCloudStorage
         async Task<IBlobContainer<TBlob>> IBlobStore.CreateContainer<TBlob>(string containerName)
         {
             if (await ((IBlobStore)this).IsContainerExists(containerName).ConfigureAwait(false))
-                throw new Exception($"Container '{containerName}' already exists in blob storage '{_storeName}'");
+                throw new Exception($"Container '{containerName}' already exists in Google Cloud Storage");
 
             await _gcsClient.CreateBucketAsync("your-project-id", new Google.Apis.Storage.v1.Data.Bucket
             {
@@ -53,7 +50,7 @@ namespace PolyPersist.Net.BlobStore.GoogleCloudStorage
         async Task<IBlobContainer<TBlob>> IBlobStore.GetContainerByName<TBlob>(string containerName)
         {
             if (!await ((IBlobStore)this).IsContainerExists(containerName).ConfigureAwait(false))
-                throw new Exception($"Container '{containerName}' does not exist in blob storage '{_storeName}'");
+                throw new Exception($"Container '{containerName}' does not exist in Google Cloud Storage");
 
             return new GoogleCloudStorage_BlobContainer<TBlob>(containerName, _gcsClient);
         }
@@ -61,7 +58,7 @@ namespace PolyPersist.Net.BlobStore.GoogleCloudStorage
         async Task IBlobStore.DropContainer(string containerName)
         {
             if (!await ((IBlobStore)this).IsContainerExists(containerName).ConfigureAwait(false))
-                throw new Exception($"Container '{containerName}' does not exist in blob storage '{_storeName}'");
+                throw new Exception($"Container '{containerName}' does not exist in Google Cloud Storage");
 
             var objects = _gcsClient.ListObjects(containerName, "");
             foreach (var obj in objects)
