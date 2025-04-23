@@ -1,6 +1,6 @@
 ﻿namespace PolyPersist.Net.BlobStore.Memory
 {
-    internal class Memory_BlobStore : IBlobStore
+    public class Memory_BlobStore : IBlobStore
     {
         internal List<_ContainerData> _Containers = [];
 
@@ -9,7 +9,7 @@
         }
 
         /// <inheritdoc/>
-        IStore.StorageModels IStore.StorageModel => IStore.StorageModels.Document;
+        IStore.StorageModels IStore.StorageModel => IStore.StorageModels.BlobStore;
         /// <inheritdoc/>
         string IStore.ProviderName => "Memory_BlobStore";
 
@@ -36,7 +36,11 @@
         /// <inheritdoc/>
         Task<IBlobContainer<TBlob>> IBlobStore.CreateContainer<TBlob>(string containerName)
         {
-            _ContainerData containerData = new(containerName);
+            _ContainerData containerData = _Containers.Find(c => c.Name == containerName);
+            if (containerData != null)
+                throw new Exception($"Container '{containerName}' is already exist");
+
+            containerData = new(containerName);
             _Containers.Add(containerData);
 
             IBlobContainer<TBlob> container = new Memory_BlobContainer<TBlob>(containerName, containerData, this);

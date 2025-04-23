@@ -40,6 +40,10 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PolyPersist.Net.ColumnStore
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PolyPersist.Net.ColumnStore.GoogleBigQuery", "src\PolyPersist.Net.ColumnStore.GoogleBigQuery\PolyPersist.Net.ColumnStore.GoogleBigQuery.csproj", "{2ED5BCF4-95FA-453B-A3CC-C12A8F25FB96}"
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PolyPersist.Net.BlobStore.Tests", "..\..\tests\dotnet\PolyPersist.Net.BlobStore.Tests\PolyPersist.Net.BlobStore.Tests.csproj", "{B645596D-47E7-4D39-B0A7-3F8697333AB8}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PolyPersist.Net.Test", "..\..\tests\dotnet\PolyPersist.Net.Test\PolyPersist.Net.Test.csproj", "{12003335-28AE-4DED-BD41-275308A2963C}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -98,6 +102,14 @@ Global
 		{2ED5BCF4-95FA-453B-A3CC-C12A8F25FB96}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{2ED5BCF4-95FA-453B-A3CC-C12A8F25FB96}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{2ED5BCF4-95FA-453B-A3CC-C12A8F25FB96}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B645596D-47E7-4D39-B0A7-3F8697333AB8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B645596D-47E7-4D39-B0A7-3F8697333AB8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B645596D-47E7-4D39-B0A7-3F8697333AB8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B645596D-47E7-4D39-B0A7-3F8697333AB8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{12003335-28AE-4DED-BD41-275308A2963C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{12003335-28AE-4DED-BD41-275308A2963C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{12003335-28AE-4DED-BD41-275308A2963C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{12003335-28AE-4DED-BD41-275308A2963C}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
