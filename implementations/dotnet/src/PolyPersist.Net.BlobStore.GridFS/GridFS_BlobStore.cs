@@ -5,13 +5,18 @@ using PolyPersist.Net.DocumentStore.MongoDB;
 
 namespace PolyPersist.Net.BlobStore.GridFS
 {
-    internal class GridFS_BlobStore : IBlobStore
+    public class GridFS_BlobStore : IBlobStore
     {
         internal readonly IMongoDatabase _mongoDatabase;
 
-        public GridFS_BlobStore(IMongoDatabase mongoDatabase )
+        public GridFS_BlobStore(string connectionString)
         {
-            _mongoDatabase = mongoDatabase;
+            var mongoUrl = new MongoUrl(connectionString);
+            if (string.IsNullOrWhiteSpace(mongoUrl.DatabaseName))
+                throw new ArgumentException("The connection string must contain a database name (e.g., mongodb://host:port/mydatabase).");
+
+            var client = new MongoClient(mongoUrl);
+            _mongoDatabase = client.GetDatabase(mongoUrl.DatabaseName);
         }
 
         /// <inheritdoc/>

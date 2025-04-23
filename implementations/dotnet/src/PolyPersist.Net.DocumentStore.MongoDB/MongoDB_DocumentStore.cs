@@ -6,9 +6,14 @@ namespace PolyPersist.Net.DocumentStore.MongoDB
     {
         internal readonly IMongoDatabase _mongoDatabase;
 
-        public MongoDB_DocumentStore(IMongoDatabase mongoDatabase)
+        public MongoDB_DocumentStore(string connectionString)
         {
-            _mongoDatabase = mongoDatabase;
+            var mongoUrl = new MongoUrl(connectionString);
+            if (string.IsNullOrWhiteSpace(mongoUrl.DatabaseName))
+                throw new ArgumentException("The connection string must contain a database name (e.g., mongodb://host:port/mydatabase).");
+
+            var client = new MongoClient(mongoUrl);
+            _mongoDatabase = client.GetDatabase(mongoUrl.DatabaseName);
         }
 
         /// <inheritdoc/>

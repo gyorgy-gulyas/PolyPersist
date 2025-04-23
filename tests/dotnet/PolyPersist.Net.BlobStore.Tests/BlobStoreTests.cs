@@ -1,6 +1,7 @@
 using PolyPersist.Net.Test;
 using PolyPersist.Net.BlobStore.Memory;
 using PolyPersist.Net.BlobStore.FileSystem;
+using PolyPersist.Net.BlobStore.GridFS;
 using Blob = PolyPersist.Net.Core.Blob;
 using System.Reflection;
 
@@ -27,6 +28,9 @@ namespace PolyPersist.Net.BlobStore.Tests
         {
             new object[] { new Func<string,IBlobStore>((testname) => new Memory_BlobStore("")) },
             new object[] { new Func<string,IBlobStore>((testname) => new FileSystem_BlobStore(Path.Combine(Path.GetTempPath(), testname, Guid.NewGuid().ToString()))) }
+            // docker run --name mongodb -d -p 27017:27017 mongo
+            new object[] { new Func<string,IBlobStore>((testname) => new GridFS_BlobStore(Path.Combine(Path.GetTempPath(), testname, Guid.NewGuid().ToString()))) }
+
         };
 
         [DataTestMethod]
