@@ -20,27 +20,25 @@ namespace PolyPersist.Net.ColumnStore.Cassandra
             _keyspace = config.Keyspace;
         }
 
-        public IStore.StorageModels StorageModel => IStore.StorageModels.ColumnStore;
-        public string ProviderName => "Cassandra";
-        public string Name => _keyspace;
+        IStore.StorageModels IStore.StorageModel => IStore.StorageModels.ColumnStore;
+        string IStore.ProviderName => "Cassandra";
 
-        public async Task<bool> IsTableExists(string tableName)
+        async Task<bool> IColumnStore.IsTableExists(string tableName)
         {
-            var tables = await _session.ExecuteAsync(new SimpleStatement("SELECT table_name FROM system_schema.tables WHERE keyspace_name = ?", _keyspace));
-            return tables.Any(row => row.GetValue<string>("table_name") == tableName);
+            return await _IsTableExistsInternal( tableName).ConfigureAwait(false);
         }
 
-        public async Task<IColumnTable<TRow>> GetTableByName<TRow>(string tableName) where TRow : IRow, new()
+        async Task<IColumnTable<TRow>> IColumnStore.GetTableByName<TRow>(string tableName)
         {
-            if (!await IsTableExists(tableName))
+            if (await _IsTableExistsInternal(tableName).ConfigureAwait(false) == false )
                 return null;
 
             return new Cassandra_ColumnTable<TRow>(_session, tableName);
         }
 
-        public async Task<IColumnTable<TRow>> CreateTable<TRow>(string tableName) where TRow : IRow, new()
+        async Task<IColumnTable<TRow>> IColumnStore.CreateTable<TRow>(string tableName)
         {
-            if (await IsTableExists(tableName))
+            if (await _IsTableExistsInternal(tableName).ConfigureAwait(false) == true )
                 throw new Exception($"Table '{tableName}' already exists in Cassandra keyspace '{_keyspace}'.");
 
             string createQuery = $@"
@@ -55,13 +53,19 @@ namespace PolyPersist.Net.ColumnStore.Cassandra
             return new Cassandra_ColumnTable<TRow>(_session, tableName);
         }
 
-        public async Task DropTable(string tableName)
+        async Task IColumnStore.DropTable(string tableName)
         {
-            if (!await IsTableExists(tableName))
+            if (await _IsTableExistsInternal(tableName).ConfigureAwait(false) == false )
                 throw new Exception($"Table '{tableName}' does not exist in Cassandra keyspace '{_keyspace}'.");
 
             var dropQuery = $"DROP TABLE {_keyspace}.{tableName}";
             await _session.ExecuteAsync(new SimpleStatement(dropQuery));
+        }
+
+        private async Task<bool> _IsTableExistsInternal(string tableName)
+        {
+            var tables = await _session.ExecuteAsync(new SimpleStatement("SELECT table_name FROM system_schema.tables WHERE keyspace_name = ?", _keyspace)).ConfigureAwait(false);
+            return tables.Any(row => row.GetValue<string>("table_name") == tableName);
         }
     }
 

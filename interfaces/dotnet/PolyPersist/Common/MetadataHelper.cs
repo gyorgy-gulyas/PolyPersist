@@ -8,25 +8,25 @@ namespace PolyPersist.Net.Common
     public static class MetadataHelper
     {
         // Static cache to store property and field access delegates
-        private static readonly ConcurrentDictionary<Type, List<MemberAccessor>> _cache = new();
+        private static readonly ConcurrentDictionary<Type, Dictionary<string,MemberAccessor>> _cache = new();
 
         /// Retrieves metadata from a given object, including its public properties and fields, as string values.
-        public static IDictionary<string, string> GetMetadata<TBlob>(TBlob blob)
+        public static IDictionary<string, string> GetMetadata<T>(T entity)
         {
-            if (blob == null)
+            if (entity == null)
             {
-                throw new ArgumentNullException(nameof(blob), "The blob object cannot be null.");
+                throw new ArgumentNullException(nameof(entity), "The entity cannot be null.");
             }
 
             var metadata = new Dictionary<string, string>();
 
             // Get cached accessors or generate new ones
-            var accessors = _cache.GetOrAdd(typeof(TBlob), GenerateAccessors);
+            var accessors = _cache.GetOrAdd(typeof(T), GenerateAccessors);
 
             // Execute accessors to extract metadata
-            foreach (var accessor in accessors)
+            foreach (var accessor in accessors.Values)
             {
-                var value = accessor.Getter(blob);
+                var value = accessor.Getter(entity);
                 metadata[accessor.Name] = value?.ToString() ?? string.Empty;
             }
 
@@ -34,7 +34,7 @@ namespace PolyPersist.Net.Common
         }
 
         /// Populates a new instance of the specified type using metadata from a dictionary.
-        public static TBlob SetMetadata<TBlob>(TBlob blob, IDictionary<string, string> metadata) where TBlob : new()
+        public static T SetMetadata<T>(T entity, IDictionary<string, string> metadata) where T : new()
         {
             if (metadata == null)
             {
@@ -42,25 +42,60 @@ namespace PolyPersist.Net.Common
             }
 
             // Get cached accessors or generate new ones
-            var accessors = _cache.GetOrAdd(typeof(TBlob), GenerateAccessors);
+            var accessors = _cache.GetOrAdd(typeof(T), GenerateAccessors);
 
             // Set values from metadata
-            foreach (var accessor in accessors)
+            foreach (var accessor in accessors.Values)
             {
                 if (metadata.TryGetValue(accessor.Name, out var value) && accessor.Setter != null)
                 {
                     var convertedValue = ConvertToType(value, accessor.Type);
-                    accessor.Setter(blob, convertedValue);
+                    accessor.Setter(entity, convertedValue);
                 }
             }
 
-            return blob;
+            return entity;
+        }
+
+        /// Populates a new instance of the specified type using metadata from a dictionary.
+        public static T SetMetadata<T>(T entity, IDictionary<string, object> metadata) where T : new()
+        {
+            if (metadata == null)
+            {
+                throw new ArgumentNullException(nameof(metadata), "Metadata cannot be null.");
+            }
+
+            // Get cached accessors or generate new ones
+            var accessors = _cache.GetOrAdd(typeof(T), GenerateAccessors);
+
+            // Set values from metadata
+            foreach (var accessor in accessors.Values)
+            {
+                if (metadata.TryGetValue(accessor.Name, out var value) && accessor.Setter != null)
+                {
+                    accessor.Setter(entity, value);
+                }
+            }
+
+            return entity;
+        }
+
+        /// Populates a new instance of the specified type using metadata from a dictionary.
+        public static T SetMetadata<T>(T entity, string fieldName, object value, Dictionary<string, MemberAccessor> accessors = null ) where T : new()
+        {
+            // Get cached accessors or generate new ones
+            accessors ??= _cache.GetOrAdd(typeof(T), GenerateAccessors);
+
+            if( accessors.TryGetValue(fieldName, out var accessor) == true )
+                accessor.Setter(entity, value);
+
+            return entity;
         }
 
         /// Generates a list of accessors for public properties and fields of a given type.
-        private static List<MemberAccessor> GenerateAccessors(Type type)
+        private static Dictionary<string,MemberAccessor> GenerateAccessors(Type type)
         {
-            var accessors = new List<MemberAccessor>();
+            var accessors = new Dictionary<string, MemberAccessor>();
 
             // Process public properties
             var properties = type.GetProperties(BindingFlags.Public | BindingFlags.Instance);
@@ -73,7 +108,7 @@ namespace PolyPersist.Net.Common
                     Getter = CreateGetter(property),
                     Setter = property.CanWrite ? CreateSetter(property) : null
                 };
-                accessors.Add(accessor);
+                accessors.Add(property.Name,accessor);
             }
 
             // Process public fields
@@ -87,11 +122,13 @@ namespace PolyPersist.Net.Common
                     Getter = CreateGetter(field),
                     Setter = CreateSetter(field)
                 };
-                accessors.Add(accessor);
+                accessors.Add(field.Name,accessor);
             }
 
             return accessors;
         }
+
+        public static Dictionary<string, MemberAccessor> GetAccessors<T>() => _cache.GetOrAdd(typeof(T), GenerateAccessors);
 
         /// Converts a string value to a specified type.
         private static object ConvertToType(string value, Type targetType)
@@ -149,7 +186,7 @@ namespace PolyPersist.Net.Common
         }
 
         /// Represents an accessor for a property or field.
-        private class MemberAccessor
+        public class MemberAccessor
         {
             public string Name { get; set; } = null!;
             public Type Type { get; set; } = null!;

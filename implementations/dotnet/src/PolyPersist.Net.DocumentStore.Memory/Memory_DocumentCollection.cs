@@ -48,7 +48,7 @@ namespace PolyPersist.Net.DocumentStore.Memory
             await CollectionCommon.CheckBeforeUpdate(document).ConfigureAwait(false);
 
             if (_collectionData.MapOfDocments.TryGetValue((document.id, document.PartitionKey), out _RowData row) == false)
-                throw new Exception($"Document '{typeof(TDocument).Name}' {document.id} can not be removed because it is already removed");
+                throw new Exception($"Document '{typeof(TDocument).Name}' {document.id} can not be updated because it is already removed");
 
             if (row.etag != document.etag)
                 throw new Exception($"Document '{typeof(TDocument).Name}' {document.id} can not be updated because it is already changed");

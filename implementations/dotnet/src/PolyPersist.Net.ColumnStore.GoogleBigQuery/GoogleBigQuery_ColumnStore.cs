@@ -19,19 +19,18 @@ namespace PolyPersist.Net.ColumnStore.GoogleBigQuery
                 : BigQueryClient.Create(_projectId, Google.Apis.Auth.OAuth2.GoogleCredential.FromFile(config.CredentialPath));
         }
 
-        public IStore.StorageModels StorageModel => IStore.StorageModels.ColumnStore;
-        public string ProviderName => "GoogleBigQuery";
-        public string Name => _datasetId;
+        IStore.StorageModels IStore.StorageModel => IStore.StorageModels.ColumnStore;
+        string IStore.ProviderName => "GoogleBigQuery";
 
-        public async Task<bool> IsTableExists(string tableName)
+        async Task<bool> IColumnStore.IsTableExists(string tableName)
         {
-            var table = await _client.GetTableAsync(_datasetId, tableName);
+            var table = await _client.GetTableAsync(_datasetId, tableName).ConfigureAwait(false);
             return table != null;
         }
 
-        public async Task<IColumnTable<TRow>> CreateTable<TRow>(string tableName) where TRow : IRow, new()
+        async Task<IColumnTable<TRow>> IColumnStore.CreateTable<TRow>(string tableName)
         {
-            if (await IsTableExists(tableName))
+            if (await _client.GetTableAsync(_datasetId, tableName).ConfigureAwait(false) != null )
                 throw new Exception($"Table '{tableName}' already exists in BigQuery dataset '{_datasetId}'.");
 
             var schema = new TableSchemaBuilder
@@ -41,24 +40,24 @@ namespace PolyPersist.Net.ColumnStore.GoogleBigQuery
                 { "etag", BigQueryDbType.String }
             }.Build();
 
-            await _client.CreateTableAsync(_datasetId, tableName, schema);
+            await _client.CreateTableAsync(_datasetId, tableName, schema).ConfigureAwait(false);
             return new GoogleBigQuery_ColumnTable<TRow>(this, tableName);
         }
 
-        public async Task<IColumnTable<TRow>> GetTableByName<TRow>(string tableName) where TRow : IRow, new()
+        async Task<IColumnTable<TRow>> IColumnStore.GetTableByName<TRow>(string tableName)
         {
-            if (!await IsTableExists(tableName))
+            if (await _client.GetTableAsync(_datasetId, tableName).ConfigureAwait(false) == null )
                 return null;
 
             return new GoogleBigQuery_ColumnTable<TRow>(this, tableName);
         }
 
-        public async Task DropTable(string tableName)
+        async Task IColumnStore.DropTable(string tableName)
         {
-            if (!await IsTableExists(tableName))
+            if (await _client.GetTableAsync(_datasetId, tableName).ConfigureAwait(false) == null )
                 throw new Exception($"Table '{tableName}' does not exist in BigQuery dataset '{_datasetId}'.");
 
-            await _client.DeleteTableAsync(_datasetId, tableName);
+            await _client.DeleteTableAsync(_datasetId, tableName).ConfigureAwait(false);
         }
     }
 

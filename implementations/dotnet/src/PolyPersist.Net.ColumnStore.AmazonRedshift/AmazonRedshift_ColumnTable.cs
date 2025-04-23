@@ -1,9 +1,12 @@
 ﻿using Amazon.RedshiftDataAPIService;
 using Amazon.RedshiftDataAPIService.Model;
+using PolyPersist.Net.Common;
+using PolyPersist.Net.Core;
 
 namespace PolyPersist.Net.ColumnStore.AmazonRedshift
 {
-    internal class AmazonRedshift_ColumnTable<TRow> : IColumnTable<TRow> where TRow : IRow, new()
+    internal class AmazonRedshift_ColumnTable<TRow> : IColumnTable<TRow> 
+        where TRow : IRow, new()
     {
         private readonly string _tableName;
         private readonly AmazonRedshiftDataAPIServiceClient _client;
@@ -20,29 +23,111 @@ namespace PolyPersist.Net.ColumnStore.AmazonRedshift
             _dbUser = dbUser;
         }
 
-        public string Name => _tableName;
+        string IColumnTable<TRow>.Name => _tableName;
 
-        public async Task Insert(TRow row)
+        async Task IColumnTable<TRow>.Insert(TRow row)
         {
+            await CollectionCommon.CheckBeforeInsert(row).ConfigureAwait(false);
             row.etag = Guid.NewGuid().ToString();
-            var query = $"INSERT INTO \"{_tableName}\" (partitionkey, id, etag) VALUES ('{row.PartitionKey}', '{row.id}', '{row.etag}')";
-            await ExecuteQuery(query);
+
+            var metadata = MetadataHelper.GetMetadata(row);
+            var columns = string.Join(", ", metadata.Keys.Select(fieldName => $"\"{fieldName}\""));
+            var values = string.Join(", ", metadata.Values.Select(fieldValue => _escape(fieldValue)));
+
+            var sql = $"INSERT INTO \"{_tableName}\" ({columns}) VALUES ({values})";
+
+            await _ExecuteQueryInternal(sql).ConfigureAwait(false);
         }
 
-        public async Task Update(TRow row)
+        async Task IColumnTable<TRow>.Update(TRow row)
         {
+            await CollectionCommon.CheckBeforeUpdate(row).ConfigureAwait(false);
+
+            var original = await _FindInternal(row.PartitionKey, row.id).ConfigureAwait(false);
+            if (original == null)
+                throw new Exception($"Row '{typeof(TRow).Name}' {row.id} can not be updated because it is already removed.");
+
+            if (row.etag != original.etag)
+                throw new Exception($"Document '{typeof(TRow).Name}' {row.id} can not be updated because it is already changed");
+
             row.etag = Guid.NewGuid().ToString();
-            var query = $"UPDATE \"{_tableName}\" SET etag = '{row.etag}' WHERE partitionkey = '{row.PartitionKey}' AND id = '{row.id}'";
-            await ExecuteQuery(query);
+
+            var metadatas = MetadataHelper.GetMetadata(row);
+            var setClauses = new List<string>();
+            foreach (var metadata in metadatas)
+                setClauses.Add($"\"{metadata.Key}\" = {_escape(metadata.Value)}");
+            
+            var sql = 
+                $"UPDATE \"{_tableName} " + 
+                $"   SET {string.Join(", ", setClauses)} " +
+                $" WHERE partitionkey = '{row.PartitionKey} " + 
+                $"   AND id = '{row.id}'";
+            await _ExecuteQueryInternal(sql);
         }
 
-        public async Task Delete(string partitionKey, string id)
+        async Task IColumnTable<TRow>.Delete(string partitionKey, string id)
         {
             var query = $"DELETE FROM \"{_tableName}\" WHERE partitionkey = '{partitionKey}' AND id = '{id}'";
-            await ExecuteQuery(query);
+            await _ExecuteQueryInternal(query);
         }
 
-        public async Task<TRow> Find(string partitionKey, string id)
+        async Task<TRow> IColumnTable<TRow>.Find(string partitionKey, string id)
+        {
+            var query = $"SELECT * FROM \"{_tableName}\" WHERE partitionkey = '{partitionKey}' AND id = '{id}' LIMIT 1";
+
+            var exec = await _client.ExecuteStatementAsync(new ExecuteStatementRequest
+            {
+                ClusterIdentifier = _clusterId,
+                Database = _database,
+                DbUser = _dbUser,
+                Sql = query
+            }).ConfigureAwait(false);
+
+            
+
+            
+            for (int i = 0; i < 5; i++)
+            {
+                var desc = await _client.DescribeStatementAsync(new DescribeStatementRequest { Id = exec.Id });
+                
+                if (desc.Status == StatusString.FINISHED)
+                    break;
+
+                if (desc.Status == StatusString.FAILED || desc.Status == StatusString.ABORTED)
+                    throw new Exception($"Query failed: {desc.Error}");
+
+                await Task.Delay(10);
+            }
+
+            var result = await _client.GetStatementResultAsync(new GetStatementResultRequest { Id = exec.Id });
+            if (result.Records.Count == 0)
+                return default;
+
+            var row = new TRow();
+            var record = result.Records[0];
+            var fieldNames = result.ColumnMetadata.Select(cm => cm.Name).ToArray();
+            var accessors = MetadataHelper.GetAccessors<TRow>();
+
+            for (int i = 0; i < fieldNames.Length; i++)
+                MetadataHelper.SetMetadata(record, fieldNames[i], record[i], accessors);
+
+            return row;
+        }
+
+        public object GetUnderlyingImplementation() => _client;
+
+        private async Task _ExecuteQueryInternal(string sql)
+        {
+            await _client.ExecuteStatementAsync(new ExecuteStatementRequest
+            {
+                ClusterIdentifier = _clusterId,
+                Database = _database,
+                DbUser = _dbUser,
+                Sql = sql
+            });
+        }
+
+        async Task<Entity> _FindInternal(string partitionKey, string id)
         {
             var query = $"SELECT partitionkey, id, etag FROM \"{_tableName}\" WHERE partitionkey = '{partitionKey}' AND id = '{id}' LIMIT 1";
 
@@ -52,25 +137,37 @@ namespace PolyPersist.Net.ColumnStore.AmazonRedshift
                 Database = _database,
                 DbUser = _dbUser,
                 Sql = query,
-                WithEvent = true
-            });
+            }).ConfigureAwait( false );
 
-            string statementId = exec.Id;
-            GetStatementResultResponse result;
-            do
+            int attempts = 0;
+            while (attempts < 10)
             {
-                await Task.Delay(100); // Polling delay
-                result = await _client.GetStatementResultAsync(new GetStatementResultRequest
+                var desc = await _client.DescribeStatementAsync(new DescribeStatementRequest
                 {
-                    Id = statementId
+                    Id = exec.Id
                 });
-            } while (result.Records.Count == 0 && result.TotalNumRows == 0);
+
+                if (desc.Status == StatusString.FINISHED)
+                    break;
+
+                if (desc.Status == StatusString.FAILED || desc.Status == StatusString.ABORTED)
+                    throw new Exception($"Redshift query failed with status: {desc.Status}, Error: {desc.Error}");
+
+                await Task.Delay(10);
+                attempts++;
+
+            }
+
+            var result = await _client.GetStatementResultAsync(new GetStatementResultRequest
+            {
+                Id = exec.Id
+            });
 
             if (result.Records.Count == 0)
                 return default;
 
             var record = result.Records[0];
-            return new TRow
+            return new Entity
             {
                 PartitionKey = record[0].StringValue,
                 id = record[1].StringValue,
@@ -78,22 +175,10 @@ namespace PolyPersist.Net.ColumnStore.AmazonRedshift
             };
         }
 
-        public TQuery Query<TQuery>()
+        private static string _escape(object value)
         {
-            throw new NotSupportedException("Amazon Redshift does not support IQueryable style queries via Data API.");
-        }
-
-        public object GetUnderlyingImplementation() => _client;
-
-        private async Task ExecuteQuery(string sql)
-        {
-            await _client.ExecuteStatementAsync(new ExecuteStatementRequest
-            {
-                ClusterIdentifier = _clusterId,
-                Database = _database,
-                DbUser = _dbUser,
-                Sql = sql
-            });
+            if (value == null) return "NULL";
+            return value.ToString();
         }
     }
 }

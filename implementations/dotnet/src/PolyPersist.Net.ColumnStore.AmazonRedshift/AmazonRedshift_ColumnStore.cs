@@ -20,66 +20,64 @@ namespace PolyPersist.Net.ColumnStore.AmazonRedshift
             _dbUser = config.DbUser;
         }
 
-        public IStore.StorageModels StorageModel => IStore.StorageModels.ColumnStore;
-        public string ProviderName => "AmazonRedshift";
-        public string Name => _database;
+        IStore.StorageModels IStore.StorageModel => IStore.StorageModels.ColumnStore;
+        string IStore.ProviderName => "AmazonRedshift";
 
-        public async Task<bool> IsTableExists(string tableName)
+        async Task<bool> IColumnStore.IsTableExists(string tableName)
         {
-            var sql = $"SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = '{tableName}'";
-            var exec = await _client.ExecuteStatementAsync(new ExecuteStatementRequest
-            {
-                ClusterIdentifier = _clusterId,
-                Database = _database,
-                DbUser = _dbUser,
-                Sql = sql,
-                WithEvent = true
-            });
-
-            string statementId = exec.Id;
-            var result = await _client.GetStatementResultAsync(new GetStatementResultRequest
-            {
-                Id = statementId
-            });
-
-            return result.Records.Count > 0;
+            return await _IsTableExistsInternal( tableName ).ConfigureAwait(false);
         }
 
-        public async Task<IColumnTable<TRow>> CreateTable<TRow>(string tableName) where TRow : IRow, new()
+        async Task<IColumnTable<TRow>> IColumnStore.CreateTable<TRow>(string tableName)
         {
-            if (await IsTableExists(tableName))
+            if (await _IsTableExistsInternal(tableName).ConfigureAwait(false) == true )
                 throw new Exception($"Table '{tableName}' already exists in Redshift.");
 
             var sql = $"CREATE TABLE \"{tableName}\" (partitionkey VARCHAR(256), id VARCHAR(256), etag VARCHAR(256), PRIMARY KEY(partitionkey, id))";
-            await ExecuteQuery(sql);
+            await _ExecuteQueryInternal(sql);
 
             return new AmazonRedshift_ColumnTable<TRow>(tableName, _client, _database, _clusterId, _dbUser);
         }
 
-        public async Task<IColumnTable<TRow>> GetTableByName<TRow>(string tableName) where TRow : IRow, new()
+        async Task<IColumnTable<TRow>> IColumnStore.GetTableByName<TRow>(string tableName)
         {
-            if (!await IsTableExists(tableName)) return null;
+            if (await _IsTableExistsInternal(tableName).ConfigureAwait(false) == false)
+                return null;
+
             return new AmazonRedshift_ColumnTable<TRow>(tableName, _client, _database, _clusterId, _dbUser);
         }
 
-        public async Task DropTable(string tableName)
+        async Task IColumnStore.DropTable(string tableName)
         {
-            if (!await IsTableExists(tableName))
+            if (await _IsTableExistsInternal(tableName).ConfigureAwait(false) == false)
                 throw new Exception($"Table '{tableName}' does not exist in Redshift.");
 
             var sql = $"DROP TABLE \"{tableName}\"";
-            await ExecuteQuery(sql);
+            await _ExecuteQueryInternal(sql);
         }
 
-        private async Task ExecuteQuery(string sql)
+        private async Task<ExecuteStatementResponse> _ExecuteQueryInternal(string sql)
         {
-            await _client.ExecuteStatementAsync(new ExecuteStatementRequest
+            return await _client.ExecuteStatementAsync(new ExecuteStatementRequest
             {
                 ClusterIdentifier = _clusterId,
                 Database = _database,
                 DbUser = _dbUser,
                 Sql = sql
-            });
+            }).ConfigureAwait(false);
+        }
+
+        async Task<bool> _IsTableExistsInternal(string tableName)
+        {
+            var sql = $"SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = '{tableName}'";
+            var exec = await _ExecuteQueryInternal( sql).ConfigureAwait(false);
+
+            var result = await _client.GetStatementResultAsync(new GetStatementResultRequest
+            {
+                Id = exec.Id
+            }).ConfigureAwait(false);
+
+            return result.Records.Count > 0;
         }
     }
 

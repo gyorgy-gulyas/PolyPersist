@@ -13,11 +13,11 @@ namespace PolyPersist.Net.BlobStore.FileSystem
             Directory.CreateDirectory(_containerPath);
         }
 
-        public string Name => new DirectoryInfo(_containerPath).Name;
+        string IBlobContainer<TBlob>.Name => new DirectoryInfo(_containerPath).Name;
 
-        public Task Upload(TBlob blob, Stream content)
+        Task IBlobContainer<TBlob>.Upload(TBlob blob, Stream content)
         {
-            var path = BuildFilePath(blob.PartitionKey, blob.id);
+            var path = _makeFilePath(blob.PartitionKey, blob.id);
             Directory.CreateDirectory(Path.GetDirectoryName(path));
             using var fs = File.Create(path);
             content.CopyTo(fs);
@@ -25,16 +25,16 @@ namespace PolyPersist.Net.BlobStore.FileSystem
             return Task.CompletedTask;
         }
 
-        public Task<Stream> Download(TBlob blob)
+        Task<Stream> IBlobContainer<TBlob>.Download(TBlob blob)
         {
-            var path = BuildFilePath(blob.PartitionKey, blob.id);
+            var path = _makeFilePath(blob.PartitionKey, blob.id);
             var fs = File.OpenRead(path);
             return Task.FromResult<Stream>(fs);
         }
 
-        public Task<TBlob> Find(string partitionKey, string id)
+        Task<TBlob> IBlobContainer<TBlob>.Find(string partitionKey, string id)
         {
-            var path = BuildFilePath(partitionKey, id);
+            var path = _makeFilePath(partitionKey, id);
             if (!File.Exists(path)) 
                 return Task.FromResult<TBlob>( default );
 
@@ -55,9 +55,9 @@ namespace PolyPersist.Net.BlobStore.FileSystem
             return Task.FromResult(blob);
         }
 
-        public Task Delete(string partitionKey, string id)
+        Task IBlobContainer<TBlob>.Delete(string partitionKey, string id)
         {
-            var path = BuildFilePath(partitionKey, id);
+            var path = _makeFilePath(partitionKey, id);
             if (!File.Exists(path)) throw new FileNotFoundException("Blob not found", path);
             File.Delete(path);
             var metaPath = path + ".meta.json";
@@ -65,22 +65,22 @@ namespace PolyPersist.Net.BlobStore.FileSystem
             return Task.CompletedTask;
         }
 
-        public Task UpdateContent(TBlob blob, Stream content)
+        Task IBlobContainer<TBlob>.UpdateContent(TBlob blob, Stream content)
         {
             return Upload(blob, content);
         }
 
-        public Task UpdateMetadata(TBlob blob)
+        Task IBlobContainer<TBlob>.UpdateMetadata(TBlob blob)
         {
-            var path = BuildFilePath(blob.PartitionKey, blob.id);
+            var path = _makeFilePath(blob.PartitionKey, blob.id);
             if (!File.Exists(path)) throw new FileNotFoundException("Blob not found", path);
             File.WriteAllText(path + ".meta.json", JsonSerializer.Serialize(MetadataHelper.GetMetadata(blob)));
             return Task.CompletedTask;
         }
 
-        public object GetUnderlyingImplementation() => _containerPath;
+        object IBlobContainer<TBlob>.GetUnderlyingImplementation() => _containerPath;
 
-        private string BuildFilePath(string partitionKey, string id)
+        private string _makeFilePath(string partitionKey, string id)
         {
             return Path.Combine(_containerPath, partitionKey, id);
         }
