@@ -34,9 +34,7 @@ namespace PolyPersist.Net.BlobStore.AmazonS3
             };
 
             foreach (var kv in MetadataHelper.GetMetadata(blob))
-            {
                 request.Metadata[kv.Key] = kv.Value;
-            }
 
             await _amazonS3Client.PutObjectAsync(request).ConfigureAwait(false);
         }
@@ -44,11 +42,20 @@ namespace PolyPersist.Net.BlobStore.AmazonS3
         async Task<Stream> IBlobContainer<TBlob>.Download(TBlob blob)
         {
             var key = BuildKey(blob.PartitionKey, blob.id);
-            var response = await _amazonS3Client.GetObjectAsync(_bucketName, key).ConfigureAwait(false);
-            var ms = new MemoryStream();
-            await response.ResponseStream.CopyToAsync(ms);
-            ms.Position = 0;
-            return ms;
+
+            try
+            {
+                var response = await _amazonS3Client.GetObjectAsync(_bucketName, key).ConfigureAwait(false);
+
+                var ms = new MemoryStream((int)response.ContentLength);
+                await response.ResponseStream.CopyToAsync(ms);
+                ms.Position = 0;
+                return ms;
+            }
+            catch (AmazonS3Exception ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
+            {
+                throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not download, because it is does not exist");
+            }
         }
 
         async Task<TBlob> IBlobContainer<TBlob>.Find(string partitionKey, string id)
@@ -89,18 +96,81 @@ namespace PolyPersist.Net.BlobStore.AmazonS3
 
         async Task IBlobContainer<TBlob>.UpdateContent(TBlob blob, Stream content)
         {
-            await ((IBlobContainer<TBlob>)this).Upload(blob, content);
+            var key = BuildKey(blob.PartitionKey, blob.id);
+
+            GetObjectMetadataResponse response;
+            try
+            {
+                response = await _amazonS3Client.GetObjectMetadataAsync(_bucketName, key).ConfigureAwait(false);
+            }
+            catch (AmazonS3Exception ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
+            {
+                throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not upload, because it is does not exist");
+            }
+
+            var request = new PutObjectRequest
+            {
+                BucketName = _bucketName,
+                Key = key,
+                InputStream = content,
+                ContentType = blob.contentType
+            };
+
+            // copy original metadata
+            foreach (var kv in MetadataConverter.ToDictionary(response.Metadata))
+            {
+                request.Metadata[kv.Key] = kv.Value;
+            }
+
+            await _amazonS3Client.PutObjectAsync(request).ConfigureAwait(false);
         }
 
         async Task IBlobContainer<TBlob>.UpdateMetadata(TBlob blob)
         {
             var key = BuildKey(blob.PartitionKey, blob.id);
-            var response = await _amazonS3Client.GetObjectAsync(_bucketName, key).ConfigureAwait(false);
-            using var ms = new MemoryStream();
-            await response.ResponseStream.CopyToAsync(ms);
-            ms.Position = 0;
 
-            await ((IBlobContainer<TBlob>)this).Upload(blob, ms);
+            // 1. Ensure the object exists in S3
+            GetObjectMetadataResponse metadata;
+            try
+            {
+                metadata = await _amazonS3Client.GetObjectMetadataAsync(_bucketName, key).ConfigureAwait(false);
+            }
+            catch (AmazonS3Exception ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
+            {
+                throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not upload, because it is does not exist");
+            }
+
+            // 2. Download the existing object content
+            var originalStream = new MemoryStream();
+            await _amazonS3Client.GetObjectAsync(new GetObjectRequest
+            {
+                BucketName = _bucketName,
+                Key = key
+            }).ContinueWith(async task =>
+            {
+                using var response = await task;
+                await response.ResponseStream.CopyToAsync(originalStream);
+            }).Unwrap();
+
+            originalStream.Position = 0;
+
+            // 3. Re-upload the object with the same content and updated metadata
+            var request = new PutObjectRequest
+            {
+                BucketName = _bucketName,
+                Key = key,
+                InputStream = originalStream,
+                ContentType = blob.contentType ?? metadata.Headers.ContentType ?? "application/octet-stream"
+            };
+
+            // 4. Apply the new user-defined metadata from the blob
+            foreach (var kv in MetadataHelper.GetMetadata(blob))
+            {
+                request.Metadata[kv.Key] = kv.Value;
+            }
+
+            // 5. Upload the updated object back to S3
+            await _amazonS3Client.PutObjectAsync(request).ConfigureAwait(false);
         }
 
         object IBlobContainer<TBlob>.GetUnderlyingImplementation()

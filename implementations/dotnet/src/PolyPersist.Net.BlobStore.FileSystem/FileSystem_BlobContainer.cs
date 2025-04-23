@@ -1,4 +1,5 @@
 ﻿using PolyPersist.Net.Common;
+using System.IO;
 using System.Text.Json;
 
 namespace PolyPersist.Net.BlobStore.FileSystem
@@ -15,19 +16,24 @@ namespace PolyPersist.Net.BlobStore.FileSystem
 
         string IBlobContainer<TBlob>.Name => new DirectoryInfo(_containerPath).Name;
 
-        Task IBlobContainer<TBlob>.Upload(TBlob blob, Stream content)
+        async Task IBlobContainer<TBlob>.Upload(TBlob blob, Stream content)
         {
+            await CollectionCommon.CheckBeforeInsert(blob).ConfigureAwait(false);
+            blob.etag = Guid.NewGuid().ToString();
+
             var path = _makeFilePath(blob.PartitionKey, blob.id);
             Directory.CreateDirectory(Path.GetDirectoryName(path));
             using var fs = File.Create(path);
             content.CopyTo(fs);
             File.WriteAllText(path + ".meta.json", JsonSerializer.Serialize(MetadataHelper.GetMetadata(blob)));
-            return Task.CompletedTask;
         }
 
         Task<Stream> IBlobContainer<TBlob>.Download(TBlob blob)
         {
             var path = _makeFilePath(blob.PartitionKey, blob.id);
+            if (File.Exists(path) == false)
+                throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not download, because it is does not exist");
+
             var fs = File.OpenRead(path);
             return Task.FromResult<Stream>(fs);
         }
@@ -35,8 +41,8 @@ namespace PolyPersist.Net.BlobStore.FileSystem
         Task<TBlob> IBlobContainer<TBlob>.Find(string partitionKey, string id)
         {
             var path = _makeFilePath(partitionKey, id);
-            if (!File.Exists(path)) 
-                return Task.FromResult<TBlob>( default );
+            if (File.Exists(path) == false)
+                return Task.FromResult<TBlob>(default);
 
             var blob = new TBlob
             {
@@ -58,23 +64,37 @@ namespace PolyPersist.Net.BlobStore.FileSystem
         Task IBlobContainer<TBlob>.Delete(string partitionKey, string id)
         {
             var path = _makeFilePath(partitionKey, id);
-            if (!File.Exists(path)) throw new FileNotFoundException("Blob not found", path);
+            if (File.Exists(path) == false)
+                throw new FileNotFoundException("Blob not found", path);
+
             File.Delete(path);
             var metaPath = path + ".meta.json";
-            if (File.Exists(metaPath)) File.Delete(metaPath);
+            if (File.Exists(metaPath) == true)
+                File.Delete(metaPath);
+
             return Task.CompletedTask;
         }
 
         Task IBlobContainer<TBlob>.UpdateContent(TBlob blob, Stream content)
         {
-            return Upload(blob, content);
+            var path = _makeFilePath(blob.PartitionKey, blob.id);
+            if (File.Exists(path) == false)
+                throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not upload, because it is does not exist");
+
+            using var fs = File.Create(path);
+            content.CopyTo(fs);
+
+            return Task.CompletedTask;
         }
 
         Task IBlobContainer<TBlob>.UpdateMetadata(TBlob blob)
         {
             var path = _makeFilePath(blob.PartitionKey, blob.id);
-            if (!File.Exists(path)) throw new FileNotFoundException("Blob not found", path);
+            if (File.Exists(path) == false)
+                throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not upload, because it is does not exist");
+
             File.WriteAllText(path + ".meta.json", JsonSerializer.Serialize(MetadataHelper.GetMetadata(blob)));
+
             return Task.CompletedTask;
         }
 
