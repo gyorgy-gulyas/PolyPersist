@@ -1,9 +1,6 @@
-using PolyPersist.Net.Test;
-using PolyPersist.Net.BlobStore.Memory;
-using PolyPersist.Net.BlobStore.FileSystem;
-using PolyPersist.Net.BlobStore.GridFS;
-using Blob = PolyPersist.Net.Core.Blob;
+﻿using PolyPersist.Net.Test;
 using System.Reflection;
+using Blob = PolyPersist.Net.Core.Blob;
 
 
 namespace PolyPersist.Net.BlobStore.Tests
@@ -24,33 +21,22 @@ namespace PolyPersist.Net.BlobStore.Tests
     [TestClass]
     public class BlobStoreTests
     {
-        public static IEnumerable<object[]> Instances => new List<object[]>
-        {
-            new object[] { new Func<string,IBlobStore>((testname) => new Memory_BlobStore("")) },
-            new object[] { new Func<string,IBlobStore>((testname) => new FileSystem_BlobStore(Path.Combine(Path.GetTempPath(), testname, Guid.NewGuid().ToString()))) }
-            // docker run --name mongodb -d -p 27017:27017 mongo
-            new object[] { new Func<string,IBlobStore>((testname) => new GridFS_BlobStore(Path.Combine(Path.GetTempPath(), testname, Guid.NewGuid().ToString()))) }
-
-        };
-
         [DataTestMethod]
-        [DynamicData(nameof(Instances), DynamicDataSourceType.Property)]
-        public Task BlobStore_BasicInfo_OK(Func<string,IBlobStore> factory)
+        [DynamicData(nameof(TestMain.StoreInstances), typeof(TestMain), DynamicDataSourceType.Property)]
+        public async Task BlobStore_BasicInfo_OK(Func<string,Task<IBlobStore>> factory)
         {
-            var store = factory(MethodBase.GetCurrentMethod().GetAsyncMethodName());
+            var store = await factory(MethodBase.GetCurrentMethod().GetAsyncMethodName());
 
             Assert.IsNotNull(store);
             Assert.AreEqual(IStore.StorageModels.BlobStore, store.StorageModel);
             Assert.IsFalse(string.IsNullOrEmpty(store.ProviderName));
-
-            return Task.CompletedTask;
         }
 
         [DataTestMethod]
-        [DynamicData(nameof(Instances), DynamicDataSourceType.Property)]
-        public async Task BlobStore_Container_Ok(Func<string, IBlobStore> factory)
+        [DynamicData(nameof(TestMain.StoreInstances), typeof(TestMain), DynamicDataSourceType.Property)]
+        public async Task BlobStore_Container_Ok(Func<string, Task<IBlobStore>> factory)
         {
-            var store = factory(MethodBase.GetCurrentMethod().GetAsyncMethodName());
+            var store = await factory(MethodBase.GetCurrentMethod().GetAsyncMethodName());
 
             Assert.IsFalse(await store.IsContainerExists("container"));
 
@@ -68,10 +54,10 @@ namespace PolyPersist.Net.BlobStore.Tests
         }
 
         [DataTestMethod]
-        [DynamicData(nameof(Instances), DynamicDataSourceType.Property)]
-        public async Task BlobStore_CreateContainer_Fail(Func<string, IBlobStore> factory)
+        [DynamicData(nameof(TestMain.StoreInstances), typeof(TestMain), DynamicDataSourceType.Property)]
+        public async Task BlobStore_CreateContainer_Fail(Func<string, Task<IBlobStore>> factory)
         {
-            var store = factory(MethodBase.GetCurrentMethod().GetAsyncMethodName());
+            var store = await factory(MethodBase.GetCurrentMethod().GetAsyncMethodName());
 
             var container = await store.CreateContainer<SampleBlob>("container");
 
@@ -80,20 +66,20 @@ namespace PolyPersist.Net.BlobStore.Tests
         }
 
         [DataTestMethod]
-        [DynamicData(nameof(Instances), DynamicDataSourceType.Property)]
-        public async Task BlobStore_GetContainer_Fail(Func<string, IBlobStore> factory)
+        [DynamicData(nameof(TestMain.StoreInstances), typeof(TestMain), DynamicDataSourceType.Property)]
+        public async Task BlobStore_GetContainer_Fail(Func<string, Task<IBlobStore>> factory)
         {
-            var store = factory(MethodBase.GetCurrentMethod().GetAsyncMethodName());
+            var store = await factory(MethodBase.GetCurrentMethod().GetAsyncMethodName());
 
             Exception ex = await Assert.ThrowsExceptionAsync<Exception>(async () => await store.GetContainerByName<SampleBlob>("not_exist"));
             Assert.IsTrue(ex.Message.Contains("does not exist"));
         }
 
         [DataTestMethod]
-        [DynamicData(nameof(Instances), DynamicDataSourceType.Property)]
-        public async Task BlobStore_DropContainer_Fail(Func<string, IBlobStore> factory)
+        [DynamicData(nameof(TestMain.StoreInstances), typeof(TestMain), DynamicDataSourceType.Property)]
+        public async Task BlobStore_DropContainer_Fail(Func<string, Task<IBlobStore>> factory)
         {
-            var store = factory(MethodBase.GetCurrentMethod().GetAsyncMethodName());
+            var store = await factory(MethodBase.GetCurrentMethod().GetAsyncMethodName());
 
             Exception ex = await Assert.ThrowsExceptionAsync<Exception>(async () => await store.DropContainer("not_exist"));
             Assert.IsTrue(ex.Message.Contains("does not exist"));

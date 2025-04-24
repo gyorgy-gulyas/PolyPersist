@@ -45,7 +45,7 @@ namespace PolyPersist.Net.BlobStore.GridFS
             MongoDB_Serializer.RegisterType<TEntity>(typeof(TEntity));
 
             if (await (this as IBlobStore).IsContainerExists(containerName).ConfigureAwait(false) == false)
-                return null;
+                throw new Exception($"Container '{containerName}' does not exist");
 
             GridFSBucket gridFSBucket = new GridFSBucket(_mongoDatabase, new GridFSBucketOptions() { BucketName = containerName });
             return new GridFS_BlobContainer<TEntity>(gridFSBucket, this);
