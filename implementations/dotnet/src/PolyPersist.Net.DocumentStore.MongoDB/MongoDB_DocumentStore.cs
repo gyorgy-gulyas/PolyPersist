@@ -2,7 +2,7 @@
 
 namespace PolyPersist.Net.DocumentStore.MongoDB
 {
-    internal class MongoDB_DocumentStore : IDocumentStore
+    public class MongoDB_DocumentStore : IDocumentStore
     {
         internal readonly IMongoDatabase _mongoDatabase;
 

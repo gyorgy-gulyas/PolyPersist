@@ -19,12 +19,12 @@ namespace PolyPersist.Net.BlobStore.Tests
 
         static TestMain()
         {
-            //_Setup_Memory_BlobStore();
-            //_Setup_FileSystem_BlobStore();
-            //_Setup_GridFS_BlobStore();
-            //_Setup_MinIO_BlobStore();
-            //_Setup_AmazonS3_BlobStore();
-            //_Setup_GoogleCloudStorage_BlobStore();
+            _Setup_Memory_BlobStore();
+            _Setup_FileSystem_BlobStore();
+            _Setup_GridFS_BlobStore();
+            _Setup_MinIO_BlobStore();
+            _Setup_AmazonS3_BlobStore();
+            _Setup_GoogleCloudStorage_BlobStore();
             _Setup_Memory_AzureStorage();
         }
 
@@ -49,6 +49,27 @@ namespace PolyPersist.Net.BlobStore.Tests
                 await _minIOContainer.StopAsync();
                 await _minIOContainer.DisposeAsync();
                 _minIOContainer = null;
+            }
+
+            if (_amazonS3Container != null)
+            {
+                await _amazonS3Container.StopAsync();
+                await _amazonS3Container.DisposeAsync();
+                _amazonS3Container = null;
+            }
+
+            if (_gcsContainer != null)
+            {
+                await _gcsContainer.StopAsync();
+                await _gcsContainer.DisposeAsync();
+                _gcsContainer = null;
+            }
+
+            if (_azureitContainer != null)
+            {
+                await _azureitContainer.StopAsync();
+                await _azureitContainer.DisposeAsync();
+                _azureitContainer = null;
             }
         }
 
@@ -200,7 +221,6 @@ namespace PolyPersist.Net.BlobStore.Tests
             StoreInstances.Add(functor);
         }
 
-
         public static IContainer _gcsContainer;
         private static readonly SemaphoreSlim _gcsInitLock = new(1, 1);
         private static void _Setup_GoogleCloudStorage_BlobStore()
@@ -240,7 +260,6 @@ namespace PolyPersist.Net.BlobStore.Tests
             };
             StoreInstances.Add(functor);
         }
-
 
         public static IContainer _azureitContainer;
         private static readonly SemaphoreSlim _azureitInitLock = new(1, 1);

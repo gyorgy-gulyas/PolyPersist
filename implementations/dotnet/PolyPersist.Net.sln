@@ -44,6 +44,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PolyPersist.Net.BlobStore.T
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PolyPersist.Net.Test", "..\..\tests\dotnet\PolyPersist.Net.Test\PolyPersist.Net.Test.csproj", "{12003335-28AE-4DED-BD41-275308A2963C}"
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PolyPersist.Net.DocumentStore.Tests", "..\..\tests\dotnet\PolyPersist.Net.DocumentStore.Tests\PolyPersist.Net.DocumentStore.Tests.csproj", "{3C24E811-041F-4087-8BCD-0888501B5DC5}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -110,6 +112,10 @@ Global
 		{12003335-28AE-4DED-BD41-275308A2963C}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{12003335-28AE-4DED-BD41-275308A2963C}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{12003335-28AE-4DED-BD41-275308A2963C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3C24E811-041F-4087-8BCD-0888501B5DC5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3C24E811-041F-4087-8BCD-0888501B5DC5}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3C24E811-041F-4087-8BCD-0888501B5DC5}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3C24E811-041F-4087-8BCD-0888501B5DC5}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

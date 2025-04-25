@@ -1,6 +1,6 @@
 ﻿namespace PolyPersist.Net.DocumentStore.Memory
 {
-    internal class Memory_DocumentStore : IDocumentStore
+    public class Memory_DocumentStore : IDocumentStore
     {
         internal List<_CollectionData> _Collections = [];
 
