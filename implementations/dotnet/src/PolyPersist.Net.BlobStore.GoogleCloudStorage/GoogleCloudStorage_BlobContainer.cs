@@ -1,4 +1,5 @@
-﻿using Google.Cloud.Storage.V1;
+﻿using Google.Apis.Storage.v1;
+using Google.Apis.Storage.v1.Data;
 using PolyPersist.Net.Common;
 
 namespace PolyPersist.Net.BlobStore.GoogleCloudStorage
@@ -7,57 +8,65 @@ namespace PolyPersist.Net.BlobStore.GoogleCloudStorage
         where TBlob : IBlob, new()
     {
         private readonly string _bucketName;
-        internal StorageClient _gcsClient;
+        private readonly StorageService _storageService;
+        private readonly string _projectId;
 
-        public GoogleCloudStorage_BlobContainer(string containerName, StorageClient gcsClient)
+        public GoogleCloudStorage_BlobContainer(string bucketName, StorageService storageService, string projectId)
         {
-            _bucketName = containerName;
-            _gcsClient = gcsClient;
+            _bucketName = bucketName;
+            _storageService = storageService;
+            _projectId = projectId;
         }
 
-        string IBlobContainer<TBlob>.Name => _bucketName;
+        public string Name => _bucketName;
 
-        async Task IBlobContainer<TBlob>.Upload(TBlob blob, Stream content)
+        public async Task Upload(TBlob blob, Stream content)
         {
-            await CollectionCommon.CheckBeforeInsert(blob).ConfigureAwait(false);
+            await PolyPersist.Net.Common.CollectionCommon.CheckBeforeInsert(blob).ConfigureAwait(false);
 
             var key = BuildKey(blob.PartitionKey, blob.id);
 
-            var obj = await _gcsClient.UploadObjectAsync(
-                bucket: _bucketName,
-                objectName: key,
-                contentType: blob.contentType ?? "application/octet-stream",
-                source: content,
-                options: new UploadObjectOptions { },
-                cancellationToken: default).ConfigureAwait(false);
-
-            var metadata = MetadataHelper.GetMetadata(blob);
-            if (metadata != null && metadata.Count > 0)
-            {
-                obj.Metadata ??= new Dictionary<string, string>();
-                foreach (var kv in metadata)
+            var insertRequest = _storageService.Objects.Insert(
+                new Google.Apis.Storage.v1.Data.Object
                 {
-                    obj.Metadata[kv.Key] = kv.Value;
-                }
-                await _gcsClient.UpdateObjectAsync(obj).ConfigureAwait(false);
-            }
+                    Bucket = _bucketName,
+                    Name = key,
+                    ContentType = blob.contentType ?? "application/octet-stream",
+                    Metadata = MetadataHelper.GetMetadata(blob)
+                },
+                _bucketName,
+                content,
+                blob.contentType ?? "application/octet-stream");
+
+            await insertRequest.UploadAsync();
         }
 
-        async Task<Stream> IBlobContainer<TBlob>.Download(TBlob blob)
+        public async Task<Stream> Download(TBlob blob)
         {
             var key = BuildKey(blob.PartitionKey, blob.id);
             var ms = new MemoryStream();
-            await _gcsClient.DownloadObjectAsync(_bucketName, key, ms).ConfigureAwait(false);
-            ms.Position = 0;
-            return ms;
+
+            try
+            {
+                var getRequest = _storageService.Objects.Get(_bucketName, key);
+                var stream = await getRequest.ExecuteAsStreamAsync();
+                await stream.CopyToAsync(ms);
+                ms.Position = 0;
+                return ms;
+            }
+            catch (Google.GoogleApiException ex) when (ex.HttpStatusCode == System.Net.HttpStatusCode.NotFound)
+            {
+                throw new FileNotFoundException($"Blob '{key}' does not exist in bucket '{_bucketName}'", ex);
+            }
         }
 
-        async Task<TBlob> IBlobContainer<TBlob>.Find(string partitionKey, string id)
+        public async Task<TBlob> Find(string partitionKey, string id)
         {
             var key = BuildKey(partitionKey, id);
             try
             {
-                var obj = await _gcsClient.GetObjectAsync(_bucketName, key);
+                var obj = await _storageService.Objects.Get(_bucketName, key).ExecuteAsync();
+
                 var blob = new TBlob
                 {
                     id = id,
@@ -69,20 +78,21 @@ namespace PolyPersist.Net.BlobStore.GoogleCloudStorage
                 {
                     MetadataHelper.SetMetadata(blob, metadata);
                 }
+
                 return blob;
             }
             catch (Google.GoogleApiException ex) when (ex.HttpStatusCode == System.Net.HttpStatusCode.NotFound)
             {
-                return default(TBlob);
+                return default;
             }
         }
 
-        async Task IBlobContainer<TBlob>.Delete(string partitionKey, string id)
+        public async Task Delete(string partitionKey, string id)
         {
             var key = BuildKey(partitionKey, id);
             try
             {
-                await _gcsClient.DeleteObjectAsync(_bucketName, key).ConfigureAwait(false);
+                await _storageService.Objects.Delete(_bucketName, key).ExecuteAsync();
             }
             catch (Google.GoogleApiException ex) when (ex.HttpStatusCode == System.Net.HttpStatusCode.NotFound)
             {
@@ -90,14 +100,14 @@ namespace PolyPersist.Net.BlobStore.GoogleCloudStorage
             }
         }
 
-        async Task IBlobContainer<TBlob>.UpdateContent(TBlob blob, Stream content)
+        public async Task UpdateContent(TBlob blob, Stream content)
         {
             var objectName = BuildKey(blob.PartitionKey, blob.id);
 
             // 1. Check if the object exists
             try
             {
-                var obj = await _gcsClient.GetObjectAsync(_bucketName, objectName).ConfigureAwait(false);
+                var obj = await _storageService.Objects.Get(_bucketName, objectName).ExecuteAsync();
             }
             catch (Google.GoogleApiException ex) when (ex.HttpStatusCode == System.Net.HttpStatusCode.NotFound)
             {
@@ -105,54 +115,47 @@ namespace PolyPersist.Net.BlobStore.GoogleCloudStorage
             }
 
             // 2. Upload new content (overwrites existing)
-            await _gcsClient.UploadObjectAsync(
-                bucket: _bucketName,
-                objectName: objectName,
-                contentType: blob.contentType ?? "application/octet-stream",
-                source: content).ConfigureAwait(false);
+            var insertRequest = _storageService.Objects.Insert(
+                new Google.Apis.Storage.v1.Data.Object
+                {
+                    Bucket = _bucketName,
+                    Name = objectName,
+                    ContentType = blob.contentType ?? "application/octet-stream"
+                },
+                _bucketName,
+                content,
+                blob.contentType ?? "application/octet-stream");
+
+            await insertRequest.UploadAsync();
         }
 
-        async Task IBlobContainer<TBlob>.UpdateMetadata(TBlob blob)
+        public async Task UpdateMetadata(TBlob blob)
         {
             var objectName = BuildKey(blob.PartitionKey, blob.id);
 
             Google.Apis.Storage.v1.Data.Object existingObject;
 
-            // 1. Ensure the object exists
             try
             {
-                existingObject = await _gcsClient.GetObjectAsync(_bucketName, objectName).ConfigureAwait(false);
+                existingObject = await _storageService.Objects.Get(_bucketName, objectName).ExecuteAsync();
             }
             catch (Google.GoogleApiException ex) when (ex.HttpStatusCode == System.Net.HttpStatusCode.NotFound)
             {
                 throw new FileNotFoundException($"Cannot update metadata because the object '{objectName}' does not exist in bucket '{_bucketName}'", ex);
             }
 
-            // 2. Download the existing content
-            var memoryStream = new MemoryStream();
-            await _gcsClient.DownloadObjectAsync(_bucketName, objectName, memoryStream).ConfigureAwait(false);
-            memoryStream.Position = 0;
+            // Patch metadata
+            existingObject.Metadata = MetadataHelper.GetMetadata(blob);
 
-            // 3. Re-upload with new metadata and same content
-            var newObject = new Google.Apis.Storage.v1.Data.Object
-            {
-                Bucket = _bucketName,
-                Name = objectName,
-                ContentType = blob.contentType ?? existingObject.ContentType,
-                Metadata = MetadataHelper.GetMetadata(blob)
-            };
-
-            await _gcsClient.UploadObjectAsync(newObject, memoryStream).ConfigureAwait(false);
-        }
-
-        object IBlobContainer<TBlob>.GetUnderlyingImplementation()
-        {
-            return _gcsClient;
+            var patchRequest = _storageService.Objects.Patch(existingObject, _bucketName, objectName);
+            await patchRequest.ExecuteAsync();
         }
 
         private string BuildKey(string partitionKey, string id)
         {
             return $"{partitionKey}/{id}";
         }
+
+        public object GetUnderlyingImplementation() => _storageService;
     }
 }

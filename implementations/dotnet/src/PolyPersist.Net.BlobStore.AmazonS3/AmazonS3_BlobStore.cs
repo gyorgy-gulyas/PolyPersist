@@ -3,7 +3,7 @@ using Amazon.S3.Model;
 
 namespace PolyPersist.Net.BlobStore.AmazonS3
 {
-    internal class AmazonS3_BlobStore : IBlobStore
+    public class AmazonS3_BlobStore : IBlobStore
     {
         internal readonly IAmazonS3 _s3Client;
 

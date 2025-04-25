@@ -1,21 +1,31 @@
-﻿using Google.Cloud.Storage.V1;
+﻿using Google.Apis.Auth.OAuth2;
+using Google.Apis.Services;
+using Google.Apis.Storage.v1;
+using Google.Apis.Storage.v1.Data;
 
 namespace PolyPersist.Net.BlobStore.GoogleCloudStorage
 {
-    internal class GoogleCloudStorageBlobStore : IBlobStore
+    public class GoogleCloudStorage_BlobStore : IBlobStore
     {
-        internal readonly StorageClient _gcsClient;
+        internal readonly StorageService _gcsService;
+        internal readonly GoogleCloudStorageConnectionInfo _config;
 
-        public GoogleCloudStorageBlobStore(string connectionString)
+        public GoogleCloudStorage_BlobStore(string connectionString)
         {
-            var config = GoogleCloudStorageConnectionStringParser.Parse(connectionString);
+            _config = GoogleCloudStorageConnectionStringParser.Parse(connectionString);
 
-            var builder = new StorageClientBuilder();
-            if (!string.IsNullOrWhiteSpace(config.JsonCredentialPath))
+            GoogleCredential credential = _config.UseFakeToken
+                ? GoogleCredential.FromAccessToken("fake-token")
+                : (!string.IsNullOrWhiteSpace(_config.CredentialPath)
+                    ? GoogleCredential.FromFile(_config.CredentialPath)
+                    : GoogleCredential.GetApplicationDefault());
+
+            _gcsService = new StorageService(new BaseClientService.Initializer
             {
-                builder.CredentialsPath = config.JsonCredentialPath;
-            }
-            _gcsClient = builder.Build();
+                HttpClientInitializer = credential,
+                BaseUri = string.IsNullOrWhiteSpace(_config.BaseUrl) ? null : $"{_config.BaseUrl}/storage/v1/",
+                ApplicationName = "GCSClient"
+            });
         }
 
         IStore.StorageModels IStore.StorageModel => IStore.StorageModels.BlobStore;
@@ -25,12 +35,17 @@ namespace PolyPersist.Net.BlobStore.GoogleCloudStorage
         {
             try
             {
-                var bucket = await _gcsClient.GetBucketAsync(containerName);
+                var request = _gcsService.Buckets.Get(containerName);
+                var bucket = await request.ExecuteAsync();
                 return bucket != null;
+            }
+            catch (Google.GoogleApiException ex) when (ex.HttpStatusCode == System.Net.HttpStatusCode.NotFound)
+            {
+                return false;
             }
             catch
             {
-                return false;
+                throw;
             }
         }
 
@@ -39,12 +54,17 @@ namespace PolyPersist.Net.BlobStore.GoogleCloudStorage
             if (await ((IBlobStore)this).IsContainerExists(containerName).ConfigureAwait(false))
                 throw new Exception($"Container '{containerName}' already exists in Google Cloud Storage");
 
-            await _gcsClient.CreateBucketAsync("your-project-id", new Google.Apis.Storage.v1.Data.Bucket
+            try
             {
-                Name = containerName
-            });
+                var insertRequest = _gcsService.Buckets.Insert(new Bucket { Name = containerName }, _config.ProjectId);
+                await insertRequest.ExecuteAsync();
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"Failed to create bucket '{containerName}': {ex.Message}", ex);
+            }
 
-            return new GoogleCloudStorage_BlobContainer<TBlob>(containerName, _gcsClient);
+            return new GoogleCloudStorage_BlobContainer<TBlob>(containerName, _gcsService, _config.ProjectId);
         }
 
         async Task<IBlobContainer<TBlob>> IBlobStore.GetContainerByName<TBlob>(string containerName)
@@ -52,7 +72,7 @@ namespace PolyPersist.Net.BlobStore.GoogleCloudStorage
             if (!await ((IBlobStore)this).IsContainerExists(containerName).ConfigureAwait(false))
                 throw new Exception($"Container '{containerName}' does not exist in Google Cloud Storage");
 
-            return new GoogleCloudStorage_BlobContainer<TBlob>(containerName, _gcsClient);
+            return new GoogleCloudStorage_BlobContainer<TBlob>(containerName, _gcsService, _config.ProjectId);
         }
 
         async Task IBlobStore.DropContainer(string containerName)
@@ -60,46 +80,54 @@ namespace PolyPersist.Net.BlobStore.GoogleCloudStorage
             if (!await ((IBlobStore)this).IsContainerExists(containerName).ConfigureAwait(false))
                 throw new Exception($"Container '{containerName}' does not exist in Google Cloud Storage");
 
-            var objects = _gcsClient.ListObjects(containerName, "");
-            foreach (var obj in objects)
+            try
             {
-                await _gcsClient.DeleteObjectAsync(containerName, obj.Name);
-            }
+                var listRequest = _gcsService.Objects.List(containerName);
+                var listResponse = await listRequest.ExecuteAsync();
 
-            await _gcsClient.DeleteBucketAsync(containerName);
+                if (listResponse.Items != null)
+                {
+                    foreach (var obj in listResponse.Items)
+                    {
+                        var deleteRequest = _gcsService.Objects.Delete(containerName, obj.Name);
+                        await deleteRequest.ExecuteAsync();
+                    }
+                }
+
+                var deleteBucketRequest = _gcsService.Buckets.Delete(containerName);
+                await deleteBucketRequest.ExecuteAsync();
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"Failed to delete container '{containerName}': {ex.Message}", ex);
+            }
         }
     }
 
     public class GoogleCloudStorageConnectionInfo
     {
-        public string Type { get; set; }
-        public string JsonCredentialPath { get; set; }
+        public string ProjectId { get; set; }
+        public string CredentialPath { get; set; }
+        public string BaseUrl { get; set; }
+        public bool UseFakeToken { get; set; }
     }
 
     public static class GoogleCloudStorageConnectionStringParser
     {
         public static GoogleCloudStorageConnectionInfo Parse(string connectionString)
         {
-            var result = new GoogleCloudStorageConnectionInfo();
-            var parts = connectionString.Split(';', StringSplitOptions.RemoveEmptyEntries);
-
-            var dict = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            foreach (var part in parts)
-            {
-                var kv = part.Split('=', 2);
-                if (kv.Length == 2)
-                {
-                    dict[kv[0].Trim()] = kv[1].Trim();
-                }
-            }
-
-            dict.TryGetValue("type", out var type);
-            dict.TryGetValue("jsoncredentialpath", out var jsonCredentialPath);
+            var dict = connectionString
+                .Split(';', StringSplitOptions.RemoveEmptyEntries)
+                .Select(x => x.Split('='))
+                .Where(x => x.Length == 2)
+                .ToDictionary(x => x[0].Trim().ToLowerInvariant(), x => x[1].Trim(), StringComparer.OrdinalIgnoreCase);
 
             return new GoogleCloudStorageConnectionInfo
             {
-                Type = type,
-                JsonCredentialPath = jsonCredentialPath
+                ProjectId = dict.TryGetValue("projectid", out var pid) ? pid : null,
+                CredentialPath = dict.TryGetValue("credentialpath", out var cred) ? cred : null,
+                BaseUrl = dict.TryGetValue("baseurl", out var url) ? url : null,
+                UseFakeToken = dict.TryGetValue("usetoken", out var tok) && tok.Equals("fake", StringComparison.OrdinalIgnoreCase)
             };
         }
     }

@@ -2,7 +2,7 @@
 
 namespace PolyPersist.Net.BlobStore.AzureStorage
 {
-    internal class AzureStorage_BlobStore : IBlobStore
+    public class AzureStorage_BlobStore : IBlobStore
     {
         internal BlobServiceClient _blobServiceClient;
 

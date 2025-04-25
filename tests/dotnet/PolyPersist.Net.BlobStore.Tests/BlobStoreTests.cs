@@ -71,7 +71,7 @@ namespace PolyPersist.Net.BlobStore.Tests
         {
             var store = await factory(MethodBase.GetCurrentMethod().GetAsyncMethodName());
 
-            Exception ex = await Assert.ThrowsExceptionAsync<Exception>(async () => await store.GetContainerByName<SampleBlob>("not_exist"));
+            Exception ex = await Assert.ThrowsExceptionAsync<Exception>(async () => await store.GetContainerByName<SampleBlob>("notexist"));
             Assert.IsTrue(ex.Message.Contains("does not exist"));
         }
 
@@ -81,7 +81,7 @@ namespace PolyPersist.Net.BlobStore.Tests
         {
             var store = await factory(MethodBase.GetCurrentMethod().GetAsyncMethodName());
 
-            Exception ex = await Assert.ThrowsExceptionAsync<Exception>(async () => await store.DropContainer("not_exist"));
+            Exception ex = await Assert.ThrowsExceptionAsync<Exception>(async () => await store.DropContainer("notexist"));
             Assert.IsTrue(ex.Message.Contains("does not exist"));
         }
     }

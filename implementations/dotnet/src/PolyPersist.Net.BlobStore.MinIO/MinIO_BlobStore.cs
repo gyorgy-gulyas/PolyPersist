@@ -3,7 +3,7 @@ using Minio.DataModel.Args;
 
 namespace PolyPersist.Net.BlobStore.MinIO
 {
-    internal class MinIO_BlobStore : IBlobStore
+    public class MinIO_BlobStore : IBlobStore
     {
         internal IMinioClient _minioClient;
 
@@ -11,13 +11,11 @@ namespace PolyPersist.Net.BlobStore.MinIO
         {
             var config = MinioConnectionStringParser.Parse(connectionString);
 
-            IMinioClient client = new MinioClient()
-                .WithEndpoint(config.Endpoint)
-                .WithCredentials(config.AccessKey, config.SecretKey);
-            if (config.WithSSL)
-                client.WithSSL();
-
-            _minioClient = client.Build();
+            _minioClient = new MinioClient()
+                .WithEndpoint(config.Endpoint, config.Port)
+                .WithCredentials(config.AccessKey, config.SecretKey)
+                .WithSSL(config.WithSSL)
+                .Build();
         }
 
         /// <inheritdoc/>
@@ -28,13 +26,13 @@ namespace PolyPersist.Net.BlobStore.MinIO
         /// <inheritdoc/>
         async Task<bool> IBlobStore.IsContainerExists(string containerName)
         {
-           return await _minioClient.BucketExistsAsync(new BucketExistsArgs().WithBucket(containerName)).ConfigureAwait(false);
+            return await _IsBucketExistsInternal(containerName);
         }
 
         /// <inheritdoc/>
         async Task<IBlobContainer<TBlob>> IBlobStore.CreateContainer<TBlob>(string containerName)
         {
-            if (await _minioClient.BucketExistsAsync(new BucketExistsArgs().WithBucket(containerName)).ConfigureAwait(false) == true)
+            if (await _IsBucketExistsInternal(containerName).ConfigureAwait(false) == true)
                 throw new Exception($"Container '{containerName}' is already exist in MinIO Blob Store");
 
             await _minioClient.MakeBucketAsync(new MakeBucketArgs().WithBucket(containerName));
@@ -45,7 +43,7 @@ namespace PolyPersist.Net.BlobStore.MinIO
         /// <inheritdoc/>
         async Task<IBlobContainer<TBlob>> IBlobStore.GetContainerByName<TBlob>(string containerName)
         {
-            if (await _minioClient.BucketExistsAsync(new BucketExistsArgs().WithBucket(containerName)).ConfigureAwait(false) == false)
+            if (await _IsBucketExistsInternal(containerName).ConfigureAwait(false) == false)
                 throw new Exception($"Container '{containerName}' does not exist in Azure Storage");
 
             return new MinIO_BlobContainer<TBlob>(containerName,_minioClient);
@@ -54,7 +52,7 @@ namespace PolyPersist.Net.BlobStore.MinIO
         /// <inheritdoc/>
         async Task IBlobStore.DropContainer(string containerName)
         {
-            if (await _minioClient.BucketExistsAsync(new BucketExistsArgs().WithBucket(containerName)).ConfigureAwait(false) == false)
+            if (await _IsBucketExistsInternal(containerName).ConfigureAwait(false) == false)
                 throw new Exception($"Container '{containerName}' does not exist in Azure Storage");
 
             // remove all objects in bucket before deleting
@@ -69,12 +67,31 @@ namespace PolyPersist.Net.BlobStore.MinIO
 
             await _minioClient.RemoveBucketAsync(new RemoveBucketArgs().WithBucket(containerName));
         }
+
+        private async Task<bool> _IsBucketExistsInternal(string containerName)
+        {
+            bool result = await _minioClient
+                .BucketExistsAsync( new BucketExistsArgs().WithBucket(containerName))
+                .ConfigureAwait(false);
+
+            return result;
+             /*
+            var list = await _minioClient.ListBucketsAsync();
+            var buckets = list.Buckets ?? Enumerable.Empty<Minio.DataModel.Bucket>();
+
+            var bucket = buckets.FirstOrDefault(b => b.Name == containerName);
+            if (bucket != null)
+                return true;
+
+            return false;*/
+        }
     }
 
     public class MinioConnectionInfo
     {
         public string Type { get; set; }
         public string Endpoint { get; set; }
+        public ushort Port { get; set; }
         public string AccessKey { get; set; }
         public string SecretKey { get; set; }
         public bool WithSSL { get; set; }
@@ -99,6 +116,7 @@ namespace PolyPersist.Net.BlobStore.MinIO
 
             dict.TryGetValue("type", out var type);
             dict.TryGetValue("endpoint", out var endpoint);
+            dict.TryGetValue("port", out var port);
             dict.TryGetValue("access-key", out var accessKey);
             dict.TryGetValue("secret-key", out var secretKey);
             dict.TryGetValue("withssl", out var withSslStr);
@@ -107,6 +125,7 @@ namespace PolyPersist.Net.BlobStore.MinIO
             {
                 Type = type,
                 Endpoint = endpoint,
+                Port = ushort.Parse( port ),
                 AccessKey = accessKey,
                 SecretKey = secretKey,
                 WithSSL = bool.TryParse(withSslStr, out var withSsl) && withSsl
