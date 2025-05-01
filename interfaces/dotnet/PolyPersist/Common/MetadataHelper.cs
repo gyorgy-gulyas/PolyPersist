@@ -8,7 +8,13 @@ namespace PolyPersist.Net.Common
     public static class MetadataHelper
     {
         // Static cache to store property and field access delegates
-        private static readonly ConcurrentDictionary<Type, Dictionary<string,MemberAccessor>> _cache = new();
+        public class MemberAccessorContainer
+        {
+            internal Dictionary<string, MemberAccessor> NormalNames;
+            internal Dictionary<string, MemberAccessor> LowerCaseNames;
+        }
+
+        private static readonly ConcurrentDictionary<Type, MemberAccessorContainer> _cache = new();
 
         /// Retrieves metadata from a given object, including its public properties and fields, as string values.
         public static IDictionary<string, string> GetMetadata<T>(T entity)
@@ -24,7 +30,7 @@ namespace PolyPersist.Net.Common
             var accessors = _cache.GetOrAdd(typeof(T), GenerateAccessors);
 
             // Execute accessors to extract metadata
-            foreach (var accessor in accessors.Values)
+            foreach (var accessor in accessors.NormalNames.Values)
             {
                 var value = accessor.Getter(entity);
                 metadata[accessor.Name] = value?.ToString() ?? string.Empty;
@@ -45,7 +51,7 @@ namespace PolyPersist.Net.Common
             var accessors = _cache.GetOrAdd(typeof(T), GenerateAccessors);
 
             // Set values from metadata
-            foreach (var accessor in accessors.Values)
+            foreach (var accessor in accessors.NormalNames.Values)
             {
                 if (metadata.TryGetValue(accessor.Name, out var value) && accessor.Setter != null)
                 {
@@ -69,7 +75,7 @@ namespace PolyPersist.Net.Common
             var accessors = _cache.GetOrAdd(typeof(T), GenerateAccessors);
 
             // Set values from metadata
-            foreach (var accessor in accessors.Values)
+            foreach (var accessor in accessors.NormalNames.Values)
             {
                 if (metadata.TryGetValue(accessor.Name, out var value) && accessor.Setter != null)
                 {
@@ -81,19 +87,19 @@ namespace PolyPersist.Net.Common
         }
 
         /// Populates a new instance of the specified type using metadata from a dictionary.
-        public static T SetMetadata<T>(T entity, string fieldName, object value, Dictionary<string, MemberAccessor> accessors = null ) where T : new()
+        public static T SetMetadata<T>(T entity, string fieldName, object value, MemberAccessorContainer accessors = null) where T : new()
         {
             // Get cached accessors or generate new ones
             accessors ??= _cache.GetOrAdd(typeof(T), GenerateAccessors);
 
-            if( accessors.TryGetValue(fieldName, out var accessor) == true )
+            if (accessors.NormalNames.TryGetValue(fieldName, out var accessor) == true)
                 accessor.Setter(entity, value);
 
             return entity;
         }
 
         /// Generates a list of accessors for public properties and fields of a given type.
-        private static Dictionary<string,MemberAccessor> GenerateAccessors(Type type)
+        private static MemberAccessorContainer GenerateAccessors(Type type)
         {
             var accessors = new Dictionary<string, MemberAccessor>();
 
@@ -108,7 +114,7 @@ namespace PolyPersist.Net.Common
                     Getter = CreateGetter(property),
                     Setter = property.CanWrite ? CreateSetter(property) : null
                 };
-                accessors.Add(property.Name,accessor);
+                accessors.Add(property.Name, accessor);
             }
 
             // Process public fields
@@ -122,13 +128,24 @@ namespace PolyPersist.Net.Common
                     Getter = CreateGetter(field),
                     Setter = CreateSetter(field)
                 };
-                accessors.Add(field.Name,accessor);
+                accessors.Add(field.Name, accessor);
             }
 
-            return accessors;
+            return new MemberAccessorContainer()
+            {
+                NormalNames = accessors,
+                LowerCaseNames = accessors.ToDictionary(kvp => kvp.Key.ToLower(), kvp => kvp.Value)
+            };
         }
 
-        public static Dictionary<string, MemberAccessor> GetAccessors<T>() => _cache.GetOrAdd(typeof(T), GenerateAccessors);
+        public static Dictionary<string, MemberAccessor> GetAccessors<T>(bool lowerCaseNames = false)
+        {
+            var accessors = _cache.GetOrAdd(typeof(T), GenerateAccessors);
+
+            return lowerCaseNames == true
+                ? accessors.LowerCaseNames
+                : accessors.NormalNames;
+        }
 
         /// Converts a string value to a specified type.
         private static object ConvertToType(string value, Type targetType)

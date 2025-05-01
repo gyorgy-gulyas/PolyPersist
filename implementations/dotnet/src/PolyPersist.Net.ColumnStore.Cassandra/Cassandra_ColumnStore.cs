@@ -2,7 +2,7 @@
 
 namespace PolyPersist.Net.ColumnStore.Cassandra
 {
-    internal class Cassandra_ColumnStore : IColumnStore
+    public class Cassandra_ColumnStore : IColumnStore
     {
         private readonly ISession _session;
         private readonly string _keyspace;
