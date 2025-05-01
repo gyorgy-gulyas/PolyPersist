@@ -35,8 +35,8 @@ namespace PolyPersist.Net.DocumentStore.MongoDB
             string oldETag = document.etag;
             document.etag = Guid.NewGuid().ToString();
 
-            document = await _mongoCollection.FindOneAndReplaceAsync(e => e.id == document.id && e.PartitionKey == document.PartitionKey && e.etag != oldETag, document).ConfigureAwait(false);
-            if(document== null)
+            var result = await _mongoCollection.ReplaceOneAsync(e => e.id == document.id && e.PartitionKey == document.PartitionKey && e.etag == oldETag, document).ConfigureAwait(false);
+            if (result.IsAcknowledged == false || result.ModifiedCount != 1)
                 throw new Exception($"Document '{typeof(TDocument).Name}' {document.id} can not be updated because it is already changed or removed.");
         }
 
@@ -54,8 +54,10 @@ namespace PolyPersist.Net.DocumentStore.MongoDB
         /// <inheritdoc/>
         async Task<TDocument> IDocumentCollection<TDocument>.Find(string id, string partitionKey)
         {
-            IAsyncCursor<TDocument> cursor = await _mongoCollection.FindAsync(e => e.id == id && e.PartitionKey == partitionKey).ConfigureAwait(false);
-            TDocument document = await cursor.FirstOrDefaultAsync().ConfigureAwait(false);
+            TDocument document = await _mongoCollection
+                .Find(e => e.id == id && e.PartitionKey == partitionKey)
+                .FirstOrDefaultAsync()
+                .ConfigureAwait(false);
 
             return document;
         }
@@ -63,10 +65,6 @@ namespace PolyPersist.Net.DocumentStore.MongoDB
         /// <inheritdoc/>
         TQuery IDocumentCollection<TDocument>.Query<TQuery>()
         {
-            bool isQueryable = typeof(IQueryable<TDocument>).IsAssignableFrom(typeof(TQuery));
-            if(isQueryable==false)
-                throw new Exception($"TQuery is must be 'IQueryable<TDocument>' in dotnet implementation");
-
             return (TQuery)_mongoCollection.AsQueryable();
         }
 
