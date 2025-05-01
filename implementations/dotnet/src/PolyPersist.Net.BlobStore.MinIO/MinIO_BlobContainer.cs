@@ -88,7 +88,7 @@ namespace PolyPersist.Net.BlobStore.MinIO
             }
             catch (ObjectNotFoundException)
             {
-                throw new Exception($"Blob '{typeof(TBlob).Name}' {id} can not be delete because it does not exist.");
+                throw new Exception($"Blob '{typeof(TBlob).Name}' {id} cannot be deleted: it does not exist.");
             }
 
             await _minioClient.RemoveObjectAsync(new RemoveObjectArgs()

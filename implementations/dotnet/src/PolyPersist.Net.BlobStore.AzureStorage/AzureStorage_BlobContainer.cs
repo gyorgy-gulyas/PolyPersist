@@ -68,7 +68,7 @@ namespace PolyPersist.Net.BlobStore.AzureStorage
 
             var response = await blobClient.DeleteIfExistsAsync().ConfigureAwait(false);
             if(response.Value == false )
-                throw new Exception($"Blob '{typeof(TBlob).Name}' {id} can not be delete because it does not exist.");
+                throw new Exception($"Blob '{typeof(TBlob).Name}' {id} cannot be deleted: it does not exist.");
         }
 
         /// <inheritdoc/>

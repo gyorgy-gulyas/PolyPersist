@@ -31,11 +31,11 @@ namespace PolyPersist.Net.BlobStore.GridFS
 
             blob.etag = Guid.NewGuid().ToString();
 
-            // insertt metadata
+            // insert metadata
             await _metadataCollection.InsertOneAsync(blob).ConfigureAwait(false);
 
             // Upload empty content to GridFS, to create a entity is database
-            await _gridFSBucket.UploadFromBytesAsync(_makeId(blob), blob.fileName, [0]).ConfigureAwait(false);
+            await _gridFSBucket.UploadFromStreamAsync(_makeId(blob), blob.fileName, content).ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
@@ -45,9 +45,7 @@ namespace PolyPersist.Net.BlobStore.GridFS
             if (fileInfo == null)
                 throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not download, because it is does not exist");
 
-            using MemoryStream destination = new();
-            await _gridFSBucket.DownloadToStreamAsync(fileInfo.Id, destination).ConfigureAwait(false);
-            return destination;
+            return await _gridFSBucket.OpenDownloadStreamAsync(fileInfo.Id);
         }
 
         /// <inheritdoc/>
@@ -62,7 +60,7 @@ namespace PolyPersist.Net.BlobStore.GridFS
 
             GridFSFileInfo fileInfo = await _getFileInfo(partitionKey, id).ConfigureAwait(false);
             if (fileInfo == null)
-                throw new Exception($"Blob '{typeof(TBlob).Name}' {id} can not be delete because it does not exist.");
+                throw new Exception($"Blob '{typeof(TBlob).Name}' {id} cannot be deleted: it does not exist.");
 
             await _gridFSBucket.DeleteAsync(fileInfo.Id).ConfigureAwait(false);
         }
@@ -100,7 +98,7 @@ namespace PolyPersist.Net.BlobStore.GridFS
             string oldETag = blob.etag;
             blob.etag = Guid.NewGuid().ToString();
 
-            blob = await _metadataCollection.FindOneAndReplaceAsync(e => e.id == blob.id && e.PartitionKey == blob.PartitionKey && e.etag != oldETag, blob).ConfigureAwait(false);
+            blob = await _metadataCollection.FindOneAndReplaceAsync(e => e.id == blob.id && e.PartitionKey == blob.PartitionKey && e.etag == oldETag, blob).ConfigureAwait(false);
             if (blob == null)
                 throw new Exception($"Entity '{typeof(TBlob).Name}' {blob.id} can not be updated because it is already changed");
         }
@@ -116,7 +114,7 @@ namespace PolyPersist.Net.BlobStore.GridFS
             => _makeId(blob.PartitionKey, blob.id);
 
         private ObjectId _makeId(string partitionKey, string id)
-            => new ObjectId($"{partitionKey}/{id}");
+            => new ObjectId($"{partitionKey}-{id}");
 
         private async Task<GridFSFileInfo> _getFileInfo(string partitionKey, string id)
         {
