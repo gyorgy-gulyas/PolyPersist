@@ -19,7 +19,11 @@ namespace PolyPersist.Net.BlobStore.FileSystem
         async Task IBlobContainer<TBlob>.Upload(TBlob blob, Stream content)
         {
             await CollectionCommon.CheckBeforeInsert(blob).ConfigureAwait(false);
+
+            if(string.IsNullOrEmpty(blob.id) == true )
+                blob.id = Guid.NewGuid().ToString();
             blob.etag = Guid.NewGuid().ToString();
+            blob.LastUpdate = DateTime.UtcNow;
 
             var path = _makeFilePath(blob.PartitionKey, blob.id);
             Directory.CreateDirectory(Path.GetDirectoryName(path));

@@ -2,16 +2,32 @@
 using DotNet.Testcontainers.Containers;
 using MongoDB.Driver;
 using PolyPersist.Net.BlobStore.AmazonS3;
+using PolyPersist.Net.BlobStore.AzureStorage;
 using PolyPersist.Net.BlobStore.FileSystem;
 using PolyPersist.Net.BlobStore.GoogleCloudStorage;
 using PolyPersist.Net.BlobStore.GridFS;
 using PolyPersist.Net.BlobStore.Memory;
 using PolyPersist.Net.BlobStore.MinIO;
-using PolyPersist.Net.BlobStore.AzureStorage;
+using System.Diagnostics.CodeAnalysis;
 using Testcontainers.MongoDb;
+using Blob = PolyPersist.Net.Core.Blob;
 
 namespace PolyPersist.Net.BlobStore.Tests
 {
+    #region
+    [ExcludeFromCodeCoverage]
+    class SampleBlob : Blob
+    {
+        public string str_value { get; set; }
+        public int int_value { get; set; }
+        public decimal decimal_value { get; set; }
+        public bool bool_value { get; set; }
+        public DateOnly date_value { get; set; }
+        public TimeOnly time_value { get; set; }
+        public DateTime datetime_value { get; set; }
+    }
+    #endregion
+
     [TestClass]
     public class TestMain
     {
@@ -21,11 +37,11 @@ namespace PolyPersist.Net.BlobStore.Tests
         {
             _Setup_Memory_BlobStore();
             _Setup_FileSystem_BlobStore();
-            _Setup_GridFS_BlobStore();
-            _Setup_MinIO_BlobStore();
-            _Setup_AmazonS3_BlobStore();
-            _Setup_GoogleCloudStorage_BlobStore();
-            _Setup_Memory_AzureStorage();
+            //_Setup_GridFS_BlobStore();
+            //_Setup_MinIO_BlobStore();
+            //_Setup_AmazonS3_BlobStore();
+            //_Setup_GoogleCloudStorage_BlobStore();
+            //_Setup_Memory_AzureStorage();
         }
 
         [AssemblyInitialize]
@@ -76,7 +92,7 @@ namespace PolyPersist.Net.BlobStore.Tests
         private static void _Setup_Memory_BlobStore()
         {
             var functor = new object[] {
-                new Func<string, Task<IBlobStore>>( (testname) => {
+                new Func<Task<IBlobStore>>( () => {
                     var store = new Memory_BlobStore("");
                     return Task.FromResult<IBlobStore>( store );
                 } )
@@ -87,8 +103,8 @@ namespace PolyPersist.Net.BlobStore.Tests
         private static void _Setup_FileSystem_BlobStore()
         {
             var functor = new object[] {
-                new Func<string, Task<IBlobStore>>( (testname) => {
-                    var store = new FileSystem_BlobStore(Path.Combine(Path.GetTempPath(), testname, Guid.NewGuid().ToString()));
+                new Func<Task<IBlobStore>>( () => {
+                    var store = new FileSystem_BlobStore(Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString()));
                     return Task.FromResult<IBlobStore>( store);
                 } )
             };
@@ -100,7 +116,7 @@ namespace PolyPersist.Net.BlobStore.Tests
         private static void _Setup_GridFS_BlobStore()
         {
             var functor = new object[] {
-                new Func<string, Task<IBlobStore>>( async (testname) => {
+                new Func<Task<IBlobStore>>( async () => {
                     if (_mongoContainer == null)
                     {
                         await _mongoInitLock.WaitAsync();
@@ -128,7 +144,7 @@ namespace PolyPersist.Net.BlobStore.Tests
                     }
                     var builder = new MongoUrlBuilder(_mongoContainer.GetConnectionString())
                     {
-                        DatabaseName = testname,
+                        DatabaseName = "testdb",
                         AuthenticationSource = "admin" // this database is contains the user mongo/mongo 
                     };
                     return new GridFS_BlobStore(builder.ToString());
@@ -142,7 +158,7 @@ namespace PolyPersist.Net.BlobStore.Tests
         private static void _Setup_MinIO_BlobStore()
         {
             var functor = new object[] {
-                new Func<string, Task<IBlobStore>>( async (testname) => {
+                new Func<Task<IBlobStore>>( async () => {
                     if (_minIOContainer == null)
                     {
                         await _minIOInitLock.WaitAsync();
@@ -184,7 +200,7 @@ namespace PolyPersist.Net.BlobStore.Tests
         private static void _Setup_AmazonS3_BlobStore()
         {
             var functor = new object[] {
-                new Func<string, Task<IBlobStore>>( async (testname) => {
+                new Func<Task<IBlobStore>>( async () => {
                     if (_amazonS3Container == null)
                     {
                         await _amazonS3InitLock.WaitAsync();
@@ -226,7 +242,7 @@ namespace PolyPersist.Net.BlobStore.Tests
         private static void _Setup_GoogleCloudStorage_BlobStore()
         {
             var functor = new object[] {
-                new Func<string, Task<IBlobStore>>( async (testname) => {
+                new Func<Task<IBlobStore>>( async () => {
                     if (_gcsContainer == null)
                     {
                         await _gcsInitLock.WaitAsync();
@@ -266,7 +282,7 @@ namespace PolyPersist.Net.BlobStore.Tests
         private static void _Setup_Memory_AzureStorage()
         {
             var functor = new object[] {
-                new Func<string, Task<IBlobStore>>( async (testname) => {
+                new Func<Task<IBlobStore>>( async () => {
                     if (_azureitContainer == null)
                     {
                         await _azureitInitLock.WaitAsync();

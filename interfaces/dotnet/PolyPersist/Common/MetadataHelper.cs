@@ -33,7 +33,15 @@ namespace PolyPersist.Net.Common
             foreach (var accessor in accessors.NormalNames.Values)
             {
                 var value = accessor.Getter(entity);
-                metadata[accessor.Name] = value?.ToString() ?? string.Empty;
+                metadata[accessor.Name] = value switch
+                {
+                    null => string.Empty,
+                    DateTime datetime => datetime.ToString("o"),
+                    DateOnly dateonly => dateonly.ToString(CultureInfo.InvariantCulture),
+                    TimeOnly timeonly => timeonly.ToString(CultureInfo.InvariantCulture),
+                    decimal _decimal => _decimal.ToString(CultureInfo.InvariantCulture),
+                    _ => value.ToString(),
+                };
             }
 
             return metadata;
@@ -153,8 +161,11 @@ namespace PolyPersist.Net.Common
             if (targetType == typeof(string)) return value;
             if (targetType == typeof(int)) return int.Parse(value, CultureInfo.InvariantCulture);
             if (targetType == typeof(bool)) return bool.Parse(value);
-            if (targetType == typeof(DateTime)) return DateTime.Parse(value, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal);
+            if (targetType == typeof(DateTime)) return DateTime.ParseExact(value, "o", CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal);
+            if (targetType == typeof(DateOnly)) return DateOnly.Parse(value, CultureInfo.InvariantCulture, DateTimeStyles.AllowWhiteSpaces);
+            if (targetType == typeof(TimeOnly)) return TimeOnly.Parse(value, CultureInfo.InvariantCulture, DateTimeStyles.AllowWhiteSpaces);
             if (targetType.IsEnum) return Enum.Parse(targetType, value);
+
             return Convert.ChangeType(value, targetType, CultureInfo.InvariantCulture);
         }
 
@@ -165,6 +176,7 @@ namespace PolyPersist.Net.Common
             var castInstance = Expression.Convert(parameter, property.DeclaringType!);
             var propertyAccess = Expression.Property(castInstance, property);
             var convertResult = Expression.Convert(propertyAccess, typeof(object));
+
             return Expression.Lambda<Func<object, object>>(convertResult, parameter).Compile();
         }
 

@@ -25,9 +25,10 @@ namespace PolyPersist.Net.BlobStore.Memory
         {
             await CollectionCommon.CheckBeforeInsert(blob).ConfigureAwait(false);
 
-            blob.etag = Guid.NewGuid().ToString();
             if (string.IsNullOrEmpty(blob.id) == true)
                 blob.id = Guid.NewGuid().ToString();
+            blob.etag = Guid.NewGuid().ToString();
+            blob.LastUpdate = DateTime.UtcNow;
 
             _BlobData blobData = new()
             {

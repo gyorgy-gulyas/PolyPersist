@@ -50,6 +50,6 @@ namespace PolyPersist
 		///
 		/// This property is marked as 'readonly' to ensure that the value is managed solely by the system
 		/// and not directly modified by users, maintaining data integrity.
-		public DateTime LastUpdate { get; }
+		public DateTime LastUpdate { get; set; }
 	}
 }
