@@ -8,7 +8,7 @@ namespace PolyPersist.Net.Common
     public static class MetadataHelper
     {
         // Static cache to store property and field access delegates
-        private static readonly ConcurrentDictionary<Type, Dictionary<string,MemberAccessor>> _cache = new();
+        private static readonly ConcurrentDictionary<Type, Dictionary<string, MemberAccessor>> _cache = new();
 
         /// Retrieves metadata from a given object, including its public properties and fields, as string values.
         public static IDictionary<string, string> GetMetadata<T>(T entity)
@@ -27,7 +27,15 @@ namespace PolyPersist.Net.Common
             foreach (var accessor in accessors.Values)
             {
                 var value = accessor.Getter(entity);
-                metadata[accessor.Name] = value?.ToString() ?? string.Empty;
+                metadata[accessor.Name] = value switch
+                {
+                    null => string.Empty,
+                    DateTime datetime => datetime.ToString("o"),
+                    DateOnly dateonly => dateonly.ToString(CultureInfo.InvariantCulture),
+                    TimeOnly timeonly => timeonly.ToString(CultureInfo.InvariantCulture),
+                    decimal _decimal => _decimal.ToString(CultureInfo.InvariantCulture),
+                    _ => value.ToString(),
+                };
             }
 
             return metadata;
@@ -81,19 +89,19 @@ namespace PolyPersist.Net.Common
         }
 
         /// Populates a new instance of the specified type using metadata from a dictionary.
-        public static T SetMetadata<T>(T entity, string fieldName, object value, Dictionary<string, MemberAccessor> accessors = null ) where T : new()
+        public static T SetMetadata<T>(T entity, string fieldName, object value, Dictionary<string, MemberAccessor> accessors = null) where T : new()
         {
             // Get cached accessors or generate new ones
             accessors ??= _cache.GetOrAdd(typeof(T), GenerateAccessors);
 
-            if( accessors.TryGetValue(fieldName, out var accessor) == true )
+            if (accessors.TryGetValue(fieldName, out var accessor) == true)
                 accessor.Setter(entity, value);
 
             return entity;
         }
 
         /// Generates a list of accessors for public properties and fields of a given type.
-        private static Dictionary<string,MemberAccessor> GenerateAccessors(Type type)
+        private static Dictionary<string, MemberAccessor> GenerateAccessors(Type type)
         {
             var accessors = new Dictionary<string, MemberAccessor>();
 
@@ -108,7 +116,7 @@ namespace PolyPersist.Net.Common
                     Getter = CreateGetter(property),
                     Setter = property.CanWrite ? CreateSetter(property) : null
                 };
-                accessors.Add(property.Name,accessor);
+                accessors.Add(property.Name, accessor);
             }
 
             // Process public fields
@@ -122,7 +130,7 @@ namespace PolyPersist.Net.Common
                     Getter = CreateGetter(field),
                     Setter = CreateSetter(field)
                 };
-                accessors.Add(field.Name,accessor);
+                accessors.Add(field.Name, accessor);
             }
 
             return accessors;
@@ -136,8 +144,11 @@ namespace PolyPersist.Net.Common
             if (targetType == typeof(string)) return value;
             if (targetType == typeof(int)) return int.Parse(value, CultureInfo.InvariantCulture);
             if (targetType == typeof(bool)) return bool.Parse(value);
-            if (targetType == typeof(DateTime)) return DateTime.Parse(value, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal);
+            if (targetType == typeof(DateTime)) return DateTime.ParseExact(value, "o", CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal);
+            if (targetType == typeof(DateOnly)) return DateOnly.Parse(value, CultureInfo.InvariantCulture, DateTimeStyles.AllowWhiteSpaces);
+            if (targetType == typeof(TimeOnly)) return TimeOnly.Parse(value, CultureInfo.InvariantCulture, DateTimeStyles.AllowWhiteSpaces);
             if (targetType.IsEnum) return Enum.Parse(targetType, value);
+
             return Convert.ChangeType(value, targetType, CultureInfo.InvariantCulture);
         }
 
@@ -148,6 +159,7 @@ namespace PolyPersist.Net.Common
             var castInstance = Expression.Convert(parameter, property.DeclaringType!);
             var propertyAccess = Expression.Property(castInstance, property);
             var convertResult = Expression.Convert(propertyAccess, typeof(object));
+
             return Expression.Lambda<Func<object, object>>(convertResult, parameter).Compile();
         }
 

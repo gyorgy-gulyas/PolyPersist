@@ -1,31 +1,13 @@
-﻿using PolyPersist.Net.Test;
-using System.Reflection;
-using Blob = PolyPersist.Net.Core.Blob;
-
-
-namespace PolyPersist.Net.BlobStore.Tests
+﻿namespace PolyPersist.Net.BlobStore.Tests
 {
-    #region
-    class SampleBlob : Blob
-    {
-        public string str_value { get; set; }
-        public int int_value { get; set; }
-        public decimal decimal_value { get; set; }
-        public bool bool_value { get; set; }
-        public DateOnly date_value { get; set; }
-        public TimeOnly time_value { get; set; }
-        public DateTime datetime_value { get; set; }
-    }
-    #endregion
-
     [TestClass]
     public class BlobStoreTests
     {
         [DataTestMethod]
         [DynamicData(nameof(TestMain.StoreInstances), typeof(TestMain), DynamicDataSourceType.Property)]
-        public async Task BlobStore_BasicInfo_OK(Func<string,Task<IBlobStore>> factory)
+        public async Task BlobStore_BasicInfo_OK(Func<Task<IBlobStore>> factory)
         {
-            var store = await factory(MethodBase.GetCurrentMethod().GetAsyncMethodName());
+            var store = await factory();
 
             Assert.IsNotNull(store);
             Assert.AreEqual(IStore.StorageModels.BlobStore, store.StorageModel);
@@ -34,9 +16,9 @@ namespace PolyPersist.Net.BlobStore.Tests
 
         [DataTestMethod]
         [DynamicData(nameof(TestMain.StoreInstances), typeof(TestMain), DynamicDataSourceType.Property)]
-        public async Task BlobStore_Container_Ok(Func<string, Task<IBlobStore>> factory)
+        public async Task BlobStore_Container_Ok(Func<Task<IBlobStore>> factory)
         {
-            var store = await factory(MethodBase.GetCurrentMethod().GetAsyncMethodName());
+            var store = await factory();
 
             Assert.IsFalse(await store.IsContainerExists("container"));
 
@@ -55,9 +37,9 @@ namespace PolyPersist.Net.BlobStore.Tests
 
         [DataTestMethod]
         [DynamicData(nameof(TestMain.StoreInstances), typeof(TestMain), DynamicDataSourceType.Property)]
-        public async Task BlobStore_CreateContainer_Fail(Func<string, Task<IBlobStore>> factory)
+        public async Task BlobStore_CreateContainer_Fail(Func<Task<IBlobStore>> factory)
         {
-            var store = await factory(MethodBase.GetCurrentMethod().GetAsyncMethodName());
+            var store = await factory();
 
             var container = await store.CreateContainer<SampleBlob>("container");
 
@@ -67,9 +49,9 @@ namespace PolyPersist.Net.BlobStore.Tests
 
         [DataTestMethod]
         [DynamicData(nameof(TestMain.StoreInstances), typeof(TestMain), DynamicDataSourceType.Property)]
-        public async Task BlobStore_GetContainer_Fail(Func<string, Task<IBlobStore>> factory)
+        public async Task BlobStore_GetContainer_Fail(Func<Task<IBlobStore>> factory)
         {
-            var store = await factory(MethodBase.GetCurrentMethod().GetAsyncMethodName());
+            var store = await factory();
 
             Exception ex = await Assert.ThrowsExceptionAsync<Exception>(async () => await store.GetContainerByName<SampleBlob>("notexist"));
             Assert.IsTrue(ex.Message.Contains("does not exist"));
@@ -77,9 +59,9 @@ namespace PolyPersist.Net.BlobStore.Tests
 
         [DataTestMethod]
         [DynamicData(nameof(TestMain.StoreInstances), typeof(TestMain), DynamicDataSourceType.Property)]
-        public async Task BlobStore_DropContainer_Fail(Func<string, Task<IBlobStore>> factory)
+        public async Task BlobStore_DropContainer_Fail(Func<Task<IBlobStore>> factory)
         {
-            var store = await factory(MethodBase.GetCurrentMethod().GetAsyncMethodName());
+            var store = await factory();
 
             Exception ex = await Assert.ThrowsExceptionAsync<Exception>(async () => await store.DropContainer("notexist"));
             Assert.IsTrue(ex.Message.Contains("does not exist"));
