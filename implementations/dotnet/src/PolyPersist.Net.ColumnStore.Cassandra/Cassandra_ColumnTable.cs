@@ -191,7 +191,7 @@ namespace PolyPersist.Net.ColumnStore.Cassandra
                 }
                 finally
                 {
-                    _findMappedAccessors.Release();
+                    _findMappedAccessorsLock.Release();
                 }
             }
 

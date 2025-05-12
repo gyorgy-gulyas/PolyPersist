@@ -72,7 +72,7 @@
     public class _RowData
     {
         internal string id;
-        internal string partionKey;
+        internal string partitionKey;
         internal string etag;
         internal string Value;
     }

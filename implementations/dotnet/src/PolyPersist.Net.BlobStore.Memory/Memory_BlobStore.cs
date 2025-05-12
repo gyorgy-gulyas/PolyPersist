@@ -73,7 +73,7 @@
     public class _BlobData
     {
         internal string id;
-        internal string partionKey;
+        internal string partitionKey;
         internal string etag;
         internal string MetadataJSON;
         internal byte[] Content;

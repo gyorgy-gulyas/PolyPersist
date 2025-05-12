@@ -33,7 +33,7 @@ namespace PolyPersist.Net.DocumentStore.Memory
             _RowData row = new()
             {
                 id = document.id,
-                partionKey = document.PartitionKey,
+                partitionKey = document.PartitionKey,
                 etag = document.etag,
                 Value = JsonSerializer.Serialize(document, typeof(TDocument), JsonOptionsProvider.Options)
             };

@@ -1,5 +1,4 @@
 ﻿using PolyPersist.Net.Common;
-using System.IO;
 using System.Text.Json;
 
 namespace PolyPersist.Net.BlobStore.FileSystem
@@ -18,6 +17,9 @@ namespace PolyPersist.Net.BlobStore.FileSystem
 
         async Task IBlobContainer<TBlob>.Upload(TBlob blob, Stream content)
         {
+            if (content == null || content.CanRead == false)
+                throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} content cannot be read");
+
             await CollectionCommon.CheckBeforeInsert(blob).ConfigureAwait(false);
 
             if(string.IsNullOrEmpty(blob.id) == true )
@@ -69,7 +71,7 @@ namespace PolyPersist.Net.BlobStore.FileSystem
         {
             var path = _makeFilePath(partitionKey, id);
             if (File.Exists(path) == false)
-                throw new FileNotFoundException("Blob not found", path);
+                throw new Exception($"Blob '{typeof(TBlob).Name}' {id} can not be removed because it is does not exist");
 
             File.Delete(path);
             var metaPath = path + ".meta.json";
@@ -81,6 +83,9 @@ namespace PolyPersist.Net.BlobStore.FileSystem
 
         Task IBlobContainer<TBlob>.UpdateContent(TBlob blob, Stream content)
         {
+            if (content == null || content.CanRead == false)
+                throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} content cannot be read");
+
             var path = _makeFilePath(blob.PartitionKey, blob.id);
             if (File.Exists(path) == false)
                 throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not upload, because it is does not exist");

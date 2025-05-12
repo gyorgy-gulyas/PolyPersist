@@ -23,6 +23,9 @@ namespace PolyPersist.Net.BlobStore.Memory
         /// <inheritdoc/>
         async Task IBlobContainer<TBlob>.Upload(TBlob blob, Stream content)
         {
+            if (content == null || content.CanRead == false)
+                throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} content cannot be read");
+
             await CollectionCommon.CheckBeforeInsert(blob).ConfigureAwait(false);
 
             if (string.IsNullOrEmpty(blob.id) == true)
@@ -33,7 +36,7 @@ namespace PolyPersist.Net.BlobStore.Memory
             _BlobData blobData = new()
             {
                 id = blob.id,
-                partionKey = blob.PartitionKey,
+                partitionKey = blob.PartitionKey,
                 etag = blob.etag,
                 MetadataJSON = JsonSerializer.Serialize(blob, typeof(TBlob), JsonOptionsProvider.Options),
                 Content = _streamToByteArray(content)
@@ -49,8 +52,9 @@ namespace PolyPersist.Net.BlobStore.Memory
             if (_collectionData.MapOfBlobs.TryGetValue((blob.id, blob.PartitionKey), out _BlobData blobData) == false)
                 throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not download, because it is does not exist");
 
-            using MemoryStream destination = new();
+            MemoryStream destination = new();
             destination.Write(blobData.Content, 0, blobData.Content.Length);
+            destination.Seek(0, SeekOrigin.Begin);
             return Task.FromResult<Stream>(destination);
         }
 
@@ -81,6 +85,9 @@ namespace PolyPersist.Net.BlobStore.Memory
         /// <inheritdoc/>
         Task IBlobContainer<TBlob>.UpdateContent(TBlob blob, Stream content)
         {
+            if (content == null || content.CanRead == false)
+                throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} content cannot be read");
+
             if (_collectionData.MapOfBlobs.TryGetValue((blob.id, blob.PartitionKey), out _BlobData blobData) == false)
                 throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not upload, because it is does not exist");
 
