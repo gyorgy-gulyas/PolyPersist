@@ -66,7 +66,7 @@
         }
 
         internal string Name;
-        internal Dictionary<(string id, string pk), _BlobData> MapOfBlobs = [];
+        internal Dictionary<string,_BlobData> MapOfBlobs = [];
         internal List<_BlobData> ListOfBlobs = [];
     }
 

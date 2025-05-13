@@ -27,7 +27,10 @@ namespace PolyPersist.Net.BlobStore.FileSystem
             blob.etag = Guid.NewGuid().ToString();
             blob.LastUpdate = DateTime.UtcNow;
 
-            var path = _makeFilePath(blob.PartitionKey, blob.id);
+            var path = _makeFilePath(blob.id);
+            if( File.Exists(path))
+                throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} cannot be uploaded, beacuse of duplicate key");
+
             Directory.CreateDirectory(Path.GetDirectoryName(path));
             using var fs = File.Create(path);
             content.CopyTo(fs);
@@ -36,7 +39,7 @@ namespace PolyPersist.Net.BlobStore.FileSystem
 
         Task<Stream> IBlobContainer<TBlob>.Download(TBlob blob)
         {
-            var path = _makeFilePath(blob.PartitionKey, blob.id);
+            var path = _makeFilePath(blob.id);
             if (File.Exists(path) == false)
                 throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not download, because it is does not exist");
 
@@ -46,7 +49,7 @@ namespace PolyPersist.Net.BlobStore.FileSystem
 
         Task<TBlob> IBlobContainer<TBlob>.Find(string partitionKey, string id)
         {
-            var path = _makeFilePath(partitionKey, id);
+            var path = _makeFilePath(id);
             if (File.Exists(path) == false)
                 return Task.FromResult<TBlob>(default);
 
@@ -69,7 +72,7 @@ namespace PolyPersist.Net.BlobStore.FileSystem
 
         Task IBlobContainer<TBlob>.Delete(string partitionKey, string id)
         {
-            var path = _makeFilePath(partitionKey, id);
+            var path = _makeFilePath(id);
             if (File.Exists(path) == false)
                 throw new Exception($"Blob '{typeof(TBlob).Name}' {id} can not be removed because it is does not exist");
 
@@ -86,7 +89,7 @@ namespace PolyPersist.Net.BlobStore.FileSystem
             if (content == null || content.CanRead == false)
                 throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} content cannot be read");
 
-            var path = _makeFilePath(blob.PartitionKey, blob.id);
+            var path = _makeFilePath(blob.id);
             if (File.Exists(path) == false)
                 throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not upload, because it is does not exist");
 
@@ -98,7 +101,7 @@ namespace PolyPersist.Net.BlobStore.FileSystem
 
         Task IBlobContainer<TBlob>.UpdateMetadata(TBlob blob)
         {
-            var path = _makeFilePath(blob.PartitionKey, blob.id);
+            var path = _makeFilePath(blob.id);
             if (File.Exists(path) == false)
                 throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not upload, because it is does not exist");
 
@@ -109,9 +112,9 @@ namespace PolyPersist.Net.BlobStore.FileSystem
 
         object IBlobContainer<TBlob>.GetUnderlyingImplementation() => _containerPath;
 
-        private string _makeFilePath(string partitionKey, string id)
+        private string _makeFilePath(string id)
         {
-            return Path.Combine(_containerPath, partitionKey, id);
+            return Path.Combine(_containerPath, id);
         }
     }
 }

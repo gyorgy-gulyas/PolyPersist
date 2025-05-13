@@ -24,40 +24,75 @@ namespace PolyPersist.Net.BlobStore.MinIO
         /// <inheritdoc/>
         async Task IBlobContainer<TBlob>.Upload(TBlob blob, Stream content)
         {
+            if (content == null || content.CanRead == false)
+                throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} content cannot be read");
+
             await CollectionCommon.CheckBeforeInsert(blob).ConfigureAwait(false);
 
-            var key = BuildKey(blob.PartitionKey, blob.id);
+            if (string.IsNullOrEmpty(blob.id) == true)
+                blob.id = Guid.NewGuid().ToString();
+            else if (await _FindInternal(blob).ConfigureAwait(false) == true)
+                throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} cannot be uploaded, beacuse of duplicate key");
 
-            await _UpdateInternal(blob, key, content).ConfigureAwait(false);
+            blob.etag = Guid.NewGuid().ToString();
+            blob.LastUpdate = DateTime.UtcNow;
+
+            content.Seek(0, SeekOrigin.Begin);
+            await _minioClient.PutObjectAsync(new PutObjectArgs()
+                 .WithBucket(_bucketName)
+                 .WithObject(blob.id)
+                 .WithStreamData(content)
+                 .WithObjectSize(content.Length)
+                 .WithContentType(blob.contentType ?? "application/octet-stream")
+                 .WithHeaders(MetadataHelper.GetMetadata(blob))).ConfigureAwait(false);
+        }
+
+        private async Task<bool> _FindInternal(TBlob blob)
+        {
+            try
+            {
+                await _minioClient.StatObjectAsync(new StatObjectArgs()
+                    .WithBucket(_bucketName)
+                    .WithObject(blob.id)).ConfigureAwait(false);
+            }
+            catch (ObjectNotFoundException)
+            {
+                return false;
+            }
+
+            return true;
         }
 
         /// <inheritdoc/>
         async Task<Stream> IBlobContainer<TBlob>.Download(TBlob blob)
         {
-            var key = BuildKey(blob.PartitionKey, blob.id);
-            var ms = new MemoryStream();
+            var content = new MemoryStream();
 
-            await _minioClient.GetObjectAsync(new GetObjectArgs()
-                .WithBucket(_bucketName)
-                .WithObject(key)
-                .WithCallbackStream(stream => stream.CopyTo(ms))).ConfigureAwait(false);
+            try
+            {
+                await _minioClient.GetObjectAsync(new GetObjectArgs()
+                    .WithBucket(_bucketName)
+                    .WithObject(blob.id)
+                    .WithCallbackStream(stream => stream.CopyTo(content))).ConfigureAwait(false);
+            }
+            catch (ObjectNotFoundException ex)
+            {
+                throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not download, because it is does not exist", ex);
+            }
 
-            ms.Position = 0;
-            return ms;
+            content.Position = 0;
+            return content;
         }
 
         /// <inheritdoc/>
         async Task<TBlob> IBlobContainer<TBlob>.Find(string partitionKey, string id)
         {
-            var key = BuildKey(partitionKey, id);
-            StatObjectArgs statArgs = new StatObjectArgs()
-                .WithBucket(_bucketName)
-                .WithObject(key);
-
             ObjectStat stat;
             try
             {
-                stat = await _minioClient.StatObjectAsync(statArgs).ConfigureAwait(false);
+                stat = await _minioClient.StatObjectAsync(new StatObjectArgs()
+                    .WithBucket(_bucketName)
+                    .WithObject(id)).ConfigureAwait(false);
             }
             catch (ObjectNotFoundException)
             {
@@ -79,12 +114,11 @@ namespace PolyPersist.Net.BlobStore.MinIO
         /// <inheritdoc/>
         async Task IBlobContainer<TBlob>.Delete(string partitionKey, string id)
         {
-            var key = BuildKey(partitionKey, id);
             try
             {
                 await _minioClient.StatObjectAsync(new StatObjectArgs()
                     .WithBucket(_bucketName)
-                    .WithObject(key)).ConfigureAwait(false);
+                    .WithObject(id)).ConfigureAwait(false);
             }
             catch (ObjectNotFoundException)
             {
@@ -93,38 +127,56 @@ namespace PolyPersist.Net.BlobStore.MinIO
 
             await _minioClient.RemoveObjectAsync(new RemoveObjectArgs()
                 .WithBucket(_bucketName)
-                .WithObject(key)).ConfigureAwait(false);
+                .WithObject(id)).ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
         async Task IBlobContainer<TBlob>.UpdateContent(TBlob blob, Stream content)
         {
-            var key = BuildKey(blob.PartitionKey, blob.id);
+            if (content == null || content.CanRead == false)
+                throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} content cannot be read");
 
-            await _UpdateInternal( blob, key, content ).ConfigureAwait(false);
+            try
+            {
+                await _minioClient.StatObjectAsync(new StatObjectArgs()
+                    .WithBucket(_bucketName)
+                    .WithObject(blob.id)).ConfigureAwait(false);
+            }
+            catch (ObjectNotFoundException ex)
+            {
+                throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not be updated because it is does dot exist", ex);
+            }
+
+            content.Seek(0, SeekOrigin.Begin);
+            await _minioClient.PutObjectAsync(new PutObjectArgs()
+                 .WithBucket(_bucketName)
+                 .WithObject(blob.id)
+                 .WithStreamData(content)
+                 .WithObjectSize(content.Length)
+                 .WithContentType(blob.contentType ?? "application/octet-stream")).ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
         async Task IBlobContainer<TBlob>.UpdateMetadata(TBlob blob)
         {
-            var key = BuildKey(blob.PartitionKey, blob.id);
-
-            // Read existing content
             var content = new MemoryStream();
-            await _minioClient.GetObjectAsync(new GetObjectArgs()
-                .WithBucket(_bucketName)
-                .WithObject(key)
-                .WithCallbackStream(stream => stream.CopyTo(content))).ConfigureAwait(false);
 
-            content.Position = 0;
-            await _UpdateInternal(blob, key, content);
-        }
+            try
+            {
+                await _minioClient.GetObjectAsync(new GetObjectArgs()
+                    .WithBucket(_bucketName)
+                    .WithObject(blob.id)
+                    .WithCallbackStream(stream => stream.CopyTo(content))).ConfigureAwait(false);
+            }
+            catch (ObjectNotFoundException ex)
+            {
+                throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not be updated because it is does dot exist", ex);
+            }
 
-        private async Task _UpdateInternal(TBlob blob, string key, Stream content)
-        {
+            content.Seek(0, SeekOrigin.Begin);
             await _minioClient.PutObjectAsync(new PutObjectArgs()
                  .WithBucket(_bucketName)
-                 .WithObject(key)
+                 .WithObject(blob.id)
                  .WithStreamData(content)
                  .WithObjectSize(content.Length)
                  .WithContentType(blob.contentType ?? "application/octet-stream")
@@ -136,13 +188,8 @@ namespace PolyPersist.Net.BlobStore.MinIO
         {
             return _minioClient;
         }
-
-        private string BuildKey(string partitionKey, string id)
-        {
-            return $"{partitionKey}/{id}";
-        }
     }
 
 
-    
+
 }

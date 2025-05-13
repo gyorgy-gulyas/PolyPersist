@@ -11,7 +11,7 @@ namespace PolyPersist.Net.BlobStore.Tests
         [DynamicData(nameof(TestMain.StoreInstances), typeof(TestMain), DynamicDataSourceType.Property)]
         public async Task BlobStore_BasicInfo_OK(Func<Task<IBlobStore>> factory)
         {
-            var testName = MethodBase.GetCurrentMethod().GetAsyncMethodName();
+            var testName = MethodBase.GetCurrentMethod().GetAsyncMethodName().MakeStorageConformName();
             var store = await factory();
 
             IBlobContainer<SampleBlob> container = await store.CreateContainer<SampleBlob>(testName);
@@ -23,7 +23,7 @@ namespace PolyPersist.Net.BlobStore.Tests
         [DynamicData(nameof(TestMain.StoreInstances), typeof(TestMain), DynamicDataSourceType.Property)]
         public async Task BlobStore_Upload_OK(Func<Task<IBlobStore>> factory)
         {
-            var testName = MethodBase.GetCurrentMethod().GetAsyncMethodName();
+            var testName = MethodBase.GetCurrentMethod().GetAsyncMethodName().MakeStorageConformName();
             var store = await factory();
 
             IBlobContainer<SampleBlob> container = await store.CreateContainer<SampleBlob>(testName);
@@ -60,7 +60,7 @@ namespace PolyPersist.Net.BlobStore.Tests
             Assert.AreEqual(sample.PartitionKey, uploaded.PartitionKey);
             Assert.AreEqual(sample.bool_value, uploaded.bool_value);
             Assert.AreEqual(DateTimeKind.Utc, sample.datetime_value.Kind);
-            Assert.AreEqual(sample.datetime_value, uploaded.datetime_value);
+            Assert.AreEqual(TestHelper.RoundToMilliseconds(sample.datetime_value), TestHelper.RoundToMilliseconds(uploaded.datetime_value));
             Assert.AreEqual(sample.date_value, uploaded.date_value);
             Assert.AreEqual(sample.decimal_value, uploaded.decimal_value);
             Assert.AreEqual(sample.int_value, uploaded.int_value);
@@ -72,7 +72,7 @@ namespace PolyPersist.Net.BlobStore.Tests
         [DynamicData(nameof(TestMain.StoreInstances), typeof(TestMain), DynamicDataSourceType.Property)]
         public async Task BlobStore_Upload_Fail(Func<Task<IBlobStore>> factory)
         {
-            var testName = MethodBase.GetCurrentMethod().GetAsyncMethodName();
+            var testName = MethodBase.GetCurrentMethod().GetAsyncMethodName().MakeStorageConformName();
             var store = await factory();
 
             IBlobContainer<SampleBlob> container = await store.CreateContainer<SampleBlob>(testName);
@@ -95,7 +95,7 @@ namespace PolyPersist.Net.BlobStore.Tests
         [DynamicData(nameof(TestMain.StoreInstances), typeof(TestMain), DynamicDataSourceType.Property)]
         public async Task BlobStore_Download_OK(Func<Task<IBlobStore>> factory)
         {
-            var testName = MethodBase.GetCurrentMethod().GetAsyncMethodName();
+            var testName = MethodBase.GetCurrentMethod().GetAsyncMethodName().MakeStorageConformName();
             var store = await factory();
             var container = await store.CreateContainer<SampleBlob>(testName);
 
@@ -121,7 +121,7 @@ namespace PolyPersist.Net.BlobStore.Tests
         [DynamicData(nameof(TestMain.StoreInstances), typeof(TestMain), DynamicDataSourceType.Property)]
         public async Task BlobStore_Delete_OK(Func<Task<IBlobStore>> factory)
         {
-            var testName = MethodBase.GetCurrentMethod().GetAsyncMethodName();
+            var testName = MethodBase.GetCurrentMethod().GetAsyncMethodName().MakeStorageConformName();
             var store = await factory();
             var container = await store.CreateContainer<SampleBlob>(testName);
 
@@ -143,7 +143,7 @@ namespace PolyPersist.Net.BlobStore.Tests
         [DynamicData(nameof(TestMain.StoreInstances), typeof(TestMain), DynamicDataSourceType.Property)]
         public async Task BlobStore_UpdateContent_OK(Func<Task<IBlobStore>> factory)
         {
-            var testName = MethodBase.GetCurrentMethod().GetAsyncMethodName();
+            var testName = MethodBase.GetCurrentMethod().GetAsyncMethodName().MakeStorageConformName();
             var store = await factory();
             var container = await store.CreateContainer<SampleBlob>(testName);
 
@@ -170,7 +170,7 @@ namespace PolyPersist.Net.BlobStore.Tests
         [DynamicData(nameof(TestMain.StoreInstances), typeof(TestMain), DynamicDataSourceType.Property)]
         public async Task BlobStore_UpdateMetadata_OK(Func<Task<IBlobStore>> factory)
         {
-            var testName = MethodBase.GetCurrentMethod().GetAsyncMethodName();
+            var testName = MethodBase.GetCurrentMethod().GetAsyncMethodName().MakeStorageConformName();
             var store = await factory();
             var container = await store.CreateContainer<SampleBlob>(testName);
 
@@ -195,7 +195,7 @@ namespace PolyPersist.Net.BlobStore.Tests
         [DynamicData(nameof(TestMain.StoreInstances), typeof(TestMain), DynamicDataSourceType.Property)]
         public async Task BlobStore_Download_NotFound_Fails(Func<Task<IBlobStore>> factory)
         {
-            var testName = MethodBase.GetCurrentMethod().GetAsyncMethodName();
+            var testName = MethodBase.GetCurrentMethod().GetAsyncMethodName().MakeStorageConformName();
             var store = await factory();
             var container = await store.CreateContainer<SampleBlob>(testName);
 
@@ -216,7 +216,7 @@ namespace PolyPersist.Net.BlobStore.Tests
         [DynamicData(nameof(TestMain.StoreInstances), typeof(TestMain), DynamicDataSourceType.Property)]
         public async Task BlobStore_Delete_NotFound_OK(Func<Task<IBlobStore>> factory)
         {
-            var testName = MethodBase.GetCurrentMethod().GetAsyncMethodName();
+            var testName = MethodBase.GetCurrentMethod().GetAsyncMethodName().MakeStorageConformName();
             var store = await factory();
             var container = await store.CreateContainer<SampleBlob>(testName);
 
@@ -231,7 +231,7 @@ namespace PolyPersist.Net.BlobStore.Tests
         [DynamicData(nameof(TestMain.StoreInstances), typeof(TestMain), DynamicDataSourceType.Property)]
         public async Task BlobStore_Find_NotFound_ReturnsNull(Func<Task<IBlobStore>> factory)
         {
-            var testName = MethodBase.GetCurrentMethod().GetAsyncMethodName();
+            var testName = MethodBase.GetCurrentMethod().GetAsyncMethodName().MakeStorageConformName();
             var store = await factory();
             var container = await store.CreateContainer<SampleBlob>(testName);
 
@@ -243,7 +243,7 @@ namespace PolyPersist.Net.BlobStore.Tests
         [DynamicData(nameof(TestMain.StoreInstances), typeof(TestMain), DynamicDataSourceType.Property)]
         public async Task BlobStore_Upload_NullStream_Fails(Func<Task<IBlobStore>> factory)
         {
-            var testName = MethodBase.GetCurrentMethod().GetAsyncMethodName();
+            var testName = MethodBase.GetCurrentMethod().GetAsyncMethodName().MakeStorageConformName();
             var store = await factory();
             var container = await store.CreateContainer<SampleBlob>(testName);
 
@@ -264,7 +264,7 @@ namespace PolyPersist.Net.BlobStore.Tests
         [DynamicData(nameof(TestMain.StoreInstances), typeof(TestMain), DynamicDataSourceType.Property)]
         public async Task BlobStore_UpdateContent_NullStream_Fails(Func<Task<IBlobStore>> factory)
         {
-            var testName = MethodBase.GetCurrentMethod().GetAsyncMethodName();
+            var testName = MethodBase.GetCurrentMethod().GetAsyncMethodName().MakeStorageConformName();
             var store = await factory();
             var container = await store.CreateContainer<SampleBlob>(testName);
 
@@ -288,7 +288,7 @@ namespace PolyPersist.Net.BlobStore.Tests
         [DynamicData(nameof(TestMain.StoreInstances), typeof(TestMain), DynamicDataSourceType.Property)]
         public async Task BlobStore_UpdateContent_NotFound_Fails(Func<Task<IBlobStore>> factory)
         {
-            var testName = MethodBase.GetCurrentMethod().GetAsyncMethodName();
+            var testName = MethodBase.GetCurrentMethod().GetAsyncMethodName().MakeStorageConformName();
             var store = await factory();
             var container = await store.CreateContainer<SampleBlob>(testName);
 
@@ -311,7 +311,7 @@ namespace PolyPersist.Net.BlobStore.Tests
         [DynamicData(nameof(TestMain.StoreInstances), typeof(TestMain), DynamicDataSourceType.Property)]
         public async Task BlobStore_UpdateMetadata_NotFound_Fails(Func<Task<IBlobStore>> factory)
         {
-            var testName = MethodBase.GetCurrentMethod().GetAsyncMethodName();
+            var testName = MethodBase.GetCurrentMethod().GetAsyncMethodName().MakeStorageConformName();
             var store = await factory();
             var container = await store.CreateContainer<SampleBlob>(testName);
 
@@ -333,7 +333,7 @@ namespace PolyPersist.Net.BlobStore.Tests
         [DynamicData(nameof(TestMain.StoreInstances), typeof(TestMain), DynamicDataSourceType.Property)]
         public async Task BlobStore_Download_AfterDelete_Fails(Func<Task<IBlobStore>> factory)
         {
-            var testName = MethodBase.GetCurrentMethod().GetAsyncMethodName();
+            var testName = MethodBase.GetCurrentMethod().GetAsyncMethodName().MakeStorageConformName();
             var store = await factory();
             var container = await store.CreateContainer<SampleBlob>(testName);
 
@@ -373,7 +373,7 @@ namespace PolyPersist.Net.BlobStore.Tests
         [DynamicData(nameof(TestMain.StoreInstances), typeof(TestMain), DynamicDataSourceType.Property)]
         public async Task BlobStore_Upload_UnreadableStream_Fails(Func<Task<IBlobStore>> factory)
         {
-            var testName = MethodBase.GetCurrentMethod().GetAsyncMethodName();
+            var testName = MethodBase.GetCurrentMethod().GetAsyncMethodName().MakeStorageConformName();
             var store = await factory();
             var container = await store.CreateContainer<SampleBlob>(testName);
 
@@ -394,9 +394,9 @@ namespace PolyPersist.Net.BlobStore.Tests
 
         [DataTestMethod]
         [DynamicData(nameof(TestMain.StoreInstances), typeof(TestMain), DynamicDataSourceType.Property)]
-        public async Task BlobStore_SameId_DifferentPartitionKey_StoresIndependently(Func<Task<IBlobStore>> factory)
+        public async Task BlobStore_SameId_AnyPartitionKey_Fails(Func<Task<IBlobStore>> factory)
         {
-            var testName = MethodBase.GetCurrentMethod().GetAsyncMethodName();
+            var testName = MethodBase.GetCurrentMethod().GetAsyncMethodName().MakeStorageConformName();
             var store = await factory();
             var container = await store.CreateContainer<SampleBlob>(testName);
 
@@ -408,6 +408,7 @@ namespace PolyPersist.Net.BlobStore.Tests
                 PartitionKey = "pk1",
                 fileName = "blob1.txt"
             };
+
             var blob2 = new SampleBlob
             {
                 id = sharedId,
@@ -418,23 +419,23 @@ namespace PolyPersist.Net.BlobStore.Tests
             using var stream1 = new MemoryStream(Encoding.UTF8.GetBytes("content1"));
             using var stream2 = new MemoryStream(Encoding.UTF8.GetBytes("content2"));
 
+            // Az első feltöltés sikeres
             await container.Upload(blob1, stream1);
-            await container.Upload(blob2, stream2);
 
-            var found1 = await container.Find("pk1", sharedId);
-            var found2 = await container.Find("pk2", sharedId);
+            // A második dobjon kivételt az azonos ID miatt (függetlenül a PartitionKey-től)
+            var ex = await Assert.ThrowsExceptionAsync<Exception>(async () =>
+            {
+                await container.Upload(blob2, stream2);
+            });
 
-            Assert.IsNotNull(found1);
-            Assert.IsNotNull(found2);
-            Assert.AreEqual("blob1.txt", found1.fileName);
-            Assert.AreEqual("blob2.txt", found2.fileName);
+            Assert.IsTrue(ex.Message.Contains("duplicate key"));
         }
 
         [DataTestMethod]
         [DynamicData(nameof(TestMain.StoreInstances), typeof(TestMain), DynamicDataSourceType.Property)]
         public async Task BlobStore_Upload_NullOrEmptyPartitionKey_Fails(Func<Task<IBlobStore>> factory)
         {
-            var testName = MethodBase.GetCurrentMethod().GetAsyncMethodName();
+            var testName = MethodBase.GetCurrentMethod().GetAsyncMethodName().MakeStorageConformName();
             var store = await factory();
             var container = await store.CreateContainer<SampleBlob>(testName);
 

@@ -30,6 +30,9 @@ namespace PolyPersist.Net.BlobStore.Memory
 
             if (string.IsNullOrEmpty(blob.id) == true)
                 blob.id = Guid.NewGuid().ToString();
+            else if (_collectionData.MapOfBlobs.ContainsKey(blob.id) == true)
+                throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} cannot be uploaded, beacuse of duplicate key");
+
             blob.etag = Guid.NewGuid().ToString();
             blob.LastUpdate = DateTime.UtcNow;
 
@@ -41,16 +44,16 @@ namespace PolyPersist.Net.BlobStore.Memory
                 MetadataJSON = JsonSerializer.Serialize(blob, typeof(TBlob), JsonOptionsProvider.Options),
                 Content = _streamToByteArray(content)
             };
-
-            _collectionData.MapOfBlobs.Add((blob.id, blob.PartitionKey), blobData);
+            _collectionData.MapOfBlobs.Add(blob.id, blobData);
             _collectionData.ListOfBlobs.Add(blobData);
         }
 
         /// <inheritdoc/>
         Task<Stream> IBlobContainer<TBlob>.Download(TBlob blob)
         {
-            if (_collectionData.MapOfBlobs.TryGetValue((blob.id, blob.PartitionKey), out _BlobData blobData) == false)
+            if (_collectionData.MapOfBlobs.TryGetValue(blob.id, out _BlobData blobData) == false || blobData.partitionKey != blob.PartitionKey)
                 throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not download, because it is does not exist");
+
 
             MemoryStream destination = new();
             destination.Write(blobData.Content, 0, blobData.Content.Length);
@@ -61,10 +64,10 @@ namespace PolyPersist.Net.BlobStore.Memory
         /// <inheritdoc/>
         Task IBlobContainer<TBlob>.Delete(string partitionKey, string id)
         {
-            if (_collectionData.MapOfBlobs.TryGetValue((id, partitionKey), out _BlobData blobData) == false)
+            if (_collectionData.MapOfBlobs.TryGetValue(id, out _BlobData blobData) == false || blobData.partitionKey != partitionKey )
                 throw new Exception($"Blob '{typeof(TBlob).Name}' {id} can not be removed because it is does not exist");
 
-            _collectionData.MapOfBlobs.Remove((id, partitionKey));
+            _collectionData.MapOfBlobs.Remove(id);
             _collectionData.ListOfBlobs.Remove(blobData);
 
             return Task.CompletedTask;
@@ -73,7 +76,7 @@ namespace PolyPersist.Net.BlobStore.Memory
         /// <inheritdoc/>
         Task<TBlob> IBlobContainer<TBlob>.Find(string partitionKey, string id)
         {
-            if (_collectionData.MapOfBlobs.TryGetValue((id, partitionKey), out _BlobData blobData) == true)
+            if (_collectionData.MapOfBlobs.TryGetValue(id, out _BlobData blobData) == true && blobData.partitionKey == partitionKey)
             {
                 TBlob blob = JsonSerializer.Deserialize<TBlob>(blobData.MetadataJSON, JsonOptionsProvider.Options);
                 return Task.FromResult(blob);
@@ -88,7 +91,7 @@ namespace PolyPersist.Net.BlobStore.Memory
             if (content == null || content.CanRead == false)
                 throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} content cannot be read");
 
-            if (_collectionData.MapOfBlobs.TryGetValue((blob.id, blob.PartitionKey), out _BlobData blobData) == false)
+            if (_collectionData.MapOfBlobs.TryGetValue(blob.id, out _BlobData blobData) == false || blobData.partitionKey != blob.PartitionKey)
                 throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not upload, because it is does not exist");
 
             blobData.Content = _streamToByteArray(content);
@@ -100,8 +103,8 @@ namespace PolyPersist.Net.BlobStore.Memory
         {
             await CollectionCommon.CheckBeforeUpdate(blob).ConfigureAwait(false);
 
-            if (_collectionData.MapOfBlobs.TryGetValue((blob.id, blob.PartitionKey), out _BlobData blobData) == false)
-                throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not be removed because it is does dot exist");
+            if (_collectionData.MapOfBlobs.TryGetValue(blob.id, out _BlobData blobData) == false || blobData.partitionKey != blob.PartitionKey)
+                throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not be updated because it is does dot exist");
 
             if (blobData.etag != blob.etag)
                 throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not be updated because it is already changed");
