@@ -31,7 +31,7 @@ namespace PolyPersist.Net.ColumnStore.Cassandra
         async Task<IColumnTable<TRow>> IColumnStore.GetTableByName<TRow>(string tableName)
         {
             if (await _IsTableExistsInternal(tableName).ConfigureAwait(false) == false )
-                return null;
+                throw new Exception($"Table '{tableName}' does not exist");
 
             return new Cassandra_ColumnTable<TRow>(_session, tableName);
         }

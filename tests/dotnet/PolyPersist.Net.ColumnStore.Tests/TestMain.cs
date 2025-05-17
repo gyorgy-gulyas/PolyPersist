@@ -13,6 +13,7 @@ namespace PolyPersist.Net.ColumnStore.Tests
         static TestMain()
         {
             _Setup_Cassandra_ColumnStore();
+            _Setup_Scylla_ColumnStore();
         }
 
         [AssemblyInitialize]
@@ -32,12 +33,12 @@ namespace PolyPersist.Net.ColumnStore.Tests
             }
         }
 
-       private static IContainer _cassandraContainer;
+        private static IContainer _cassandraContainer;
         private static readonly SemaphoreSlim _cassandraInitLock = new(1, 1);
         private static void _Setup_Cassandra_ColumnStore()
         {
             var functor = new object[] {
-                new Func<string, Task<IColumnStore>>( async (testname) => {
+                new Func<Task<IColumnStore>>( async () => {
                     if (_cassandraContainer == null)
                     {
                         await _cassandraInitLock.WaitAsync();
@@ -72,6 +73,54 @@ namespace PolyPersist.Net.ColumnStore.Tests
                         .AddContactPoint(hostName)
                         .WithPort(hostPort)
                         .WithCredentials("cassandra", "cassandra")
+                        .Build();
+
+                    using var session = cluster.Connect();
+                    session.Execute("CREATE KEYSPACE IF NOT EXISTS testks WITH replication = {'class': 'SimpleStrategy', 'replication_factor': 1};");
+
+                    string connectionString = $"type=minIO;host={hostName};port={hostPort};username=cassandra;password=cassandra;keyspace=testks";
+                    return new Cassandra_ColumnStore(connectionString);
+                })
+            };
+            StoreInstances.Add(functor);
+        }
+
+        private static IContainer _scyllaContainer;
+        private static readonly SemaphoreSlim _scyllaInitLock = new(1, 1);
+        private static void _Setup_Scylla_ColumnStore()
+        {
+            var functor = new object[] {
+                new Func<Task<IColumnStore>>( async () => {
+                    if (_scyllaContainer == null)
+                    {
+                        await _scyllaInitLock.WaitAsync();
+                        try
+                        {
+                            if (_scyllaContainer == null) // re-check
+                            {
+                                _scyllaContainer = new ContainerBuilder()
+                                    .WithImage("scylladb/scylla:5.4") // vagy aktuális stabil verzió
+                                    .WithCleanUp(true)
+                                    .WithPortBinding(9042, assignRandomHostPort: true)
+                                    .WithWaitStrategy(Wait.ForUnixContainer().UntilPortIsAvailable(9042))
+                                    .Build();
+
+                                await _scyllaContainer.StartAsync();
+                            }
+                        }
+                        finally
+                        {
+                            _scyllaInitLock.Release();
+                        }
+                    }
+
+                    var hostPort = _scyllaContainer.GetMappedPublicPort(9042);
+                    var hostName = _scyllaContainer.Hostname;
+
+                    var cluster = Cluster.Builder()
+                        .AddContactPoint(hostName)
+                        .WithPort(hostPort)
+                        .WithCredentials("cassandra", "cassandra") // Scylla is engedélyezi ezt
                         .Build();
 
                     using var session = cluster.Connect();
