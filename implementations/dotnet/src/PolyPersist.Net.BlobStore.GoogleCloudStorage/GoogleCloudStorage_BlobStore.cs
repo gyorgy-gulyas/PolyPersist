@@ -36,7 +36,7 @@ namespace PolyPersist.Net.BlobStore.GoogleCloudStorage
             try
             {
                 var request = _gcsService.Buckets.Get(containerName);
-                var bucket = await request.ExecuteAsync();
+                var bucket = await request.ExecuteAsync().ConfigureAwait(false);
                 return bucket != null;
             }
             catch (Google.GoogleApiException ex) when (ex.HttpStatusCode == System.Net.HttpStatusCode.NotFound)
@@ -57,7 +57,7 @@ namespace PolyPersist.Net.BlobStore.GoogleCloudStorage
             try
             {
                 var insertRequest = _gcsService.Buckets.Insert(new Bucket { Name = containerName }, _config.ProjectId);
-                await insertRequest.ExecuteAsync();
+                await insertRequest.ExecuteAsync().ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -83,19 +83,19 @@ namespace PolyPersist.Net.BlobStore.GoogleCloudStorage
             try
             {
                 var listRequest = _gcsService.Objects.List(containerName);
-                var listResponse = await listRequest.ExecuteAsync();
+                var listResponse = await listRequest.ExecuteAsync().ConfigureAwait(false);
 
                 if (listResponse.Items != null)
                 {
                     foreach (var obj in listResponse.Items)
                     {
                         var deleteRequest = _gcsService.Objects.Delete(containerName, obj.Name);
-                        await deleteRequest.ExecuteAsync();
+                        await deleteRequest.ExecuteAsync().ConfigureAwait(false);
                     }
                 }
 
                 var deleteBucketRequest = _gcsService.Buckets.Delete(containerName);
-                await deleteBucketRequest.ExecuteAsync();
+                await deleteBucketRequest.ExecuteAsync().ConfigureAwait(false);
             }
             catch (Exception ex)
             {

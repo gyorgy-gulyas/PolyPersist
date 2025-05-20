@@ -34,7 +34,7 @@ namespace PolyPersist.Net.BlobStore.FileSystem
             Directory.CreateDirectory(Path.GetDirectoryName(path));
             using var fs = File.Create(path);
             content.CopyTo(fs);
-            File.WriteAllText(path + ".meta.json", JsonSerializer.Serialize(MetadataHelper.GetMetadata(blob)));
+            File.WriteAllText(path + ".meta.json", JsonSerializer.Serialize(blob));
         }
 
         Task<Stream> IBlobContainer<TBlob>.Download(TBlob blob)
@@ -53,20 +53,12 @@ namespace PolyPersist.Net.BlobStore.FileSystem
             if (File.Exists(path) == false)
                 return Task.FromResult<TBlob>(default);
 
-            var blob = new TBlob
-            {
-                id = id,
-                PartitionKey = partitionKey
-            };
-
             var metadataPath = path + ".meta.json";
-            if (File.Exists(metadataPath))
-            {
-                var json = File.ReadAllText(metadataPath);
-                var dict = JsonSerializer.Deserialize<Dictionary<string, string>>(json);
-                MetadataHelper.SetMetadata(blob, dict);
-            }
+            if (File.Exists(metadataPath) == false)
+                return Task.FromResult<TBlob>(default);
 
+            var json = File.ReadAllText(metadataPath);
+            var blob = JsonSerializer.Deserialize<TBlob>(json);
             return Task.FromResult(blob);
         }
 
@@ -105,7 +97,7 @@ namespace PolyPersist.Net.BlobStore.FileSystem
             if (File.Exists(path) == false)
                 throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not upload, because it is does not exist");
 
-            File.WriteAllText(path + ".meta.json", JsonSerializer.Serialize(MetadataHelper.GetMetadata(blob)));
+            File.WriteAllText(path + ".meta.json", JsonSerializer.Serialize(blob));
 
             return Task.CompletedTask;
         }

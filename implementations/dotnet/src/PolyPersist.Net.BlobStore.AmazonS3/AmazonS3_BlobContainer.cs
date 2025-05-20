@@ -1,6 +1,7 @@
 ﻿using Amazon.S3;
 using Amazon.S3.Model;
 using PolyPersist.Net.Common;
+using System.Text.Json;
 
 namespace PolyPersist.Net.BlobStore.AmazonS3
 {
@@ -21,31 +22,54 @@ namespace PolyPersist.Net.BlobStore.AmazonS3
 
         async Task IBlobContainer<TBlob>.Upload(TBlob blob, Stream content)
         {
+            if (content == null || content.CanRead == false)
+                throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} content cannot be read");
+
             await CollectionCommon.CheckBeforeInsert(blob).ConfigureAwait(false);
 
-            var key = BuildKey(blob.PartitionKey, blob.id);
+            if (string.IsNullOrEmpty(blob.id) == true)
+                blob.id = Guid.NewGuid().ToString();
+            else if (await _IsExistsInternal(blob.id).ConfigureAwait(false) == true)
+                throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} cannot be uploaded, beacuse of duplicate key");
+
+            blob.etag = Guid.NewGuid().ToString();
+            blob.LastUpdate = DateTime.UtcNow;
 
             var request = new PutObjectRequest
             {
                 BucketName = _bucketName,
-                Key = key,
+                Key = blob.id,
                 InputStream = content,
                 ContentType = blob.contentType ?? "application/octet-stream"
             };
 
-            foreach (var kv in MetadataHelper.GetMetadata(blob))
-                request.Metadata[kv.Key] = kv.Value;
+            string meta_json = System.Text.Json.JsonSerializer.Serialize(blob);
+            request.Metadata[nameof(meta_json)] = meta_json;
 
             await _amazonS3Client.PutObjectAsync(request).ConfigureAwait(false);
         }
 
-        async Task<Stream> IBlobContainer<TBlob>.Download(TBlob blob)
+        private async Task<bool> _IsExistsInternal(string id)
         {
-            var key = BuildKey(blob.PartitionKey, blob.id);
-
             try
             {
-                var response = await _amazonS3Client.GetObjectAsync(_bucketName, key).ConfigureAwait(false);
+                await _amazonS3Client
+                    .GetObjectAsync(_bucketName, id)
+                    .ConfigureAwait(false);
+            }
+            catch (AmazonS3Exception ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
+            {
+                return false;
+            }
+
+            return true;
+        }
+
+        async Task<Stream> IBlobContainer<TBlob>.Download(TBlob blob)
+        {
+            try
+            {
+                var response = await _amazonS3Client.GetObjectAsync(_bucketName, blob.id).ConfigureAwait(false);
 
                 var ms = new MemoryStream((int)response.ContentLength);
                 await response.ResponseStream.CopyToAsync(ms);
@@ -60,17 +84,12 @@ namespace PolyPersist.Net.BlobStore.AmazonS3
 
         async Task<TBlob> IBlobContainer<TBlob>.Find(string partitionKey, string id)
         {
-            var key = BuildKey(partitionKey, id);
             try
             {
-                var @object = await _amazonS3Client.GetObjectMetadataAsync(_bucketName, key).ConfigureAwait(false);
-                var blob = new TBlob
-                {
-                    id = id,
-                    PartitionKey = partitionKey,
-                    contentType = @object.Headers.ContentType
-                };
-                MetadataHelper.SetMetadata(blob, MetadataConverter.ToDictionary(@object.Metadata) );
+                var @object = await _amazonS3Client.GetObjectMetadataAsync(_bucketName, id).ConfigureAwait(false);
+                string meta_json = @object.Metadata[nameof(meta_json)];
+                var blob = JsonSerializer.Deserialize<TBlob>(meta_json);
+
                 return blob;
             }
             catch (AmazonS3Exception ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
@@ -81,27 +100,27 @@ namespace PolyPersist.Net.BlobStore.AmazonS3
 
         async Task IBlobContainer<TBlob>.Delete(string partitionKey, string id)
         {
-            var key = BuildKey(partitionKey, id);
             try
             {
-                await _amazonS3Client.GetObjectMetadataAsync(_bucketName, key).ConfigureAwait(false);
+                await _amazonS3Client.GetObjectMetadataAsync(_bucketName, id).ConfigureAwait(false);
             }
             catch (AmazonS3Exception ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
             {
                 throw new Exception($"Blob '{typeof(TBlob).Name}' {id} can not be deleted because it does not exist.");
             }
 
-            await _amazonS3Client.DeleteObjectAsync(_bucketName, key).ConfigureAwait(false);
+            await _amazonS3Client.DeleteObjectAsync(_bucketName, id).ConfigureAwait(false);
         }
 
         async Task IBlobContainer<TBlob>.UpdateContent(TBlob blob, Stream content)
         {
-            var key = BuildKey(blob.PartitionKey, blob.id);
+            if (content == null || content.CanRead == false)
+                throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} content cannot be read");
 
             GetObjectMetadataResponse response;
             try
             {
-                response = await _amazonS3Client.GetObjectMetadataAsync(_bucketName, key).ConfigureAwait(false);
+                response = await _amazonS3Client.GetObjectMetadataAsync(_bucketName, blob.id).ConfigureAwait(false);
             }
             catch (AmazonS3Exception ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
             {
@@ -111,7 +130,7 @@ namespace PolyPersist.Net.BlobStore.AmazonS3
             var request = new PutObjectRequest
             {
                 BucketName = _bucketName,
-                Key = key,
+                Key = blob.id,
                 InputStream = content,
                 ContentType = blob.contentType
             };
@@ -127,13 +146,11 @@ namespace PolyPersist.Net.BlobStore.AmazonS3
 
         async Task IBlobContainer<TBlob>.UpdateMetadata(TBlob blob)
         {
-            var key = BuildKey(blob.PartitionKey, blob.id);
-
             // 1. Ensure the object exists in S3
             GetObjectMetadataResponse metadata;
             try
             {
-                metadata = await _amazonS3Client.GetObjectMetadataAsync(_bucketName, key).ConfigureAwait(false);
+                metadata = await _amazonS3Client.GetObjectMetadataAsync(_bucketName, blob.id).ConfigureAwait(false);
             }
             catch (AmazonS3Exception ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
             {
@@ -145,7 +162,7 @@ namespace PolyPersist.Net.BlobStore.AmazonS3
             await _amazonS3Client.GetObjectAsync(new GetObjectRequest
             {
                 BucketName = _bucketName,
-                Key = key
+                Key = blob.id
             }).ContinueWith(async task =>
             {
                 using var response = await task;
@@ -158,16 +175,15 @@ namespace PolyPersist.Net.BlobStore.AmazonS3
             var request = new PutObjectRequest
             {
                 BucketName = _bucketName,
-                Key = key,
+                Key = blob.id,
                 InputStream = originalStream,
                 ContentType = blob.contentType ?? metadata.Headers.ContentType ?? "application/octet-stream"
             };
 
             // 4. Apply the new user-defined metadata from the blob
-            foreach (var kv in MetadataHelper.GetMetadata(blob))
-            {
-                request.Metadata[kv.Key] = kv.Value;
-            }
+            string meta_json = System.Text.Json.JsonSerializer.Serialize(blob);
+            request.Metadata[nameof(meta_json)] = meta_json;
+
 
             // 5. Upload the updated object back to S3
             await _amazonS3Client.PutObjectAsync(request).ConfigureAwait(false);
@@ -176,11 +192,6 @@ namespace PolyPersist.Net.BlobStore.AmazonS3
         object IBlobContainer<TBlob>.GetUnderlyingImplementation()
         {
             return _amazonS3Client;
-        }
-
-        private string BuildKey(string partitionKey, string id)
-        {
-            return $"{partitionKey}/{id}";
         }
     }
 

@@ -1,6 +1,7 @@
 ﻿using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
 using PolyPersist.Net.Common;
+using System.Text.Json;
 
 namespace PolyPersist.Net.BlobStore.AzureStorage
 {
@@ -29,7 +30,12 @@ namespace PolyPersist.Net.BlobStore.AzureStorage
             blob.etag = Guid.NewGuid().ToString();
 
             // set metadata
-            await blobClient.SetMetadataAsync(MetadataHelper.GetMetadata(blob)).ConfigureAwait(false);
+            string meta_json = System.Text.Json.JsonSerializer.Serialize(blob);
+            var metadata = new Dictionary<string, string>
+            {
+                [nameof(meta_json)] = meta_json,
+            };
+            await blobClient.SetMetadataAsync(metadata).ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
@@ -56,9 +62,10 @@ namespace PolyPersist.Net.BlobStore.AzureStorage
 
             var properties = await blobClient.GetPropertiesAsync().ConfigureAwait(false);
             // Create a new instance of the target type
-            var blob = new TBlob();
+            string meta_json = properties.Value.Metadata[nameof(meta_json)];
+            var blob = JsonSerializer.Deserialize<TBlob>(meta_json);
 
-            return MetadataHelper.SetMetadata<TBlob>(blob,properties.Value.Metadata);
+            return blob;
         }
 
         /// <inheritdoc/>
@@ -92,7 +99,12 @@ namespace PolyPersist.Net.BlobStore.AzureStorage
                 throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not be updated because it does not exist.");
 
             // set metadata
-            await blobClient.SetMetadataAsync(MetadataHelper.GetMetadata(blob)).ConfigureAwait(false);
+            string meta_json = System.Text.Json.JsonSerializer.Serialize(blob);
+            var metadata = new Dictionary<string, string>
+            {
+                [nameof(meta_json)] = meta_json,
+            };
+            await blobClient.SetMetadataAsync(metadata).ConfigureAwait(false);
         }
 
         /// <inheritdoc/>

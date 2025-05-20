@@ -3,6 +3,7 @@ using Minio.DataModel;
 using Minio.DataModel.Args;
 using Minio.Exceptions;
 using PolyPersist.Net.Common;
+using System.Text.Json;
 
 namespace PolyPersist.Net.BlobStore.MinIO
 {
@@ -31,29 +32,35 @@ namespace PolyPersist.Net.BlobStore.MinIO
 
             if (string.IsNullOrEmpty(blob.id) == true)
                 blob.id = Guid.NewGuid().ToString();
-            else if (await _FindInternal(blob).ConfigureAwait(false) == true)
+            else if (await _IsExistsInternal(blob.id).ConfigureAwait(false) == true)
                 throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} cannot be uploaded, beacuse of duplicate key");
 
             blob.etag = Guid.NewGuid().ToString();
             blob.LastUpdate = DateTime.UtcNow;
 
             content.Seek(0, SeekOrigin.Begin);
+
+            string meta_json = System.Text.Json.JsonSerializer.Serialize(blob);
+            var metadata = new Dictionary<string, string> {
+                [nameof(meta_json)] = meta_json,
+            };
+
             await _minioClient.PutObjectAsync(new PutObjectArgs()
                  .WithBucket(_bucketName)
                  .WithObject(blob.id)
                  .WithStreamData(content)
                  .WithObjectSize(content.Length)
                  .WithContentType(blob.contentType ?? "application/octet-stream")
-                 .WithHeaders(MetadataHelper.GetMetadata(blob))).ConfigureAwait(false);
+                 .WithHeaders(metadata)).ConfigureAwait(false);
         }
 
-        private async Task<bool> _FindInternal(TBlob blob)
+        private async Task<bool> _IsExistsInternal(string id)
         {
             try
             {
                 await _minioClient.StatObjectAsync(new StatObjectArgs()
                     .WithBucket(_bucketName)
-                    .WithObject(blob.id)).ConfigureAwait(false);
+                    .WithObject(id)).ConfigureAwait(false);
             }
             catch (ObjectNotFoundException)
             {
@@ -99,14 +106,8 @@ namespace PolyPersist.Net.BlobStore.MinIO
                 return default(TBlob);
             }
 
-            var blob = new TBlob
-            {
-                id = id,
-                PartitionKey = partitionKey,
-                contentType = stat.ContentType
-            };
-
-            MetadataHelper.SetMetadata(blob, stat.MetaData);
+            string meta_json = stat.MetaData[nameof(meta_json)];
+            var blob = JsonSerializer.Deserialize<TBlob>(meta_json);
 
             return blob;
         }
@@ -173,6 +174,12 @@ namespace PolyPersist.Net.BlobStore.MinIO
                 throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not be updated because it is does dot exist", ex);
             }
 
+            string meta_json = System.Text.Json.JsonSerializer.Serialize(blob);
+            var metadata = new Dictionary<string, string>
+            {
+                [nameof(meta_json)] = meta_json,
+            };
+
             content.Seek(0, SeekOrigin.Begin);
             await _minioClient.PutObjectAsync(new PutObjectArgs()
                  .WithBucket(_bucketName)
@@ -180,7 +187,7 @@ namespace PolyPersist.Net.BlobStore.MinIO
                  .WithStreamData(content)
                  .WithObjectSize(content.Length)
                  .WithContentType(blob.contentType ?? "application/octet-stream")
-                 .WithHeaders(MetadataHelper.GetMetadata(blob))).ConfigureAwait(false);
+                 .WithHeaders(metadata)).ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
