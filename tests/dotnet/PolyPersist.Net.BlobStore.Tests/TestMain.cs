@@ -40,8 +40,8 @@ namespace PolyPersist.Net.BlobStore.Tests
             //_Setup_GridFS_BlobStore();
             //_Setup_MinIO_BlobStore();
             //_Setup_AmazonS3_BlobStore();
-            _Setup_GoogleCloudStorage_BlobStore();
-            //_Setup_Memory_AzureStorage();
+            //_Setup_GoogleCloudStorage_BlobStore();
+            _Setup_AzureStorage();
         }
 
         [AssemblyInitialize]
@@ -284,7 +284,7 @@ namespace PolyPersist.Net.BlobStore.Tests
 
         public static IContainer _azureitContainer;
         private static readonly SemaphoreSlim _azureitInitLock = new(1, 1);
-        private static void _Setup_Memory_AzureStorage()
+        private static void _Setup_AzureStorage()
         {
             var functor = new object[] {
                 new Func<Task<IBlobStore>>( async () => {

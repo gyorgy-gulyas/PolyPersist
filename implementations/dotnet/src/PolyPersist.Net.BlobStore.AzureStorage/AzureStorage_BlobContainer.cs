@@ -1,5 +1,4 @@
 ﻿using Azure.Storage.Blobs;
-using Azure.Storage.Blobs.Models;
 using PolyPersist.Net.Common;
 using System.Text.Json;
 
@@ -21,13 +20,23 @@ namespace PolyPersist.Net.BlobStore.AzureStorage
         /// <inheritdoc/>
         async Task IBlobContainer<TBlob>.Upload(TBlob blob, Stream content)
         {
+            if (content == null || content.CanRead == false)
+                throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} content cannot be read");
+
             await CollectionCommon.CheckBeforeInsert(blob).ConfigureAwait(false);
 
-            // create blob client
-            BlobClient blobClient = _containerClient.GetBlobClient(_makePath(blob));
+            if (string.IsNullOrEmpty(blob.id) == true)
+                blob.id = Guid.NewGuid().ToString();
+            else if ( await _FindInternal( blob.id).ConfigureAwait(false) == true)
+                throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} cannot be uploaded, beacuse of duplicate key");
 
-            // new etag
             blob.etag = Guid.NewGuid().ToString();
+            blob.LastUpdate = DateTime.UtcNow;
+
+            // create blob client
+            BlobClient blobClient = _containerClient.GetBlobClient(blob.id);
+            content.Seek(0, SeekOrigin.Begin);
+            await blobClient.UploadAsync(content).ConfigureAwait(false);
 
             // set metadata
             string meta_json = System.Text.Json.JsonSerializer.Serialize(blob);
@@ -38,11 +47,20 @@ namespace PolyPersist.Net.BlobStore.AzureStorage
             await blobClient.SetMetadataAsync(metadata).ConfigureAwait(false);
         }
 
+        private async Task<bool> _FindInternal(string id)
+        {
+            // create blob client
+            BlobClient blobClient = _containerClient.GetBlobClient(id);
+
+            // ✅ Ellenőrzés: ha már létezik, dobj kivételt
+            return await blobClient.ExistsAsync().ConfigureAwait(false);
+        }
+
         /// <inheritdoc/>
         async Task<Stream> IBlobContainer<TBlob>.Download(TBlob blob)
         {
             // create blob client
-            BlobClient blobClient = _containerClient.GetBlobClient(_makePath(blob));
+            BlobClient blobClient = _containerClient.GetBlobClient(blob.id);
             if (await blobClient.ExistsAsync().ConfigureAwait(false) == false)
                 throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not be download because it does not exist.");
 
@@ -55,7 +73,7 @@ namespace PolyPersist.Net.BlobStore.AzureStorage
         async Task<TBlob> IBlobContainer<TBlob>.Find(string partitionKey, string id)
         {
             // create blob client
-            BlobClient blobClient = _containerClient.GetBlobClient(_makePath(partitionKey,id));
+            BlobClient blobClient = _containerClient.GetBlobClient(id);
 
             if (await blobClient.ExistsAsync().ConfigureAwait(false) == false)
                return default(TBlob);
@@ -71,7 +89,7 @@ namespace PolyPersist.Net.BlobStore.AzureStorage
         /// <inheritdoc/>
         async Task IBlobContainer<TBlob>.Delete(string partitionKey, string id)
         {
-            BlobClient blobClient = _containerClient.GetBlobClient(_makePath(partitionKey, id));
+            BlobClient blobClient = _containerClient.GetBlobClient(id);
 
             var response = await blobClient.DeleteIfExistsAsync().ConfigureAwait(false);
             if(response.Value == false )
@@ -81,8 +99,11 @@ namespace PolyPersist.Net.BlobStore.AzureStorage
         /// <inheritdoc/>
         async Task IBlobContainer<TBlob>.UpdateContent(TBlob blob, Stream content)
         {
+            if (content == null || content.CanRead == false)
+                throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} content cannot be read");
+
             // create blob client
-            BlobClient blobClient = _containerClient.GetBlobClient(_makePath(blob));
+            BlobClient blobClient = _containerClient.GetBlobClient(blob.id);
             if (await blobClient.ExistsAsync().ConfigureAwait(false) == false)
                 throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not be updated because it does not exist.");
 
@@ -94,7 +115,7 @@ namespace PolyPersist.Net.BlobStore.AzureStorage
         async Task IBlobContainer<TBlob>.UpdateMetadata(TBlob blob)
         {
             // create blob client
-            BlobClient blobClient = _containerClient.GetBlobClient(_makePath(blob));
+            BlobClient blobClient = _containerClient.GetBlobClient(blob.id);
             if (await blobClient.ExistsAsync().ConfigureAwait(false) == false)
                 throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not be updated because it does not exist.");
 
@@ -112,11 +133,5 @@ namespace PolyPersist.Net.BlobStore.AzureStorage
         {
             return _containerClient;
         }
-
-        private string _makePath(IEntity entity)
-            => _makePath(entity.PartitionKey, entity.id);
-
-        private string _makePath(string partitionKey, string id)
-            => $"{partitionKey}/{id}";
     }
 }
