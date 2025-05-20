@@ -1,4 +1,6 @@
-﻿using Google.Apis.Storage.v1;
+﻿using Google.Apis.Download;
+using Google.Apis.Storage.v1;
+using Google.Apis.Upload;
 using PolyPersist.Net.Common;
 using System.Text.Json;
 
@@ -53,7 +55,9 @@ namespace PolyPersist.Net.BlobStore.GoogleCloudStorage
                 content,
                 blob.contentType ?? "application/octet-stream");
 
-            await insertRequest.UploadAsync().ConfigureAwait( false );
+            var result = await insertRequest.UploadAsync().ConfigureAwait(false);
+            if (result.Status != UploadStatus.Completed)
+                throw new Exception($"Blob '{blob.id}' cannot be uploaded '{_bucketName}'");
         }
 
         private async Task<bool> _IsExistsInternal(string id)
@@ -76,19 +80,24 @@ namespace PolyPersist.Net.BlobStore.GoogleCloudStorage
         {
             var content = new MemoryStream();
 
-            try
-            {
-                var getRequest = _storageService.Objects.Get(_bucketName, blob.id);
-                var stream = await getRequest.ExecuteAsStreamAsync().ConfigureAwait(false);
-                await stream.CopyToAsync(content);
-                content.Seek( 0, SeekOrigin.Begin );
+            var getRequest = _storageService.Objects.Get(_bucketName, blob.id);
+            var result = await getRequest.DownloadAsync(content).ConfigureAwait(false);
 
-                return content;
-            }
-            catch (Google.GoogleApiException ex) when (ex.HttpStatusCode == System.Net.HttpStatusCode.NotFound)
+            if (result.Status == DownloadStatus.Failed)
             {
-                throw new Exception($"Blob '{blob.id}' does not exist in bucket '{_bucketName}'", ex);
+                // Lehetséges, hogy 404 (nem létezik), vagy más hiba
+                if (result.Exception is Google.GoogleApiException ex && ex.HttpStatusCode == System.Net.HttpStatusCode.NotFound)
+                {
+                    throw new Exception($"Blob '{blob.id}' does not exist in bucket '{_bucketName}'", ex);
+                }
+
+                // Általános hibadobás más hiba esetén
+                throw new Exception($"Download failed for blob '{blob.id}' in bucket '{_bucketName}'", result.Exception);
             }
+
+            content.Seek(0, SeekOrigin.Begin);
+
+            return content;
         }
 
         public async Task<TBlob> Find(string partitionKey, string id)
@@ -97,7 +106,7 @@ namespace PolyPersist.Net.BlobStore.GoogleCloudStorage
             {
                 var obj = await _storageService.Objects.Get(_bucketName, id)
                     .ExecuteAsync()
-                    .ConfigureAwait( false );
+                    .ConfigureAwait(false);
 
                 string meta_json = obj.Metadata[nameof(meta_json)];
                 var blob = JsonSerializer.Deserialize<TBlob>(meta_json);
@@ -116,7 +125,7 @@ namespace PolyPersist.Net.BlobStore.GoogleCloudStorage
             {
                 await _storageService.Objects.Delete(_bucketName, id)
                     .ExecuteAsync()
-                    .ConfigureAwait( false);
+                    .ConfigureAwait(false);
             }
             catch (Google.GoogleApiException ex) when (ex.HttpStatusCode == System.Net.HttpStatusCode.NotFound)
             {
@@ -126,6 +135,9 @@ namespace PolyPersist.Net.BlobStore.GoogleCloudStorage
 
         public async Task UpdateContent(TBlob blob, Stream content)
         {
+            if (content == null || content.CanRead == false)
+                throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} content cannot be read");
+
             // 1. Check if the object exists
             try
             {
@@ -135,7 +147,7 @@ namespace PolyPersist.Net.BlobStore.GoogleCloudStorage
             }
             catch (Google.GoogleApiException ex) when (ex.HttpStatusCode == System.Net.HttpStatusCode.NotFound)
             {
-                throw new FileNotFoundException($"Blob '{blob.id}' does not exist in bucket '{_bucketName}'", ex);
+                throw new Exception($"Blob '{blob.id}' does not exist in bucket '{_bucketName}'", ex);
             }
 
             // 2. Upload new content (overwrites existing)
@@ -150,7 +162,9 @@ namespace PolyPersist.Net.BlobStore.GoogleCloudStorage
                 content,
                 blob.contentType ?? "application/octet-stream");
 
-            await insertRequest.UploadAsync().ConfigureAwait(false);
+            var result = await insertRequest.UploadAsync().ConfigureAwait(false);
+            if (result.Status != UploadStatus.Completed)
+                throw new Exception($"Blob '{blob.id}' cannot be uploaded '{_bucketName}'");
         }
 
         public async Task UpdateMetadata(TBlob blob)

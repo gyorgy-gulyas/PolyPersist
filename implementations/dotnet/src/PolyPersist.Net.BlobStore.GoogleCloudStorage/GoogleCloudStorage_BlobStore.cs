@@ -23,7 +23,9 @@ namespace PolyPersist.Net.BlobStore.GoogleCloudStorage
             _gcsService = new StorageService(new BaseClientService.Initializer
             {
                 HttpClientInitializer = credential,
-                BaseUri = string.IsNullOrWhiteSpace(_config.BaseUrl) ? null : $"{_config.BaseUrl}/storage/v1/",
+                BaseUri = string.IsNullOrWhiteSpace(_config.BaseUrl) 
+                    ? null 
+                    : $"{_config.BaseUrl}/storage/v1/",
                 ApplicationName = "GCSClient"
             });
         }

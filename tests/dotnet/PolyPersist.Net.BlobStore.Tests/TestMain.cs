@@ -35,7 +35,7 @@ namespace PolyPersist.Net.BlobStore.Tests
 
         static TestMain()
         {
-            _Setup_Memory_BlobStore();
+            //_Setup_Memory_BlobStore();
             //_Setup_FileSystem_BlobStore();
             //_Setup_GridFS_BlobStore();
             //_Setup_MinIO_BlobStore();
@@ -241,6 +241,8 @@ namespace PolyPersist.Net.BlobStore.Tests
         private static readonly SemaphoreSlim _gcsInitLock = new(1, 1);
         private static void _Setup_GoogleCloudStorage_BlobStore()
         {
+            const int fixedPort = 51822;
+
             var functor = new object[] {
                 new Func<Task<IBlobStore>>( async () => {
                     if (_gcsContainer == null)
@@ -254,8 +256,11 @@ namespace PolyPersist.Net.BlobStore.Tests
                                 _gcsContainer = new ContainerBuilder()
                                     .WithImage("fsouza/fake-gcs-server:latest")
                                     .WithCleanUp(true)
-                                    .WithPortBinding(4443, true) // https port
-                                    .WithCommand("-scheme", "http", "-port", "4443") // https helyett http
+                                    .WithPortBinding(fixedPort, 4443)
+                                    .WithCommand( 
+                                        "-scheme", "http", // https helyett http
+                                        "-port", "4443",
+                                        "-external-url", $"http://127.0.0.1:{fixedPort}" )
                                     .WithWaitStrategy(Wait.ForUnixContainer().UntilPortIsAvailable(4443))
                                     .Build();
 
@@ -270,7 +275,7 @@ namespace PolyPersist.Net.BlobStore.Tests
                     }
                     var hostPort = _gcsContainer.GetMappedPublicPort(4443);
 
-                    string connectionString = $"type=googlecloud;projectid=test-project;baseurl=http://localhost:{hostPort};usetoken=fake";
+                    string connectionString = $"type=googlecloud;projectid=test-project;baseurl=http://127.0.0.1:{fixedPort};usetoken=fake";
                     return new GoogleCloudStorage_BlobStore(connectionString);
                 })
             };
