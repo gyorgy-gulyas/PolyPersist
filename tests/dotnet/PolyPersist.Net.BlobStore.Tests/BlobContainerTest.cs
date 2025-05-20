@@ -460,5 +460,95 @@ namespace PolyPersist.Net.BlobStore.Tests
             });
             Assert.IsTrue(ex2.Message.Contains("PartitionKey must be filled"));
         }
+
+        [DataTestMethod]
+        [DynamicData(nameof(TestMain.StoreInstances), typeof(TestMain), DynamicDataSourceType.Property)]
+        public async Task BlobStore_UpdateContent_ChangesEtagAndLastUpdate(Func<Task<IBlobStore>> factory)
+        {
+            var testName = MethodBase.GetCurrentMethod().GetAsyncMethodName().MakeStorageConformName();
+            var store = await factory();
+            var container = await store.CreateContainer<SampleBlob>(testName);
+
+            var blob = new SampleBlob
+            {
+                PartitionKey = "update_check",
+                fileName = "etag_lastupdate.txt"
+            };
+
+            using var stream1 = new MemoryStream(Encoding.UTF8.GetBytes("initial"));
+            await container.Upload(blob, stream1);
+            var originalEtag = blob.etag;
+            var originalLastUpdate = blob.LastUpdate;
+
+            await Task.Delay(1000); // biztos időeltérés a LastUpdate-hez
+
+            using var stream2 = new MemoryStream(Encoding.UTF8.GetBytes("updated"));
+            await container.UpdateContent(blob, stream2);
+
+            var found = await container.Find(blob.PartitionKey, blob.id);
+
+            Assert.AreNotEqual(originalEtag, found.etag, "etag should change after UpdateContent");
+            Assert.IsTrue(found.LastUpdate > originalLastUpdate, "LastUpdate should be refreshed after UpdateContent");
+        }
+
+        [DataTestMethod]
+        [DynamicData(nameof(TestMain.StoreInstances), typeof(TestMain), DynamicDataSourceType.Property)]
+        public async Task BlobStore_UpdateMetadata_ChangesEtagAndLastUpdate(Func<Task<IBlobStore>> factory)
+        {
+            var testName = MethodBase.GetCurrentMethod().GetAsyncMethodName().MakeStorageConformName();
+            var store = await factory();
+            var container = await store.CreateContainer<SampleBlob>(testName);
+
+            var blob = new SampleBlob
+            {
+                PartitionKey = "meta_update",
+                fileName = "metaetag.txt"
+            };
+
+            using var stream = new MemoryStream(Encoding.UTF8.GetBytes("irrelevant"));
+            await container.Upload(blob, stream);
+
+            var origEtag = blob.etag;
+            var origUpdate = blob.LastUpdate;
+
+            await Task.Delay(1000);
+
+            blob.str_value = "changed";
+            await container.UpdateMetadata(blob);
+
+            var found = await container.Find(blob.PartitionKey, blob.id);
+            Assert.AreNotEqual(origEtag, found.etag);
+            Assert.IsTrue(found.LastUpdate > origUpdate);
+        }
+
+        [DataTestMethod]
+        [DynamicData(nameof(TestMain.StoreInstances), typeof(TestMain), DynamicDataSourceType.Property)]
+        public async Task BlobStore_Upload_AssignsUniqueEtagPerBlob(Func<Task<IBlobStore>> factory)
+        {
+            var testName = MethodBase.GetCurrentMethod().GetAsyncMethodName().MakeStorageConformName();
+            var store = await factory();
+            var container = await store.CreateContainer<SampleBlob>(testName);
+
+            var blob1 = new SampleBlob
+            {
+                PartitionKey = "etag_unique",
+                fileName = "blob1.txt"
+            };
+
+            var blob2 = new SampleBlob
+            {
+                PartitionKey = "etag_unique",
+                fileName = "blob2.txt"
+            };
+
+            using var content1 = new MemoryStream(Encoding.UTF8.GetBytes("same content"));
+            using var content2 = new MemoryStream(Encoding.UTF8.GetBytes("same content"));
+
+            await container.Upload(blob1, content1);
+            await container.Upload(blob2, content2);
+
+            Assert.AreNotEqual(blob1.id, blob2.id, "IDs must be different");
+            Assert.AreNotEqual(blob1.etag, blob2.etag, "Each Upload should generate a new etag");
+        }
     }
 }

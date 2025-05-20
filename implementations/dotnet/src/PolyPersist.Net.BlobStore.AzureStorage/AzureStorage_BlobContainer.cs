@@ -1,4 +1,5 @@
 ﻿using Azure.Storage.Blobs;
+using Azure.Storage.Blobs.Models;
 using PolyPersist.Net.Common;
 using System.Text.Json;
 
@@ -25,16 +26,17 @@ namespace PolyPersist.Net.BlobStore.AzureStorage
 
             await CollectionCommon.CheckBeforeInsert(blob).ConfigureAwait(false);
 
+            // create blob client
+            BlobClient blobClient = _containerClient.GetBlobClient(blob.id);
+
             if (string.IsNullOrEmpty(blob.id) == true)
                 blob.id = Guid.NewGuid().ToString();
-            else if ( await _FindInternal( blob.id).ConfigureAwait(false) == true)
+            else if (await blobClient.ExistsAsync().ConfigureAwait(false) == true)
                 throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} cannot be uploaded, beacuse of duplicate key");
 
             blob.etag = Guid.NewGuid().ToString();
             blob.LastUpdate = DateTime.UtcNow;
 
-            // create blob client
-            BlobClient blobClient = _containerClient.GetBlobClient(blob.id);
             content.Seek(0, SeekOrigin.Begin);
             await blobClient.UploadAsync(content).ConfigureAwait(false);
 
@@ -107,8 +109,20 @@ namespace PolyPersist.Net.BlobStore.AzureStorage
             if (await blobClient.ExistsAsync().ConfigureAwait(false) == false)
                 throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not be updated because it does not exist.");
 
+            blob.etag = Guid.NewGuid().ToString();
+            blob.LastUpdate = DateTime.UtcNow;
+
+            string meta_json = JsonSerializer.Serialize(blob);
+            var metadata = new Dictionary<string, string>
+            {
+                [nameof(meta_json)] = meta_json
+            };
+
             // Upload new content (overwrite)
-            await blobClient.UploadAsync(content, overwrite: true);
+            await blobClient.UploadAsync(content, new BlobUploadOptions
+            {
+                Metadata = metadata,
+            } );
         }
 
         /// <inheritdoc/>
@@ -118,6 +132,9 @@ namespace PolyPersist.Net.BlobStore.AzureStorage
             BlobClient blobClient = _containerClient.GetBlobClient(blob.id);
             if (await blobClient.ExistsAsync().ConfigureAwait(false) == false)
                 throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not be updated because it does not exist.");
+
+            blob.etag = Guid.NewGuid().ToString();
+            blob.LastUpdate = DateTime.UtcNow;
 
             // set metadata
             string meta_json = System.Text.Json.JsonSerializer.Serialize(blob);
