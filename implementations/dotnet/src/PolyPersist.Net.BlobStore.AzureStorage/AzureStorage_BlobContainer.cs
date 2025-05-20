@@ -26,17 +26,16 @@ namespace PolyPersist.Net.BlobStore.AzureStorage
 
             await CollectionCommon.CheckBeforeInsert(blob).ConfigureAwait(false);
 
-            // create blob client
-            BlobClient blobClient = _containerClient.GetBlobClient(blob.id);
-
             if (string.IsNullOrEmpty(blob.id) == true)
                 blob.id = Guid.NewGuid().ToString();
-            else if (await blobClient.ExistsAsync().ConfigureAwait(false) == true)
+            else if (await _FindInternal(blob.id).ConfigureAwait(false) == true)
                 throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} cannot be uploaded, beacuse of duplicate key");
 
             blob.etag = Guid.NewGuid().ToString();
             blob.LastUpdate = DateTime.UtcNow;
 
+            // create blob client
+            BlobClient blobClient = _containerClient.GetBlobClient(blob.id);
             content.Seek(0, SeekOrigin.Begin);
             await blobClient.UploadAsync(content).ConfigureAwait(false);
 
@@ -78,7 +77,7 @@ namespace PolyPersist.Net.BlobStore.AzureStorage
             BlobClient blobClient = _containerClient.GetBlobClient(id);
 
             if (await blobClient.ExistsAsync().ConfigureAwait(false) == false)
-               return default(TBlob);
+                return default(TBlob);
 
             var properties = await blobClient.GetPropertiesAsync().ConfigureAwait(false);
             // Create a new instance of the target type
@@ -94,7 +93,7 @@ namespace PolyPersist.Net.BlobStore.AzureStorage
             BlobClient blobClient = _containerClient.GetBlobClient(id);
 
             var response = await blobClient.DeleteIfExistsAsync().ConfigureAwait(false);
-            if(response.Value == false )
+            if (response.Value == false)
                 throw new Exception($"Blob '{typeof(TBlob).Name}' {id} cannot be deleted: it does not exist.");
         }
 
@@ -122,7 +121,7 @@ namespace PolyPersist.Net.BlobStore.AzureStorage
             await blobClient.UploadAsync(content, new BlobUploadOptions
             {
                 Metadata = metadata,
-            } );
+            });
         }
 
         /// <inheritdoc/>
