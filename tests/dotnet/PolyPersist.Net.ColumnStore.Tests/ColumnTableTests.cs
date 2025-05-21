@@ -10,7 +10,7 @@ namespace PolyPersist.Net.ColumnStore.Tests
     {
         [DataTestMethod]
         [DynamicData(nameof(TestMain.StoreInstances), typeof(TestMain), DynamicDataSourceType.Property)]
-        public async Task ColumnTable_GetUnderlyingImplementation_OK(Func<string,Task<IColumnStore>> factory)
+        public async Task ColumnTable_GetUnderlyingImplementation_OK(Func<string, Task<IColumnStore>> factory)
         {
             var testName = MethodBase.GetCurrentMethod().GetAsyncMethodName().MakeStorageConformName();
             var store = await factory(testName);
@@ -86,11 +86,9 @@ namespace PolyPersist.Net.ColumnStore.Tests
             id = "myid001";
             var row = new SampleRow { PartitionKey = "pk2", id = id, str_value = "initial" };
             await table.Insert(row);
-            await Task.Delay(9000);
 
             row.str_value = "updated";
             await table.Update(row);
-            await Task.Delay(9000);
 
             var updated = await table.Find(row.PartitionKey, row.id);
             Assert.IsNotNull(updated);
@@ -165,8 +163,9 @@ namespace PolyPersist.Net.ColumnStore.Tests
 
             var rows = new[]
             {
-                new SampleRow { PartitionKey = "query-pk", id = "q1", str_value = "A" },
-                new SampleRow { PartitionKey = "query-pk", id = "q2", str_value = "B" }
+                new SampleRow { PartitionKey = "query-pk", id = "q1", str_value = "A", int_value = 10 },
+                new SampleRow { PartitionKey = "query-pk", id = "q2", str_value = "B", int_value = 20 },
+                new SampleRow { PartitionKey = "diffe-pk", id = "q2", str_value = "C", int_value = 30 }
             };
 
             foreach (var r in rows)
@@ -177,6 +176,15 @@ namespace PolyPersist.Net.ColumnStore.Tests
                 .Where(r => r.PartitionKey == "query-pk")
                 .ToList();
             Assert.AreEqual(2, list.Count);
+            Assert.IsNotNull(list.First(r => r.id == "q1"));
+            Assert.IsNotNull(list.First(r => r.id == "q2"));
+
+            list = table
+             .AsQueryable()
+             .Where(r => r.int_value > 10 && r.int_value < 30 )
+             .ToList();
+            Assert.AreEqual(1, list.Count);
+            Assert.IsNotNull(list.First(r => r.id == "q2"));
         }
     }
 }
