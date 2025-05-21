@@ -186,5 +186,79 @@ namespace PolyPersist.Net.ColumnStore.Tests
             Assert.AreEqual(1, list.Count);
             Assert.IsNotNull(list.First(r => r.id == "q2"));
         }
+
+        [DataTestMethod]
+        [DynamicData(nameof(TestMain.StoreInstances), typeof(TestMain), DynamicDataSourceType.Property)]
+        public async Task ColumnTable_Insert_AssignsEtagAndLastUpdate(Func<string, Task<IColumnStore>> factory)
+        {
+            var testName = MethodBase.GetCurrentMethod().GetAsyncMethodName().MakeStorageConformName();
+            var store = await factory(testName);
+            var table = await store.CreateTable<SampleRow>("sampletable");
+
+            var row = new SampleRow { PartitionKey = "pk", id = "r1" };
+            await table.Insert(row);
+
+            var loaded = await table.Find("pk", "r1");
+
+            Assert.IsFalse(string.IsNullOrEmpty(loaded.etag));
+            Assert.IsTrue(loaded.LastUpdate > DateTime.MinValue);
+        }
+
+        [DataTestMethod]
+        [DynamicData(nameof(TestMain.StoreInstances), typeof(TestMain), DynamicDataSourceType.Property)]
+        public async Task ColumnTable_Update_ChangesEtagAndLastUpdate(Func<string, Task<IColumnStore>> factory)
+        {
+            var testName = MethodBase.GetCurrentMethod().GetAsyncMethodName().MakeStorageConformName();
+            var store = await factory(testName);
+            var table = await store.CreateTable<SampleRow>("sampletable");
+
+            var row = new SampleRow { PartitionKey = "pk", id = "r1", str_value = "before" };
+            await table.Insert(row);
+            var original = await table.Find("pk", "r1");
+
+            await Task.Delay(10); // ensure timestamp change
+            row.str_value = "after";
+            await table.Update(row);
+
+            var updated = await table.Find("pk", "r1");
+            Assert.AreNotEqual(original.etag, updated.etag);
+            Assert.IsTrue(updated.LastUpdate > original.LastUpdate);
+        }
+
+        [DataTestMethod]
+        [DynamicData(nameof(TestMain.StoreInstances), typeof(TestMain), DynamicDataSourceType.Property)]
+        public async Task ColumnTable_Insert_DistinctEtagsForDistinctRows(Func<string, Task<IColumnStore>> factory)
+        {
+            var testName = MethodBase.GetCurrentMethod().GetAsyncMethodName().MakeStorageConformName();
+            var store = await factory(testName);
+            var table = await store.CreateTable<SampleRow>("sampletable");
+
+            var r1 = new SampleRow { PartitionKey = "pk", id = "r1" };
+            var r2 = new SampleRow { PartitionKey = "pk", id = "r2" };
+
+            await table.Insert(r1);
+            await table.Insert(r2);
+
+            var loaded1 = await table.Find("pk", "r1");
+            var loaded2 = await table.Find("pk", "r2");
+
+            Assert.AreNotEqual(loaded1.etag, loaded2.etag);
+        }
+
+        [DataTestMethod]
+        [DynamicData(nameof(TestMain.StoreInstances), typeof(TestMain), DynamicDataSourceType.Property)]
+        public async Task ColumnTable_Insert_EtagAndLastUpdate_NotEmpty(Func<string, Task<IColumnStore>> factory)
+        {
+            var testName = MethodBase.GetCurrentMethod().GetAsyncMethodName().MakeStorageConformName();
+            var store = await factory(testName);
+            var table = await store.CreateTable<SampleRow>("sampletable");
+
+            var row = new SampleRow { PartitionKey = "pk", id = "r1" };
+            await table.Insert(row);
+            var found = await table.Find("pk", "r1");
+
+            Assert.IsFalse(string.IsNullOrEmpty(found.etag));
+            Assert.IsTrue(found.LastUpdate > DateTime.MinValue);
+        }
     }
 }
