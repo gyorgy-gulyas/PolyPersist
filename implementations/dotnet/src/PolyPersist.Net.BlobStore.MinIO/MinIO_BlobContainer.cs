@@ -148,13 +148,22 @@ namespace PolyPersist.Net.BlobStore.MinIO
                 throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not be updated because it is does dot exist", ex);
             }
 
+            blob.etag = Guid.NewGuid().ToString();
+            blob.LastUpdate = DateTime.UtcNow;
+            string meta_json = System.Text.Json.JsonSerializer.Serialize(blob);
+            var metadata = new Dictionary<string, string>
+            {
+                [nameof(meta_json)] = meta_json,
+            };
+
             content.Seek(0, SeekOrigin.Begin);
             await _minioClient.PutObjectAsync(new PutObjectArgs()
                  .WithBucket(_bucketName)
                  .WithObject(blob.id)
                  .WithStreamData(content)
                  .WithObjectSize(content.Length)
-                 .WithContentType(blob.contentType ?? "application/octet-stream")).ConfigureAwait(false);
+                 .WithContentType(blob.contentType ?? "application/octet-stream")
+                 .WithHeaders(metadata)).ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
@@ -174,6 +183,8 @@ namespace PolyPersist.Net.BlobStore.MinIO
                 throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not be updated because it is does dot exist", ex);
             }
 
+            blob.etag = Guid.NewGuid().ToString();
+            blob.LastUpdate = DateTime.UtcNow;
             string meta_json = System.Text.Json.JsonSerializer.Serialize(blob);
             var metadata = new Dictionary<string, string>
             {

@@ -135,11 +135,10 @@ namespace PolyPersist.Net.BlobStore.AmazonS3
                 ContentType = blob.contentType
             };
 
-            // copy original metadata
-            foreach (var kv in MetadataConverter.ToDictionary(response.Metadata))
-            {
-                request.Metadata[kv.Key] = kv.Value;
-            }
+            blob.etag = Guid.NewGuid().ToString();
+            blob.LastUpdate = DateTime.UtcNow;
+            string meta_json = System.Text.Json.JsonSerializer.Serialize(blob);
+            request.Metadata[nameof(meta_json)] = meta_json;
 
             await _amazonS3Client.PutObjectAsync(request).ConfigureAwait(false);
         }
@@ -180,10 +179,12 @@ namespace PolyPersist.Net.BlobStore.AmazonS3
                 ContentType = blob.contentType ?? metadata.Headers.ContentType ?? "application/octet-stream"
             };
 
+            blob.etag = Guid.NewGuid().ToString();
+            blob.LastUpdate = DateTime.UtcNow;
+
             // 4. Apply the new user-defined metadata from the blob
             string meta_json = System.Text.Json.JsonSerializer.Serialize(blob);
             request.Metadata[nameof(meta_json)] = meta_json;
-
 
             // 5. Upload the updated object back to S3
             await _amazonS3Client.PutObjectAsync(request).ConfigureAwait(false);

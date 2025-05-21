@@ -88,6 +88,11 @@ namespace PolyPersist.Net.BlobStore.FileSystem
             using var fs = File.Create(path);
             content.CopyTo(fs);
 
+            blob.etag = Guid.NewGuid().ToString();
+            blob.LastUpdate = DateTime.UtcNow;
+            File.WriteAllText(path + ".meta.json", JsonSerializer.Serialize(blob));
+
+
             return Task.CompletedTask;
         }
 
@@ -97,6 +102,8 @@ namespace PolyPersist.Net.BlobStore.FileSystem
             if (File.Exists(path) == false)
                 throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not upload, because it is does not exist");
 
+            blob.etag = Guid.NewGuid().ToString();
+            blob.LastUpdate = DateTime.UtcNow;
             File.WriteAllText(path + ".meta.json", JsonSerializer.Serialize(blob));
 
             return Task.CompletedTask;

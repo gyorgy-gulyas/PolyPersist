@@ -40,8 +40,8 @@ namespace PolyPersist.Net.BlobStore.Tests
             //_Setup_GridFS_BlobStore();
             //_Setup_MinIO_BlobStore();
             //_Setup_AmazonS3_BlobStore();
-            //_Setup_GoogleCloudStorage_BlobStore();
-            _Setup_AzureStorage();
+            _Setup_GoogleCloudStorage_BlobStore();
+            //_Setup_AzureStorage();
         }
 
         [AssemblyInitialize]

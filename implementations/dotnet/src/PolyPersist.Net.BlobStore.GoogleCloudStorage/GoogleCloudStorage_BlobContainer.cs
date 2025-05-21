@@ -139,9 +139,10 @@ namespace PolyPersist.Net.BlobStore.GoogleCloudStorage
                 throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} content cannot be read");
 
             // 1. Check if the object exists
+            Google.Apis.Storage.v1.Data.Object existingObject;
             try
             {
-                var obj = await _storageService.Objects.Get(_bucketName, blob.id)
+                existingObject = await _storageService.Objects.Get(_bucketName, blob.id)
                     .ExecuteAsync()
                     .ConfigureAwait(false);
             }
@@ -150,13 +151,21 @@ namespace PolyPersist.Net.BlobStore.GoogleCloudStorage
                 throw new Exception($"Blob '{blob.id}' does not exist in bucket '{_bucketName}'", ex);
             }
 
+            blob.etag = Guid.NewGuid().ToString();
+            blob.LastUpdate = DateTime.UtcNow;
+            string meta_json = System.Text.Json.JsonSerializer.Serialize(blob);
+
             // 2. Upload new content (overwrites existing)
             var insertRequest = _storageService.Objects.Insert(
                 new Google.Apis.Storage.v1.Data.Object
                 {
                     Bucket = _bucketName,
                     Name = blob.id,
-                    ContentType = blob.contentType ?? "application/octet-stream"
+                    ContentType = blob.contentType ?? "application/octet-stream",
+                    Metadata = new Dictionary<string, string>
+                    {
+                        [nameof(meta_json)] = meta_json
+                    }
                 },
                 _bucketName,
                 content,
@@ -180,13 +189,15 @@ namespace PolyPersist.Net.BlobStore.GoogleCloudStorage
                 throw new Exception($"Cannot update metadata because the object '{blob.id}' does not exist in bucket '{_bucketName}'", ex);
             }
 
+            blob.etag = Guid.NewGuid().ToString();
+            blob.LastUpdate = DateTime.UtcNow;
+
             // Patch metadata
             string meta_json = System.Text.Json.JsonSerializer.Serialize(blob);
             existingObject.Metadata = new Dictionary<string, string>
             {
                 [nameof(meta_json)] = meta_json,
             };
-
 
             var patchRequest = _storageService.Objects.Patch(existingObject, _bucketName, blob.id);
             await patchRequest.ExecuteAsync().ConfigureAwait(false);

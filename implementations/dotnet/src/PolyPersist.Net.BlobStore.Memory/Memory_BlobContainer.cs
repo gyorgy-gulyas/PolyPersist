@@ -94,6 +94,10 @@ namespace PolyPersist.Net.BlobStore.Memory
             if (_collectionData.MapOfBlobs.TryGetValue(blob.id, out _BlobData blobData) == false || blobData.partitionKey != blob.PartitionKey)
                 throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not upload, because it is does not exist");
 
+            blob.etag = Guid.NewGuid().ToString();
+            blob.LastUpdate = DateTime.UtcNow;
+            blobData.MetadataJSON = JsonSerializer.Serialize(blob, typeof(TBlob), JsonOptionsProvider.Options);
+
             blobData.Content = _streamToByteArray(content);
             return Task.CompletedTask;
         }
@@ -110,6 +114,8 @@ namespace PolyPersist.Net.BlobStore.Memory
                 throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not be updated because it is already changed");
 
             blob.etag = Guid.NewGuid().ToString();
+            blob.LastUpdate = DateTime.UtcNow;
+
             blobData.etag = blob.etag;
             blobData.MetadataJSON = JsonSerializer.Serialize(blob, typeof(TBlob), JsonOptionsProvider.Options);
         }
