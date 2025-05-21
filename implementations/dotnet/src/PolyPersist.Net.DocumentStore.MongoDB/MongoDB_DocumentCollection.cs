@@ -23,8 +23,20 @@ namespace PolyPersist.Net.DocumentStore.MongoDB
         {
             await CollectionCommon.CheckBeforeInsert(document).ConfigureAwait(false);
             document.etag = Guid.NewGuid().ToString();
+            document.LastUpdate = DateTime.UtcNow;
 
-            await _mongoCollection.InsertOneAsync(document).ConfigureAwait(false);
+            try
+            {
+                await _mongoCollection.InsertOneAsync(document).ConfigureAwait(false);
+            }
+            catch (MongoWriteException ex) when (ex.WriteError?.Category == ServerErrorCategory.DuplicateKey)
+            {
+                throw new Exception($"Document '{typeof(TDocument).Name}' {document.id} cannot be inserted, beacuse of duplicate key");
+            }
+            catch
+            {
+                throw;
+            }
         }
 
         /// <inheritdoc/>
@@ -34,14 +46,15 @@ namespace PolyPersist.Net.DocumentStore.MongoDB
 
             string oldETag = document.etag;
             document.etag = Guid.NewGuid().ToString();
+            document.LastUpdate = DateTime.UtcNow;
 
             var result = await _mongoCollection.ReplaceOneAsync(e => e.id == document.id && e.PartitionKey == document.PartitionKey && e.etag == oldETag, document).ConfigureAwait(false);
             if (result.IsAcknowledged == false || result.ModifiedCount != 1)
-                throw new Exception($"Document '{typeof(TDocument).Name}' {document.id} can not be updated because it is already changed or removed.");
+                throw new Exception($"Document '{typeof(TDocument).Name}' {document.id} can not be updated because does not exist.");
         }
 
         /// <inheritdoc/>
-        async Task IDocumentCollection<TDocument>.Delete(string id, string partitionKey)
+        async Task IDocumentCollection<TDocument>.Delete(string partitionKey, string id)
         {
             DeleteResult result = await _mongoCollection.DeleteOneAsync(e => e.id == id && e.PartitionKey == partitionKey).ConfigureAwait(false);
             if (result.IsAcknowledged == false)
@@ -52,7 +65,7 @@ namespace PolyPersist.Net.DocumentStore.MongoDB
         }
 
         /// <inheritdoc/>
-        async Task<TDocument> IDocumentCollection<TDocument>.Find(string id, string partitionKey)
+        async Task<TDocument> IDocumentCollection<TDocument>.Find(string partitionKey, string id)
         {
             TDocument document = await _mongoCollection
                 .Find(e => e.id == id && e.PartitionKey == partitionKey)

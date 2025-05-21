@@ -14,7 +14,7 @@ namespace PolyPersist.Net.DocumentStore.Tests
         static TestMain()
         {
             _Setup_Memory_DocumentStore();
-            //_Setup_Mongo_DocumentStore();
+            _Setup_Mongo_DocumentStore();
         }
 
         [AssemblyInitialize]
