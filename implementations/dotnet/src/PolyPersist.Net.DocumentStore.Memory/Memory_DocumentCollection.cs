@@ -26,9 +26,12 @@ namespace PolyPersist.Net.DocumentStore.Memory
             await CollectionCommon.CheckBeforeInsert(document).ConfigureAwait(false);
 
             document.etag = Guid.NewGuid().ToString();
+            document.LastUpdate = DateTime.UtcNow;
 
             if (string.IsNullOrEmpty(document.id) == true)
                 document.id = Guid.NewGuid().ToString();
+            else if (_collectionData.MapOfDocments.ContainsKey(document.id) == true)
+                throw new Exception($"Document '{typeof(TDocument).Name}' {document.id} cannot be inserted, beacuse of duplicate key");
 
             _RowData row = new()
             {
@@ -38,7 +41,7 @@ namespace PolyPersist.Net.DocumentStore.Memory
                 Value = JsonSerializer.Serialize(document, typeof(TDocument), JsonOptionsProvider.Options)
             };
 
-            _collectionData.MapOfDocments.Add((document.id, document.PartitionKey), row);
+            _collectionData.MapOfDocments.Add(document.id, row);
             _collectionData.ListOfDocments.Add(row);
         }
 
@@ -47,46 +50,47 @@ namespace PolyPersist.Net.DocumentStore.Memory
         {
             await CollectionCommon.CheckBeforeUpdate(document).ConfigureAwait(false);
 
-            if (_collectionData.MapOfDocments.TryGetValue((document.id, document.PartitionKey), out _RowData row) == false)
-                throw new Exception($"Document '{typeof(TDocument).Name}' {document.id} can not be updated because it is already removed");
+            if (_collectionData.MapOfDocments.TryGetValue(document.id, out _RowData row) == false)
+                throw new Exception($"Document '{typeof(TDocument).Name}' {document.id} can not be updated because does not exist");
 
             if (row.etag != document.etag)
                 throw new Exception($"Document '{typeof(TDocument).Name}' {document.id} can not be updated because it is already changed");
 
             document.etag = Guid.NewGuid().ToString();
+            document.LastUpdate = DateTime.Now;
+
             row.etag = document.etag;
             row.Value = JsonSerializer.Serialize(document, typeof(TDocument), JsonOptionsProvider.Options);
         }
 
         /// <inheritdoc/>
-        Task IDocumentCollection<TDocument>.Delete(string id, string partitionKey)
+        Task IDocumentCollection<TDocument>.Delete(string partitionKey, string id)
         {
-            if (_collectionData.MapOfDocments.TryGetValue((id, partitionKey), out _RowData row) == false)
+            if (_collectionData.MapOfDocments.TryGetValue(id, out _RowData row) == false)
                 throw new Exception($"Document '{typeof(TDocument).Name}' {id} can not be removed because it is already removed");
 
-            _collectionData.MapOfDocments.Remove((id, partitionKey));
+            _collectionData.MapOfDocments.Remove(id);
             _collectionData.ListOfDocments.Remove(row);
 
             return Task.CompletedTask;
         }
 
         /// <inheritdoc/>
-        Task<TDocument> IDocumentCollection<TDocument>.Find(string id, string partitionKey)
+        Task<TDocument> IDocumentCollection<TDocument>.Find(string partitionKey, string id)
         {
-            if (_collectionData.MapOfDocments.TryGetValue((id, partitionKey), out _RowData row) == true)
+            if (_collectionData.MapOfDocments.TryGetValue(id, out _RowData row) == true)
                 return Task.FromResult(JsonSerializer.Deserialize<TDocument>(row.Value, JsonOptionsProvider.Options));
 
             return Task.FromResult(default(TDocument));
         }
 
         /// <inheritdoc/>
-        TQuery IDocumentCollection<TDocument>.Query<TQuery>()
+        object IDocumentCollection<TDocument>.Query()
         {
-            bool isQueryable = typeof(IQueryable<TDocument>).IsAssignableFrom(typeof(TQuery));
-            if (isQueryable == false)
-                throw new Exception($"TQuery is must be 'IQueryable<TDocument>' in dotnet implementation");
-
-            return (TQuery)_collectionData.ListOfDocments.AsQueryable();
+            return _collectionData
+                .ListOfDocments
+                .Select(data => JsonSerializer.Deserialize<TDocument>(data.Value, JsonOptionsProvider.Options))
+                .AsQueryable();
         }
 
         /// <inheritdoc/>

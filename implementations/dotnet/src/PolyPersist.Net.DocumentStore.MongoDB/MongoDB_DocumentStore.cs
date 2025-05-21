@@ -37,7 +37,7 @@ namespace PolyPersist.Net.DocumentStore.MongoDB
             MongoDB_Serializer.RegisterType<TEntity>(typeof(TEntity));
 
             if (await (this as IDocumentStore).IsCollectionExists(collectionName).ConfigureAwait(false) == false)
-                return null;
+                throw new Exception($"Collection '{collectionName}' does not exist in Memory Documnet Store");
 
             IMongoCollection<TEntity> mongoCollection = _mongoDatabase.GetCollection<TEntity>(collectionName);
 

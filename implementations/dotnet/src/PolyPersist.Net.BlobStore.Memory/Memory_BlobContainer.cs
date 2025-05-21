@@ -108,7 +108,7 @@ namespace PolyPersist.Net.BlobStore.Memory
             await CollectionCommon.CheckBeforeUpdate(blob).ConfigureAwait(false);
 
             if (_collectionData.MapOfBlobs.TryGetValue(blob.id, out _BlobData blobData) == false || blobData.partitionKey != blob.PartitionKey)
-                throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not be updated because it is does dot exist");
+                throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not be updated because it is does not exist");
 
             if (blobData.etag != blob.etag)
                 throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not be updated because it is already changed");

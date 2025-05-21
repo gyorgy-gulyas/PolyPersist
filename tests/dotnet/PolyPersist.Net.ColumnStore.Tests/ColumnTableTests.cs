@@ -1,5 +1,6 @@
 ﻿using PolyPersist.Net.Extensions;
 using PolyPersist.Net.Test;
+using System;
 using System.Reflection;
 
 namespace PolyPersist.Net.ColumnStore.Tests
@@ -68,10 +69,11 @@ namespace PolyPersist.Net.ColumnStore.Tests
 
             await table.Insert(row1);
 
-            await Assert.ThrowsExceptionAsync<Exception>(async () =>
+            var exception = await Assert.ThrowsExceptionAsync<Exception>(async () =>
             {
                 await table.Insert(row2);
             });
+            Assert.IsTrue(exception.Message.Contains("duplicate key"));
         }
 
         [DataTestMethod]
@@ -103,12 +105,13 @@ namespace PolyPersist.Net.ColumnStore.Tests
             var store = await factory(testName);
             var table = await store.CreateTable<SampleRow>("sampletable");
 
-            var missing = new SampleRow { PartitionKey = "notfound", id = "missing", str_value = "data" };
+            var missing = new SampleRow { PartitionKey = "notfound", id = "missing", etag = "fake-etag", str_value = "data" };
 
-            await Assert.ThrowsExceptionAsync<Exception>(async () =>
+            var exception = await Assert.ThrowsExceptionAsync<Exception>(async () =>
             {
                 await table.Update(missing);
             });
+            Assert.IsTrue(exception.Message.Contains("does not exist"));
         }
 
         [DataTestMethod]
@@ -135,10 +138,11 @@ namespace PolyPersist.Net.ColumnStore.Tests
             var store = await factory(testName);
             var table = await store.CreateTable<SampleRow>("sampletable");
 
-            await Assert.ThrowsExceptionAsync<Exception>(async () =>
+            var exception = await Assert.ThrowsExceptionAsync<Exception>(async () =>
             {
                 await table.Delete("missing-pk", "missing-id");
             });
+            Assert.IsTrue(exception.Message.Contains("already removed"));
         }
 
         [DataTestMethod]

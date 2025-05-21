@@ -1,4 +1,5 @@
 ﻿using PolyPersist.Net.Test;
+using System;
 using System.Reflection;
 using System.Text;
 
@@ -301,10 +302,11 @@ namespace PolyPersist.Net.BlobStore.Tests
 
             using var stream = new MemoryStream(Encoding.UTF8.GetBytes("new content"));
 
-            await Assert.ThrowsExceptionAsync<Exception>(async () =>
+            var exception = await Assert.ThrowsExceptionAsync<Exception>(async () =>
             {
                 await container.UpdateContent(fake, stream);
             });
+            Assert.IsTrue(exception.Message.Contains("does not exist"));
         }
 
         [DataTestMethod]
@@ -318,15 +320,17 @@ namespace PolyPersist.Net.BlobStore.Tests
             var fake = new SampleBlob
             {
                 id = "nonexistent-id",
+                etag = "fake-etag",
                 PartitionKey = "nonexistent-pk",
                 fileName = "ghost.txt",
                 str_value = "meta"
             };
 
-            await Assert.ThrowsExceptionAsync<Exception>(async () =>
+            var exception = await Assert.ThrowsExceptionAsync<Exception>(async () =>
             {
                 await container.UpdateMetadata(fake);
             });
+            Assert.IsTrue(exception.Message.Contains("does not exist"));
         }
 
         [DataTestMethod]
@@ -427,7 +431,6 @@ namespace PolyPersist.Net.BlobStore.Tests
             {
                 await container.Upload(blob2, stream2);
             });
-
             Assert.IsTrue(ex.Message.Contains("duplicate key"));
         }
 

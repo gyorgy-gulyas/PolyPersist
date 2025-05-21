@@ -145,7 +145,7 @@ namespace PolyPersist.Net.BlobStore.MinIO
             }
             catch (ObjectNotFoundException ex)
             {
-                throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not be updated because it is does dot exist", ex);
+                throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not be updated because it is does not exist", ex);
             }
 
             blob.etag = Guid.NewGuid().ToString();
@@ -180,7 +180,7 @@ namespace PolyPersist.Net.BlobStore.MinIO
             }
             catch (ObjectNotFoundException ex)
             {
-                throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not be updated because it is does dot exist", ex);
+                throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not be updated because it is does not exist", ex);
             }
 
             blob.etag = Guid.NewGuid().ToString();

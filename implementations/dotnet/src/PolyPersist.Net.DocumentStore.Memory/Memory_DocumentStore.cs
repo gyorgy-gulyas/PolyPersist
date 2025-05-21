@@ -36,6 +36,9 @@
         /// <inheritdoc/>
         Task<IDocumentCollection<TDocument>> IDocumentStore.CreateCollection<TDocument>(string collectionName)
         {
+            if (_Collections.FindIndex(c => c.Name == collectionName) != -1)
+                throw new Exception($"Collection '{collectionName}' is already exist");
+
             _CollectionData collectionData = new(collectionName);
             _Collections.Add(collectionData);
 
@@ -64,7 +67,7 @@
         }
 
         internal string Name;
-        internal Dictionary<(string id, string pk), _RowData> MapOfDocments = [];
+        internal Dictionary<string, _RowData> MapOfDocments = [];
         internal List<_RowData> ListOfDocments = [];
         internal List<(string name, string[] keys)> Indexes = [];
     }

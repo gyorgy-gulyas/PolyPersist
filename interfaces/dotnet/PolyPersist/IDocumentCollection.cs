@@ -36,7 +36,7 @@ namespace PolyPersist
 		/// Getting the query interface for collection
 		/// the return value is generic, so the implementation can define what are the real types
 		/// In dotnet is can be IQueryable, in java it can be Java Streams, or Querydsl etc...
-		public TQuery Query<TQuery>();
+		public object Query();
 		/// getting the underlying implementation
 		/// please use this method carefully, because the returned value is different in every implementation
 		public object GetUnderlyingImplementation();
