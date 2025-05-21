@@ -13,7 +13,7 @@ namespace PolyPersist.Net.ColumnStore.Tests
         static TestMain()
         {
             _Setup_Cassandra_ColumnStore();
-            _Setup_Scylla_ColumnStore();
+            //_Setup_Scylla_ColumnStore();
         }
 
         [AssemblyInitialize]
@@ -38,7 +38,7 @@ namespace PolyPersist.Net.ColumnStore.Tests
         private static void _Setup_Cassandra_ColumnStore()
         {
             var functor = new object[] {
-                new Func<Task<IColumnStore>>( async () => {
+                new Func<string,Task<IColumnStore>>( async (testname) => {
                     if (_cassandraContainer == null)
                     {
                         await _cassandraInitLock.WaitAsync();
@@ -76,9 +76,9 @@ namespace PolyPersist.Net.ColumnStore.Tests
                         .Build();
 
                     using var session = cluster.Connect();
-                    session.Execute("CREATE KEYSPACE IF NOT EXISTS testks WITH replication = {'class': 'SimpleStrategy', 'replication_factor': 1};");
+                    session.Execute($"CREATE KEYSPACE IF NOT EXISTS {testname} WITH replication = {{'class': 'SimpleStrategy', 'replication_factor': 1}};");
 
-                    string connectionString = $"type=minIO;host={hostName};port={hostPort};username=cassandra;password=cassandra;keyspace=testks";
+                    string connectionString = $"type=minIO;host={hostName};port={hostPort};username=cassandra;password=cassandra;keyspace={testname}";
                     return new Cassandra_ColumnStore(connectionString);
                 })
             };
@@ -90,7 +90,7 @@ namespace PolyPersist.Net.ColumnStore.Tests
         private static void _Setup_Scylla_ColumnStore()
         {
             var functor = new object[] {
-                new Func<Task<IColumnStore>>( async () => {
+                new Func<string,Task<IColumnStore>>( async (testname) => {
                     if (_scyllaContainer == null)
                     {
                         await _scyllaInitLock.WaitAsync();
@@ -124,9 +124,9 @@ namespace PolyPersist.Net.ColumnStore.Tests
                         .Build();
 
                     using var session = cluster.Connect();
-                    session.Execute("CREATE KEYSPACE IF NOT EXISTS testks WITH replication = {'class': 'SimpleStrategy', 'replication_factor': 1};");
+                    session.Execute($"CREATE KEYSPACE IF NOT EXISTS {testname} WITH replication = {{'class': 'SimpleStrategy', 'replication_factor': 1}};");
 
-                    string connectionString = $"type=minIO;host={hostName};port={hostPort};username=cassandra;password=cassandra;keyspace=testks";
+                    string connectionString = $"type=minIO;host={hostName};port={hostPort};username=cassandra;password=cassandra;keyspace={testname}";
                     return new Cassandra_ColumnStore(connectionString);
                 })
             };

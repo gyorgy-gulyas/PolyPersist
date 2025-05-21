@@ -90,7 +90,7 @@ namespace PolyPersist.Net.ColumnStore.Cassandra
                 .Select(kvp => (
                     FieldIndex: fieldIndexMap[kvp.Key],
                     MemberAccessor: kvp.Value,
-                    CassandraValueGetter: Cassandra_ValueHelper.BuildTypedGetter(kvp.Value.Type)))
+                    CassandraValueGetter: Cassandra_Mapper.BuildTypedGetter(kvp.Value.Type)))
                 .ToList();
 
             IEnumerable<TRow> StreamRows()
@@ -246,22 +246,4 @@ namespace PolyPersist.Net.ColumnStore.Cassandra
             };
         }
     }
-
-
-    internal static class Cassandra_ValueHelper
-    {
-        internal delegate object GetterDelegate(Row row, int index);
-
-        internal static GetterDelegate BuildTypedGetter(Type type)
-        {
-            var method = typeof(Row).GetMethod("GetValue", new[] { typeof(int) }).MakeGenericMethod(type);
-            var rowParam = Expression.Parameter(typeof(Row), "row");
-            var indexParam = Expression.Parameter(typeof(int), "index");
-
-            var call = Expression.Call(rowParam, method, indexParam);
-            var lambda = Expression.Lambda<GetterDelegate>(Expression.Convert(call, typeof(object)), rowParam, indexParam);
-            return lambda.Compile();
-        }
-    }
-
 }

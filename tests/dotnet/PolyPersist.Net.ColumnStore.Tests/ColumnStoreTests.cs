@@ -6,7 +6,7 @@ using System.Reflection;
 namespace PolyPersist.Net.ColumnStore.Tests
 {
     #region
-    class SampleRow : Entity, IRow
+    public class SampleRow : Entity, IRow
     {
         public string str_value { get; set; }
         public int int_value { get; set; }
@@ -23,9 +23,10 @@ namespace PolyPersist.Net.ColumnStore.Tests
     {
         [DataTestMethod]
         [DynamicData(nameof(TestMain.StoreInstances), typeof(TestMain), DynamicDataSourceType.Property)]
-        public async Task ColumnStore_BasicInfo_OK(Func<Task<IColumnStore>> factory)
+        public async Task ColumnStore_BasicInfo_OK(Func<string, Task<IColumnStore>> factory)
         {
-            var store = await factory();
+            var testName = MethodBase.GetCurrentMethod().GetAsyncMethodName().MakeStorageConformName();
+            var store = await factory(testName);
 
             Assert.IsNotNull(store);
             Assert.AreEqual(IStore.StorageModels.ColumnStore, store.StorageModel);
@@ -35,9 +36,10 @@ namespace PolyPersist.Net.ColumnStore.Tests
 
         [DataTestMethod]
         [DynamicData(nameof(TestMain.StoreInstances), typeof(TestMain), DynamicDataSourceType.Property)]
-        public async Task BlobStore_Table_Ok(Func<Task<IColumnStore>> factory)
+        public async Task BlobStore_Table_Ok(Func<string, Task<IColumnStore>> factory)
         {
-            var store = await factory();
+            var testName = MethodBase.GetCurrentMethod().GetAsyncMethodName().MakeStorageConformName();
+            var store = await factory(testName);
 
             Assert.IsFalse(await store.IsTableExists("sampletable"));
 
@@ -56,9 +58,10 @@ namespace PolyPersist.Net.ColumnStore.Tests
 
         [DataTestMethod]
         [DynamicData(nameof(TestMain.StoreInstances), typeof(TestMain), DynamicDataSourceType.Property)]
-        public async Task BlobStore_CreateTable_Fail(Func<Task<IColumnStore>> factory)
+        public async Task BlobStore_CreateTable_Fail(Func<string, Task<IColumnStore>> factory)
         {
-            var store = await factory();
+            var testName = MethodBase.GetCurrentMethod().GetAsyncMethodName().MakeStorageConformName();
+            var store = await factory(testName);
 
             var table = await store.CreateTable<SampleRow>("sampletable");
 
@@ -68,9 +71,10 @@ namespace PolyPersist.Net.ColumnStore.Tests
 
         [DataTestMethod]
         [DynamicData(nameof(TestMain.StoreInstances), typeof(TestMain), DynamicDataSourceType.Property)]
-        public async Task BlobStore_GetTable_Fail(Func<Task<IColumnStore>> factory)
+        public async Task BlobStore_GetTable_Fail(Func<string, Task<IColumnStore>> factory)
         {
-            var store = await factory();
+            var testName = MethodBase.GetCurrentMethod().GetAsyncMethodName().MakeStorageConformName();
+            var store = await factory(testName);
 
             Exception ex = await Assert.ThrowsExceptionAsync<Exception>(async () => await store.GetTableByName<SampleRow>("notexist"));
             Assert.IsTrue(ex.Message.Contains("does not exist"));
@@ -78,9 +82,10 @@ namespace PolyPersist.Net.ColumnStore.Tests
 
         [DataTestMethod]
         [DynamicData(nameof(TestMain.StoreInstances), typeof(TestMain), DynamicDataSourceType.Property)]
-        public async Task BlobStore_DropTable_Fail(Func<Task<IColumnStore>> factory)
+        public async Task BlobStore_DropTable_Fail(Func<string, Task<IColumnStore>> factory)
         {
-            var store = await factory();
+            var testName = MethodBase.GetCurrentMethod().GetAsyncMethodName().MakeStorageConformName();
+            var store = await factory(testName);
 
             Exception ex = await Assert.ThrowsExceptionAsync<Exception>(async () => await store.DropTable("notexist"));
             Assert.IsTrue(ex.Message.Contains("does not exist"));

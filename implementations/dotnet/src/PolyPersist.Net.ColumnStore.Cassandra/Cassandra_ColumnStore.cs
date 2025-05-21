@@ -1,4 +1,5 @@
 ﻿using Cassandra;
+using System.Reflection;
 
 namespace PolyPersist.Net.ColumnStore.Cassandra
 {
@@ -25,12 +26,12 @@ namespace PolyPersist.Net.ColumnStore.Cassandra
 
         async Task<bool> IColumnStore.IsTableExists(string tableName)
         {
-            return await _IsTableExistsInternal( tableName).ConfigureAwait(false);
+            return await _IsTableExistsInternal(tableName).ConfigureAwait(false);
         }
 
         async Task<IColumnTable<TRow>> IColumnStore.GetTableByName<TRow>(string tableName)
         {
-            if (await _IsTableExistsInternal(tableName).ConfigureAwait(false) == false )
+            if (await _IsTableExistsInternal(tableName).ConfigureAwait(false) == false)
                 throw new Exception($"Table '{tableName}' does not exist");
 
             return new Cassandra_ColumnTable<TRow>(_session, tableName);
@@ -38,14 +39,21 @@ namespace PolyPersist.Net.ColumnStore.Cassandra
 
         async Task<IColumnTable<TRow>> IColumnStore.CreateTable<TRow>(string tableName)
         {
-            if (await _IsTableExistsInternal(tableName).ConfigureAwait(false) == true )
+            if (await _IsTableExistsInternal(tableName).ConfigureAwait(false) == true)
                 throw new Exception($"Table '{tableName}' already exists in Cassandra keyspace '{_keyspace}'.");
 
+            var properties = typeof(TRow).GetProperties(BindingFlags.Public | BindingFlags.Instance);
+            if (!properties.Any())
+                throw new InvalidOperationException($"Type '{typeof(TRow).Name}' does not contain any public properties.");
+
+            var columnDefs = properties
+                .Select(p => $"{p.Name.ToLowerInvariant()} {Cassandra_Mapper.MapType(p.PropertyType)}")
+                .ToList();
+
+            string columnSection = string.Join(",\n    ", columnDefs);
             string createQuery = $@"
                 CREATE TABLE {_keyspace}.{tableName} (
-                    partitionkey text,
-                    id text,
-                    etag text,
+                    {columnSection},
                     PRIMARY KEY (partitionkey, id)
                 )";
             await _session.ExecuteAsync(new SimpleStatement(createQuery));
@@ -55,7 +63,7 @@ namespace PolyPersist.Net.ColumnStore.Cassandra
 
         async Task IColumnStore.DropTable(string tableName)
         {
-            if (await _IsTableExistsInternal(tableName).ConfigureAwait(false) == false )
+            if (await _IsTableExistsInternal(tableName).ConfigureAwait(false) == false)
                 throw new Exception($"Table '{tableName}' does not exist in Cassandra keyspace '{_keyspace}'.");
 
             var dropQuery = $"DROP TABLE {_keyspace}.{tableName}";
@@ -67,6 +75,8 @@ namespace PolyPersist.Net.ColumnStore.Cassandra
             var tables = await _session.ExecuteAsync(new SimpleStatement("SELECT table_name FROM system_schema.tables WHERE keyspace_name = ?", _keyspace)).ConfigureAwait(false);
             return tables.Any(row => row.GetValue<string>("table_name") == tableName);
         }
+
+        
     }
 
     public class CassandraConnectionInfo

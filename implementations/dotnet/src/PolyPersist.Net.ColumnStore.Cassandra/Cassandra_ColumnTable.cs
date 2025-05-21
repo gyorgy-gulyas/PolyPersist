@@ -15,6 +15,7 @@ namespace PolyPersist.Net.ColumnStore.Cassandra
         {
             _session = session;
             _tableName = tableName;
+
         }
 
         string IColumnTable<TRow>.Name => _tableName;
@@ -24,23 +25,35 @@ namespace PolyPersist.Net.ColumnStore.Cassandra
             await CollectionCommon.CheckBeforeInsert(row).ConfigureAwait(false);
             row.etag = Guid.NewGuid().ToString();
 
+            if (string.IsNullOrEmpty(row.id) == true)
+                row.id = Guid.NewGuid().ToString();
+            row.etag = Guid.NewGuid().ToString();
+            row.LastUpdate = DateTime.UtcNow;
+
             var ps = await _getPreparedInsertStatement().ConfigureAwait(false);
             var accessors = MetadataHelper.GetAccessors<TRow>(lowerCaseNames: true);
 
             var values = new object[accessors.Count];
             int i = 0;
             foreach (var kvp in accessors)
-                values[i++] = kvp.Value.Getter(row);
+                values[i++] = Cassandra_Mapper.MapToCassandra(kvp.Value.Getter(row));
 
             var bound = ps.Bind(values);
-            await _session.ExecuteAsync(bound).ConfigureAwait(false);
+            bound.SetConsistencyLevel(ConsistencyLevel.Quorum);
+            bound.SetSerialConsistencyLevel(ConsistencyLevel.Serial);
+
+            var rs = await _session.ExecuteAsync(bound).ConfigureAwait(false);
+            var applied = rs.FirstOrDefault()?.GetValue<bool>("[applied]") ?? false;
+
+            if (applied == false )
+                throw new Exception($"Blob '{typeof(TRow).Name}' {row.id} cannot be uploaded, beacuse of duplicate key");
         }
 
         static PreparedStatement _insertStatemant;
         private static readonly SemaphoreSlim _insertStatemantLock = new(1, 1);
         private async Task<PreparedStatement> _getPreparedInsertStatement()
-        { 
-            if(_insertStatemant == null )
+        {
+            if (_insertStatemant == null)
             {
                 await _insertStatemantLock.WaitAsync();
 
@@ -53,7 +66,7 @@ namespace PolyPersist.Net.ColumnStore.Cassandra
                         var columnList = string.Join(", ", columnNames);
                         var placeholderList = string.Join(", ", columnNames.Select(_ => "?"));
 
-                        _insertStatemant = await _PrepareOrGetAsync($"INSERT INTO {_tableName} ({columnList}) VALUES ({placeholderList});").ConfigureAwait(false);
+                        _insertStatemant = await _PrepareOrGetAsync($"INSERT INTO {_session.Keyspace}.{_tableName} ({columnList}) VALUES ({placeholderList}) IF NOT EXISTS;").ConfigureAwait(false);
                     }
                 }
                 finally
@@ -69,31 +82,34 @@ namespace PolyPersist.Net.ColumnStore.Cassandra
         {
             await CollectionCommon.CheckBeforeUpdate(row).ConfigureAwait(false);
 
-            var original_etag = await _FindInternal(row.PartitionKey, row.id).ConfigureAwait(false);
-            if (original_etag == null)
-                throw new Exception($"Row '{typeof(TRow).Name}' {row.id} can not be updated because it is already removed.");
-
-            if (row.etag != original_etag)
-                throw new Exception($"Document '{typeof(TRow).Name}' {row.id} can not be updated because it is already changed");
+            var original_etag = row.etag;
 
             row.etag = Guid.NewGuid().ToString();
+            row.LastUpdate = DateTime.UtcNow;
 
-            var ps = await _getPreparedInsertStatement().ConfigureAwait(false);
+            var ps = await _getPreparedUpdateStatement().ConfigureAwait(false);
             var accessors = MetadataHelper.GetAccessors<TRow>(lowerCaseNames: true);
 
-            var values = new object[accessors.Count];
+            var values = new object[accessors.Count + 1];
             int i = 0;
             foreach (var kvp in accessors)
             {
-                if (kvp.Key == "id" || kvp.Key == "partitionkey")
+                if (kvp.Key == "id" || kvp.Key == "partitionkey" )
                     continue;
-                values[i++] = kvp.Value.Getter(row);
+                values[i++] = Cassandra_Mapper.MapToCassandra(kvp.Value.Getter(row));
             }
             values[i++] = row.PartitionKey;
             values[i++] = row.id;
+            values[i++] = original_etag;
 
             var bound = ps.Bind(values);
-            await _session.ExecuteAsync(bound).ConfigureAwait(false);
+            bound.SetConsistencyLevel(ConsistencyLevel.Quorum);
+            bound.SetSerialConsistencyLevel(ConsistencyLevel.Serial);
+            var rs = await _session.ExecuteAsync(bound).ConfigureAwait(false);
+            var applied = rs.FirstOrDefault()?.GetValue<bool>("[applied]") ?? false;
+
+            if (applied == false)
+                throw new Exception($"Blob '{typeof(TRow).Name}' {row.id} can not updated, because it is does not exist of already changed");
         }
 
         static PreparedStatement _updateStatemant;
@@ -115,7 +131,7 @@ namespace PolyPersist.Net.ColumnStore.Cassandra
                             .ToList();
 
                         var assignments = string.Join(", ", dataFields.Select(a => a.Key + " = ?"));
-                        _updateStatemant = await _PrepareOrGetAsync($"UPDATE {_tableName} SET {assignments} WHERE partitionkey = ? AND id = ?;").ConfigureAwait(false);
+                        _updateStatemant = await _PrepareOrGetAsync($"UPDATE {_session.Keyspace}.{_tableName} SET {assignments} WHERE partitionkey = ? AND id = ? IF etag = ?;").ConfigureAwait(false);
                     }
                 }
                 finally
@@ -133,27 +149,30 @@ namespace PolyPersist.Net.ColumnStore.Cassandra
             if (original_etag == null)
                 throw new Exception($"Row '{typeof(TRow).Name}' {id} can not be deleted because it is already removed.");
 
-            var ps = await _PrepareOrGetAsync($"DELETE FROM {_tableName} WHERE partitionkey = ? AND id = ?").ConfigureAwait(false);
+            var ps = await _PrepareOrGetAsync($"DELETE FROM {_session.Keyspace}.{_tableName} WHERE partitionkey = ? AND id = ?").ConfigureAwait(false);
             await _session.ExecuteAsync(ps.Bind(partitionKey, id));
         }
 
         async Task<TRow> IColumnTable<TRow>.Find(string partitionKey, string id)
         {
-            var ps = await _PrepareOrGetAsync($"SELECT * FROM {_tableName} WHERE partitionkey = ? AND id = ? LIMIT 1;").ConfigureAwait(false);
-            var rs = await _session.ExecuteAsync(ps.Bind(partitionKey, id));
+            var ps = await _PrepareOrGetAsync($"SELECT * FROM {_session.Keyspace}.{_tableName} WHERE partitionkey = ? AND id = ? LIMIT 1;").ConfigureAwait(false);
+            var bound = ps.Bind(partitionKey, id);
+            bound.SetConsistencyLevel(ConsistencyLevel.Quorum);
+            var rs = await _session.ExecuteAsync(bound);
 
             var row = rs.FirstOrDefault();
             if (row == null)
                 return default;
 
-            var mappedAccessors = await _getFindMappedAccessors(rs.Columns).ConfigureAwait( false );
+            var mappedAccessors = await _getFindMappedAccessors(rs.Columns).ConfigureAwait(false);
 
             var result = new TRow();
-            foreach (var (fieldIndex, memberAccessor, cassandraValueGetter) in mappedAccessors)
+            foreach (var (fieldIndex, memberAccessor, valueGetter) in mappedAccessors)
             {
                 if (memberAccessor.Setter != null)
                 {
-                    var value = cassandraValueGetter(row, fieldIndex);
+                    var value = valueGetter(row, fieldIndex);
+                    Console.WriteLine($"{_session.Keyspace}:{value}");
                     memberAccessor.Setter(result, value);
                 }
             }
@@ -161,10 +180,10 @@ namespace PolyPersist.Net.ColumnStore.Cassandra
             return result;
         }
 
-        static List<(int, MetadataHelper.MemberAccessor, Cassandra_ValueHelper.GetterDelegate)> _findMappedAccessors;
+        static List<(int, MetadataHelper.MemberAccessor, Cassandra_Mapper.GetterDelegate)> _findMappedAccessors;
         private static readonly SemaphoreSlim _findMappedAccessorsLock = new(1, 1);
 
-        private async Task<List<(int, MetadataHelper.MemberAccessor, Cassandra_ValueHelper.GetterDelegate)>> _getFindMappedAccessors( CqlColumn[] columns )
+        private async Task<List<(int, MetadataHelper.MemberAccessor, Cassandra_Mapper.GetterDelegate)>> _getFindMappedAccessors(CqlColumn[] columns)
         {
             if (_findMappedAccessors == null)
             {
@@ -185,7 +204,7 @@ namespace PolyPersist.Net.ColumnStore.Cassandra
                             .Select(kvp => (
                                 FieldIndex: fieldIndexMap[kvp.Key],
                                 MemberAccessor: kvp.Value,
-                                CassandraValueGetter: Cassandra_ValueHelper.BuildTypedGetter(kvp.Value.Type)))
+                                CassandraValueGetter: Cassandra_Mapper.BuildTypedGetter(kvp.Value.Type)))
                             .ToList();
                     }
                 }
@@ -207,9 +226,10 @@ namespace PolyPersist.Net.ColumnStore.Cassandra
 
         private async Task<string> _FindInternal(string partitionKey, string id)
         {
-            var cql = $"SELECT * FROM {_tableName} WHERE partitionkey = ? AND id = ? LIMIT 1;";
+            var cql = $"SELECT * FROM {_session.Keyspace}.{_tableName} WHERE partitionkey = ? AND id = ? LIMIT 1;";
             var ps = await _PrepareOrGetAsync(cql);
             var bound = ps.Bind(partitionKey, id);
+            bound.SetConsistencyLevel(ConsistencyLevel.Quorum);
             var rs = await _session.ExecuteAsync(bound).ConfigureAwait(false);
 
             var row = rs.FirstOrDefault();
