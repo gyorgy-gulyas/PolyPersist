@@ -222,7 +222,7 @@ namespace PolyPersist.Net.ColumnStore.Cassandra
 
         object IColumnTable<TRow>.Query()
         {
-            return new Cassandra_Queryable<TRow>(this);
+            return new Cassandra_Queryable<TRow,TRow>(this);
         }
 
         object IColumnTable<TRow>.GetUnderlyingImplementation() => _session;
