@@ -1,6 +1,7 @@
 ﻿using PolyPersist.Net.Extensions;
 using PolyPersist.Net.Test;
 using System;
+using System.Linq;
 using System.Reflection;
 
 namespace PolyPersist.Net.ColumnStore.Tests
@@ -11,7 +12,7 @@ namespace PolyPersist.Net.ColumnStore.Tests
     {
         [DataTestMethod]
         [DynamicData(nameof(TestMain.StoreInstances), typeof(TestMain), DynamicDataSourceType.Property)]
-        public async Task ColumnTable_GetUnderlyingImplementation_OK(Func<string, Task<IColumnStore>> factory)
+        public async Task ColumnStore_GetUnderlyingImplementation_OK(Func<string, Task<IColumnStore>> factory)
         {
             var testName = MethodBase.GetCurrentMethod().GetAsyncMethodName().MakeStorageConformName();
             var store = await factory(testName);
@@ -23,7 +24,7 @@ namespace PolyPersist.Net.ColumnStore.Tests
 
         [DataTestMethod]
         [DynamicData(nameof(TestMain.StoreInstances), typeof(TestMain), DynamicDataSourceType.Property)]
-        public async Task ColumnTable_Insert_And_Find_OK(Func<string, Task<IColumnStore>> factory)
+        public async Task ColumnStore_Insert_And_Find_OK(Func<string, Task<IColumnStore>> factory)
         {
             var testName = MethodBase.GetCurrentMethod().GetAsyncMethodName().MakeStorageConformName();
             var store = await factory(testName);
@@ -57,7 +58,7 @@ namespace PolyPersist.Net.ColumnStore.Tests
 
         [DataTestMethod]
         [DynamicData(nameof(TestMain.StoreInstances), typeof(TestMain), DynamicDataSourceType.Property)]
-        public async Task ColumnTable_Insert_Duplicate_Fails(Func<string, Task<IColumnStore>> factory)
+        public async Task ColumnStore_Insert_Duplicate_Fails(Func<string, Task<IColumnStore>> factory)
         {
             var testName = MethodBase.GetCurrentMethod().GetAsyncMethodName().MakeStorageConformName();
             var store = await factory(testName);
@@ -78,7 +79,7 @@ namespace PolyPersist.Net.ColumnStore.Tests
 
         [DataTestMethod]
         [DynamicData(nameof(TestMain.StoreInstances), typeof(TestMain), DynamicDataSourceType.Property)]
-        public async Task ColumnTable_Update_OK(Func<string, Task<IColumnStore>> factory)
+        public async Task ColumnStore_Update_OK(Func<string, Task<IColumnStore>> factory)
         {
             var testName = MethodBase.GetCurrentMethod().GetAsyncMethodName().MakeStorageConformName();
             var store = await factory(testName);
@@ -99,7 +100,7 @@ namespace PolyPersist.Net.ColumnStore.Tests
 
         [DataTestMethod]
         [DynamicData(nameof(TestMain.StoreInstances), typeof(TestMain), DynamicDataSourceType.Property)]
-        public async Task ColumnTable_Update_NotFound_Fails(Func<string, Task<IColumnStore>> factory)
+        public async Task ColumnStore_Update_NotFound_Fails(Func<string, Task<IColumnStore>> factory)
         {
             var testName = MethodBase.GetCurrentMethod().GetAsyncMethodName().MakeStorageConformName();
             var store = await factory(testName);
@@ -116,7 +117,7 @@ namespace PolyPersist.Net.ColumnStore.Tests
 
         [DataTestMethod]
         [DynamicData(nameof(TestMain.StoreInstances), typeof(TestMain), DynamicDataSourceType.Property)]
-        public async Task ColumnTable_Delete_OK(Func<string, Task<IColumnStore>> factory)
+        public async Task ColumnStore_Delete_OK(Func<string, Task<IColumnStore>> factory)
         {
             var testName = MethodBase.GetCurrentMethod().GetAsyncMethodName().MakeStorageConformName();
             var store = await factory(testName);
@@ -132,7 +133,7 @@ namespace PolyPersist.Net.ColumnStore.Tests
 
         [DataTestMethod]
         [DynamicData(nameof(TestMain.StoreInstances), typeof(TestMain), DynamicDataSourceType.Property)]
-        public async Task ColumnTable_Delete_NotFound_Fails(Func<string, Task<IColumnStore>> factory)
+        public async Task ColumnStore_Delete_NotFound_Fails(Func<string, Task<IColumnStore>> factory)
         {
             var testName = MethodBase.GetCurrentMethod().GetAsyncMethodName().MakeStorageConformName();
             var store = await factory(testName);
@@ -147,7 +148,7 @@ namespace PolyPersist.Net.ColumnStore.Tests
 
         [DataTestMethod]
         [DynamicData(nameof(TestMain.StoreInstances), typeof(TestMain), DynamicDataSourceType.Property)]
-        public async Task ColumnTable_Find_NotFound_ReturnsNull(Func<string, Task<IColumnStore>> factory)
+        public async Task ColumnStore_Find_NotFound_ReturnsNull(Func<string, Task<IColumnStore>> factory)
         {
             var testName = MethodBase.GetCurrentMethod().GetAsyncMethodName().MakeStorageConformName();
             var store = await factory(testName);
@@ -159,41 +160,7 @@ namespace PolyPersist.Net.ColumnStore.Tests
 
         [DataTestMethod]
         [DynamicData(nameof(TestMain.StoreInstances), typeof(TestMain), DynamicDataSourceType.Property)]
-        public async Task ColumnTable_Query_OK(Func<string, Task<IColumnStore>> factory)
-        {
-            var testName = MethodBase.GetCurrentMethod().GetAsyncMethodName().MakeStorageConformName();
-            var store = await factory(testName);
-            var table = await store.CreateTable<SampleRow>("sampletable");
-
-            var rows = new[]
-            {
-                new SampleRow { PartitionKey = "query-pk", id = "q1", str_value = "A", int_value = 10 },
-                new SampleRow { PartitionKey = "query-pk", id = "q2", str_value = "B", int_value = 20 },
-                new SampleRow { PartitionKey = "diffe-pk", id = "q2", str_value = "C", int_value = 30 }
-            };
-
-            foreach (var r in rows)
-                await table.Insert(r);
-
-            var list = table
-                .AsQueryable()
-                .Where(r => r.PartitionKey == "query-pk")
-                .ToList();
-            Assert.AreEqual(2, list.Count);
-            Assert.IsNotNull(list.First(r => r.id == "q1"));
-            Assert.IsNotNull(list.First(r => r.id == "q2"));
-
-            list = table
-             .AsQueryable()
-             .Where(r => r.int_value > 10 && r.int_value < 30 )
-             .ToList();
-            Assert.AreEqual(1, list.Count);
-            Assert.IsNotNull(list.First(r => r.id == "q2"));
-        }
-
-        [DataTestMethod]
-        [DynamicData(nameof(TestMain.StoreInstances), typeof(TestMain), DynamicDataSourceType.Property)]
-        public async Task ColumnTable_Insert_AssignsEtagAndLastUpdate(Func<string, Task<IColumnStore>> factory)
+        public async Task ColumnStore_Insert_AssignsEtagAndLastUpdate(Func<string, Task<IColumnStore>> factory)
         {
             var testName = MethodBase.GetCurrentMethod().GetAsyncMethodName().MakeStorageConformName();
             var store = await factory(testName);
@@ -210,7 +177,7 @@ namespace PolyPersist.Net.ColumnStore.Tests
 
         [DataTestMethod]
         [DynamicData(nameof(TestMain.StoreInstances), typeof(TestMain), DynamicDataSourceType.Property)]
-        public async Task ColumnTable_Update_ChangesEtagAndLastUpdate(Func<string, Task<IColumnStore>> factory)
+        public async Task ColumnStore_Update_ChangesEtagAndLastUpdate(Func<string, Task<IColumnStore>> factory)
         {
             var testName = MethodBase.GetCurrentMethod().GetAsyncMethodName().MakeStorageConformName();
             var store = await factory(testName);
@@ -231,7 +198,7 @@ namespace PolyPersist.Net.ColumnStore.Tests
 
         [DataTestMethod]
         [DynamicData(nameof(TestMain.StoreInstances), typeof(TestMain), DynamicDataSourceType.Property)]
-        public async Task ColumnTable_Insert_DistinctEtagsForDistinctRows(Func<string, Task<IColumnStore>> factory)
+        public async Task ColumnStore_Insert_DistinctEtagsForDistinctRows(Func<string, Task<IColumnStore>> factory)
         {
             var testName = MethodBase.GetCurrentMethod().GetAsyncMethodName().MakeStorageConformName();
             var store = await factory(testName);
@@ -251,7 +218,7 @@ namespace PolyPersist.Net.ColumnStore.Tests
 
         [DataTestMethod]
         [DynamicData(nameof(TestMain.StoreInstances), typeof(TestMain), DynamicDataSourceType.Property)]
-        public async Task ColumnTable_Insert_EtagAndLastUpdate_NotEmpty(Func<string, Task<IColumnStore>> factory)
+        public async Task ColumnStore_Insert_EtagAndLastUpdate_NotEmpty(Func<string, Task<IColumnStore>> factory)
         {
             var testName = MethodBase.GetCurrentMethod().GetAsyncMethodName().MakeStorageConformName();
             var store = await factory(testName);

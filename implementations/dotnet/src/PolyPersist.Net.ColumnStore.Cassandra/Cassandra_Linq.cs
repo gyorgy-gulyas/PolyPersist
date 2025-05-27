@@ -1,5 +1,6 @@
 using Cassandra;
 using PolyPersist.Net.Common;
+using PolyPersist.Net.Extensions;
 using System.Collections;
 using System.Collections.Concurrent;
 using System.Diagnostics;
@@ -7,11 +8,11 @@ using System.Linq.Expressions;
 
 namespace PolyPersist.Net.ColumnStore.Cassandra
 {
-    internal class Cassandra_Queryable<TRow> : IQueryable<TRow>
+    internal class Cassandra_Queryable<TRow> : IQueryableAsync<TRow>
         where TRow : IRow, new()
     {
-        private readonly Expression _expression;
-        private readonly Cassandra_QueryProvider<TRow> _provider;
+        protected readonly Expression _expression;
+        protected readonly Cassandra_QueryProvider<TRow> _provider;
 
         public Cassandra_Queryable(Cassandra_ColumnTable<TRow> table)
         {
@@ -29,6 +30,7 @@ namespace PolyPersist.Net.ColumnStore.Cassandra
         public Expression Expression => _expression;
         public IQueryProvider Provider => _provider;
 
+        IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
         public IEnumerator<TRow> GetEnumerator()
         {
             return _provider
@@ -36,9 +38,13 @@ namespace PolyPersist.Net.ColumnStore.Cassandra
                 .GetEnumerator();
         }
 
-        IEnumerator IEnumerable.GetEnumerator()
+        IAsyncEnumerator<TRow> IAsyncEnumerable<TRow>.GetAsyncEnumerator(CancellationToken cancellationToken) => GetAsyncEnumerator(cancellationToken);
+        public async IAsyncEnumerator<TRow> GetAsyncEnumerator(CancellationToken cancellationToken = default)
         {
-            return GetEnumerator();
+            await foreach (var item in _provider.ExecuteAsync(_expression).WithCancellation(cancellationToken))
+            {
+                yield return item;
+            }
         }
     }
 
@@ -62,9 +68,10 @@ namespace PolyPersist.Net.ColumnStore.Cassandra
             return (IQueryable<TElement>)new Cassandra_Queryable<TRow>(new Cassandra_QueryProvider<TRow>(_table), expression);
         }
 
-        public object Execute(Expression expression)
+
+        private (string Cql, Func<Row, CqlColumn[], TRow> Mapper) BuildQueryPlan(Expression expression)
         {
-            var visitor = new Cassandra_ExpressionVisitor( _table._session.Keyspace, _table._tableName, _table._tableMeta );
+            var visitor = new Cassandra_ExpressionVisitor(_table._session.Keyspace, _table._tableName, _table._tableMeta);
             string whereClause = visitor.TranslateWhere(expression);
             string selectClause = visitor.TranslateSelect(expression) ?? "*";
             string orderByClause = visitor.TranslateOrderBy();
@@ -73,55 +80,79 @@ namespace PolyPersist.Net.ColumnStore.Cassandra
 
             var cql = $"SELECT {selectClause} FROM {_table._tableName}{whereClause}{allowFiltering}{orderByClause}{limitClause};";
 
-            var rs = _table._session.Execute(new SimpleStatement(cql));
             var accessors = MetadataHelper
                 .GetAccessors<TRow>()
                 .ToDictionary(kvp => kvp.Key.ToLower(), kvp => kvp.Value);
 
-            // csak a szükséges mezőket használjuk
             var usedAccessors = (visitor.SelectedFieldSet != null && visitor.SelectedFieldSet.Count > 0)
                 ? accessors.Where(kvp => visitor.SelectedFieldSet.Contains(kvp.Key)).ToList()
                 : accessors.ToList();
 
-            //  build index map, for reaching values in row based on index instad of name
-            var columns = rs.Columns;
-            var fieldIndexMap = new Dictionary<string, int>();
-            for (int i = 0; i < columns.Length; i++)
-                fieldIndexMap[columns[i].Name.ToLower()] = i;
+            Func<TRow> instanceFactory = () => new TRow();
 
-            var mappedAccessors = usedAccessors
-                .Select(kvp => (
-                    FieldIndex: fieldIndexMap[kvp.Key],
-                    MemberAccessor: kvp.Value,
-                    CassandraValueGetter: Cassandra_Mapper.BuildTypedGetter(kvp.Value.Type)))
-                .ToList();
+            Func<Row, CqlColumn[], TRow> mapper = (row,columns) =>
+            {
+                var item = instanceFactory();
+                var fieldIndexMap = new Dictionary<string, int>();
+                for (int i = 0; i < columns.Length; i++)
+                    fieldIndexMap[columns[i].Name.ToLower()] = i;
+
+                foreach (var (name, accessor) in usedAccessors)
+                {
+                    if (fieldIndexMap.TryGetValue(name, out var fieldIndex) && accessor.Setter != null)
+                    {
+                        var getter = Cassandra_Mapper.BuildTypedGetter(accessor.Type);
+                        var value = getter(row, fieldIndex);
+                        accessor.Setter(item, value);
+                    }
+                }
+
+                return item;
+            };
+
+            return (cql, mapper);
+        }
+
+        public object Execute(Expression expression)
+        {
+            var (cql, mapper) = BuildQueryPlan(expression);
+            RowSet rs = _table._session.Execute(new SimpleStatement(cql));
 
             IEnumerable<TRow> StreamRows()
             {
                 foreach (var row in rs)
-                {
-                    var item = new TRow();
-
-                    foreach (var (fieldIndex, memberAccessor, cassandraValueGetter) in mappedAccessors)
-                    {
-                        if (memberAccessor.Setter != null)
-                        {
-                            var value = cassandraValueGetter(row, fieldIndex); ;
-                            memberAccessor.Setter(item, value);
-                        }
-                    }
-
-                    yield return item;
-                }
+                    yield return mapper(row, rs.Columns);
             }
 
             return StreamRows();
         }
 
-        public TResult Execute<TResult>(Expression expression)
+        public async IAsyncEnumerable<TRow> ExecuteAsync(Expression expression)
         {
-            return (TResult)Execute(expression);
+            var (cql, mapper) = BuildQueryPlan(expression);
+            var statement = new SimpleStatement(cql).SetPageSize(5000);
+            RowSet rs = await _table._session.ExecuteAsync(statement);
+
+            do
+            {
+                foreach (var row in rs)
+                    yield return mapper(row, rs.Columns);
+
+                if (rs.PagingState != null)
+                {
+                    var pagedStatement = new SimpleStatement(cql)
+                        .SetPageSize(5000)
+                        .SetPagingState(rs.PagingState);
+                    rs = await _table._session.ExecuteAsync(pagedStatement);
+                }
+                else
+                {
+                    break;
+                }
+
+            } while (true);
         }
+        public TResult Execute<TResult>(Expression expression) => (TResult)Execute(expression);
     }
 
     internal class Cassandra_ExpressionVisitor : ExpressionVisitor
@@ -265,6 +296,13 @@ namespace PolyPersist.Net.ColumnStore.Cassandra
 
         protected override Expression VisitMethodCall(MethodCallExpression node)
         {
+            if (node.Method.Name == "Count" && node.Arguments.Count == 1)
+            {
+                _selectedFields = new List<string> { "COUNT(*)" };
+                Visit(node.Arguments[0]);
+                return node;
+            }
+
             if (node.Method.Name == "Where" && node.Arguments.Count == 2)
             {
                 var lambda = (LambdaExpression)StripQuotes(node.Arguments[1]);
