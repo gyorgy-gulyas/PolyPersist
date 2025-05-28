@@ -1,4 +1,5 @@
-﻿using PolyPersist.Net.Core;
+﻿using PolyPersist.Net.Attributes;
+using PolyPersist.Net.Core;
 using PolyPersist.Net.Test;
 using System.Reflection;
 
@@ -8,7 +9,9 @@ namespace PolyPersist.Net.ColumnStore.Tests
     #region
     public class SampleRow : Entity, IRow
     {
+        [ClusteringColumn(1)]
         public string str_value { get; set; }
+        [ClusteringColumn(2)]
         public int int_value { get; set; }
         public decimal decimal_value { get; set; }
         public bool bool_value { get; set; }

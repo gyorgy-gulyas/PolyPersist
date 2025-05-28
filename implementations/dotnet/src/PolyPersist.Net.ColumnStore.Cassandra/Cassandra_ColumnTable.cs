@@ -42,8 +42,6 @@ namespace PolyPersist.Net.ColumnStore.Cassandra
                 values[i++] = Cassandra_Mapper.MapToCassandra(kvp.Value.Getter(row));
 
             var bound = ps.Bind(values);
-            //bound.SetConsistencyLevel(ConsistencyLevel.Quorum);
-            //bound.SetSerialConsistencyLevel(ConsistencyLevel.Serial);
 
             var rs = await _session.ExecuteAsync(bound).ConfigureAwait(false);
             var applied = rs.FirstOrDefault()?.GetValue<bool>("[applied]") ?? false;
@@ -106,8 +104,6 @@ namespace PolyPersist.Net.ColumnStore.Cassandra
             values[i++] = original_etag;
 
             var bound = ps.Bind(values);
-            //bound.SetConsistencyLevel(ConsistencyLevel.Quorum);
-            //bound.SetSerialConsistencyLevel(ConsistencyLevel.Serial);
             var rs = await _session.ExecuteAsync(bound).ConfigureAwait(false);
             var applied = rs.FirstOrDefault()?.GetValue<bool>("[applied]") ?? false;
 
@@ -160,7 +156,6 @@ namespace PolyPersist.Net.ColumnStore.Cassandra
         {
             var ps = await _PrepareOrGetAsync($"SELECT * FROM {_session.Keyspace}.{_tableName} WHERE partitionkey = ? AND id = ? LIMIT 1;").ConfigureAwait(false);
             var bound = ps.Bind(partitionKey, id);
-//            bound.SetConsistencyLevel(ConsistencyLevel.Quorum);
             var rs = await _session.ExecuteAsync(bound);
 
             var row = rs.FirstOrDefault();
@@ -232,7 +227,6 @@ namespace PolyPersist.Net.ColumnStore.Cassandra
             var cql = $"SELECT * FROM {_session.Keyspace}.{_tableName} WHERE partitionkey = ? AND id = ? LIMIT 1;";
             var ps = await _PrepareOrGetAsync(cql);
             var bound = ps.Bind(partitionKey, id);
-//            bound.SetConsistencyLevel(ConsistencyLevel.Quorum);
             var rs = await _session.ExecuteAsync(bound).ConfigureAwait(false);
 
             var row = rs.FirstOrDefault();

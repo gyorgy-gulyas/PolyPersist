@@ -1,4 +1,5 @@
 ﻿using Cassandra;
+using PolyPersist.Net.Attributes;
 using System.Reflection;
 
 namespace PolyPersist.Net.ColumnStore.Cassandra
@@ -50,11 +51,23 @@ namespace PolyPersist.Net.ColumnStore.Cassandra
                 .Select(p => $"{p.Name.ToLowerInvariant()} {Cassandra_Mapper.MapType(p.PropertyType)}")
                 .ToList();
 
+            var clusteringProps = properties
+                .Select(p => new { Property = p, Attribute = p.GetCustomAttribute<ClusteringColumnAttribute>() })
+                .Where(x => x.Attribute != null)
+                .OrderBy(x => x.Attribute._clusteringOrder)
+                .Select(x => x.Property.Name.ToLowerInvariant())
+                .ToList();
+
+
             string columnSection = string.Join(",\n    ", columnDefs);
+            string clustingSection = clusteringProps.Count > 0
+                ? "," + string.Join(", ", clusteringProps)
+                : string.Empty;
+
             string createQuery = $@"
                 CREATE TABLE {_keyspace}.{tableName} (
                     {columnSection},
-                    PRIMARY KEY (partitionkey, id)
+                    PRIMARY KEY (partitionkey, id {clustingSection})
                 )";
             await _session.ExecuteAsync(new SimpleStatement(createQuery));
 
@@ -76,7 +89,7 @@ namespace PolyPersist.Net.ColumnStore.Cassandra
             return tables.Any(row => row.GetValue<string>("table_name") == tableName);
         }
 
-        
+
     }
 
     public class CassandraConnectionInfo

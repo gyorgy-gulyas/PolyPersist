@@ -5,7 +5,7 @@ using System.Reflection;
 namespace PolyPersist.Net.DocumentStore.Tests
 {
     #region
-    class SampleDocument : Document
+    class SampleDocument : Entity
     {
         public string str_value { get; set; }
         public int int_value { get; set; }

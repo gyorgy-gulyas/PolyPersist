@@ -3,14 +3,12 @@ using PolyPersist.Net.Common;
 using System.Collections;
 using System.Collections.Concurrent;
 using System.Diagnostics;
-using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
-using System.Reflection.Metadata;
 
 namespace PolyPersist.Net.ColumnStore.Cassandra
 {
-    internal class Cassandra_Queryable<TRow, TResult> : IQueryable<TResult>
+    internal class Cassandra_Queryable<TRow, TResult> : IOrderedQueryable<TResult>
         where TRow : IRow, new()
     {
         protected readonly Expression _expression;
@@ -78,6 +76,7 @@ namespace PolyPersist.Net.ColumnStore.Cassandra
             var visitor = new Cassandra_ExpressionVisitor(_table._session.Keyspace, _table._tableName, _table._tableMeta);
             visitor.Visit(expression);
             var (selectClause, resultType) = visitor.TranslateSelect();
+            string distinctClause = visitor.TranslateDistinct();
             string whereClause = visitor.TranslateWhere();
             string orderByClause = visitor.TranslateOrderBy();
             string limitClause = visitor.TranslateLimit();
@@ -85,7 +84,7 @@ namespace PolyPersist.Net.ColumnStore.Cassandra
                 ? " ALLOW FILTERING "
                 : string.Empty;
 
-            var cql = $"SELECT {selectClause} FROM {_table._tableName}{whereClause}{allowFiltering}{orderByClause}{limitClause};";
+            var cql = $"SELECT {distinctClause} {selectClause} FROM {_table._tableName}{whereClause}{allowFiltering}{orderByClause}{limitClause};";
 
             return (cql, resultType, visitor._projectionMap, visitor._projectionAnonymousCtor);
         }
@@ -100,7 +99,7 @@ namespace PolyPersist.Net.ColumnStore.Cassandra
                 if (resulttype != Cassandra_ExpressionVisitor.ResultTypes.Count)
                     throw new NotSupportedException("Only count is supported when expected result is integer");
 
-                return rs.First().GetValue<long>("count");
+                return (int)rs.First().GetValue<long>("count");
             }
             else if (expression.Type == typeof(bool))
             {
@@ -280,7 +279,7 @@ namespace PolyPersist.Net.ColumnStore.Cassandra
         private string _tableName;
         private TableMetadata _tableMeta;
         private readonly List<string> _conditions = new();
-        private string _orderBy = null;
+        private List<string> _orderBy = new();
         private int? _limit = null;
         private bool _allowFiltering = false;
 
@@ -328,6 +327,12 @@ namespace PolyPersist.Net.ColumnStore.Cassandra
 
         internal bool IsAllowFiltering() => _allowFiltering;
 
+        public string TranslateDistinct()
+        {
+            return _isDistinct
+                ? " DISTINCT "
+                : "";
+        }
 
         public string TranslateWhere()
         {
@@ -339,20 +344,21 @@ namespace PolyPersist.Net.ColumnStore.Cassandra
         public (string, ResultTypes) TranslateSelect()
         {
             if (_isCount)
+            {
                 return (" COUNT(*) ", ResultTypes.Count);
+            }
             else if (_selectedFields?.Count > 0)
             {
-                
-                return (string.Join(", ", _selectedFields),  _projectionAnonymousCtor != null 
-                    ? ResultTypes.ProjectionToAnonymous 
-                    : ResultTypes.ProjectionToClass );
+                return (string.Join(", ", _selectedFields), _projectionAnonymousCtor != null
+                    ? ResultTypes.ProjectionToAnonymous
+                    : ResultTypes.ProjectionToClass);
             }
             else
                 return ("*", ResultTypes.SelectRow);
         }
 
-        public string TranslateOrderBy() => _orderBy != null
-            ? $" ORDER BY {_orderBy}"
+        public string TranslateOrderBy() => _orderBy.Count > 0
+            ? $" ORDER BY {string.Join(", ", _orderBy)}"
             : "";
 
         public string TranslateLimit() => _limit.HasValue
@@ -370,26 +376,36 @@ namespace PolyPersist.Net.ColumnStore.Cassandra
             }
 
             string left;
+            string memberName;
             if (node.Left is MemberExpression leftMember)
             {
                 if (leftMember.Member.Name == "Length" && leftMember.Expression is MemberExpression strMember)
                 {
                     left = $"length({strMember.Member.Name.ToLower()})";
+                    memberName = strMember.Member.Name.ToLower();
+
+                    _allowFiltering = true;
+                    Trace.TraceWarning($" using 'length' on {_tableName}.{memberName}. Can be very slow!");
                 }
                 else
                 {
                     left = leftMember.Member.Name.ToLower();
-
-                    if (IsColumnFilterable(left) == false)
-                    {
-                        _allowFiltering = true;
-                        Trace.TraceWarning($" Member name {_tableName}.{leftMember.Member.Name} is used in condition, but it is not indexed field. Can be very slow!");
-                    }
+                    memberName = leftMember.Member.Name.ToLower();
                 }
+            }
+            else if (node.Left is MethodCallExpression methodCall)
+            {
+                throw new NotSupportedException($"Unsupported method call on left side: {methodCall.Method.Name}");
             }
             else
             {
-                throw new NotSupportedException("Left side of binary expression must be a member expression");
+                throw new NotSupportedException($"Left side of binary expression must be a member, not a {node.Left.NodeType}");
+            }
+
+            if (IsColumnFilterable(memberName) == false && _allowFiltering == false)
+            {
+                _allowFiltering = true;
+                Trace.TraceWarning($" Member name {_tableName}.{memberName} is used in condition, but it is not indexed field. Can be very slow!");
             }
 
             object right = TryEvaluateConstans(node.Right);
@@ -419,25 +435,46 @@ namespace PolyPersist.Net.ColumnStore.Cassandra
             return node;
         }
 
+        protected override Expression VisitMember(MemberExpression node)
+        {
+            // bool property check: eg. x => x.IsActive
+            if (node.Type == typeof(bool) && node.Expression is ParameterExpression)
+            {
+                _conditions.Add($"{node.Member.Name.ToLower()} = true");
+                return node;
+            }
+
+            return base.VisitMember(node);
+        }
+
         protected override Expression VisitUnary(UnaryExpression node)
         {
-            if (node.NodeType == ExpressionType.Not)
+            if (node.NodeType == ExpressionType.Not &&
+                node.Operand is MemberExpression memberExpr &&
+                memberExpr.Type == typeof(bool) &&
+                memberExpr.Expression is ParameterExpression)
             {
-                _conditions.Add("NOT (");
-                Visit(node.Operand);
-                _conditions.Add(")");
+                _conditions.Add($"{memberExpr.Member.Name.ToLower()} = false");
                 return node;
             }
             return base.VisitUnary(node);
         }
 
         private bool _isCount = false;
+        private bool _isDistinct = false;
 
         protected override Expression VisitMethodCall(MethodCallExpression node)
         {
             if (node.Method.Name == "Count" && node.Arguments.Count == 1)
             {
                 _isCount = true;
+                Visit(node.Arguments[0]);
+                return node;
+            }
+
+            if (node.Method.Name == "Distinct" && node.Arguments.Count == 1)
+            {
+                _isDistinct = true;
                 Visit(node.Arguments[0]);
                 return node;
             }
@@ -457,7 +494,7 @@ namespace PolyPersist.Net.ColumnStore.Cassandra
                 }
                 else
                 {
-                    throw new NotSupportedException("Unsupported Select projection expression.");
+                    throw new NotSupportedException( $"Unsupported Select projection expression: {node.NodeType}.");
                 }
 
                 Visit(node.Arguments[0]); // input sequence feldolgozása (pl. Where)
@@ -472,73 +509,27 @@ namespace PolyPersist.Net.ColumnStore.Cassandra
                 return node;
             }
 
-            if (node.Method.Name == "ToLower" && node.Object is MemberExpression toLowerMember)
+            // collection.Contains(x.columns)
+            if (node.Method.Name == "Contains" && node.Object == null && node.Arguments.Count == 2 )
             {
-                string column = toLowerMember.Member.Name.ToLower();
-                _conditions.Add($"lower({column})");
-                return node;
-            }
-
-            if (node.Method.Name == "ToUpper" && node.Object is MemberExpression toUpperMember)
-            {
-                string column = toUpperMember.Member.Name.ToLower();
-                _conditions.Add($"upper({column})");
-                return node;
-            }
-
-            if (node.Method.Name == "Trim" && node.Object is MemberExpression trimMember)
-            {
-                string column = trimMember.Member.Name.ToLower();
-                _conditions.Add($"trim({column})");
-                return node;
-            }
-
-            if (node.Method.Name == "Contains")
-            {
-                if (node.Object is MemberExpression member)
+                if (TryEvaluateConstans(node.Arguments[0]) is IEnumerable values && node.Arguments[1] is MemberExpression memberExpr)
                 {
-                    // string.Contains
-                    string column = member.Member.Name.ToLower();
-                    object value = TryEvaluateConstans(node.Arguments[0]);
-                    string valStr = $"%{value}%";
-                    _conditions.Add($"{column} LIKE '{valStr}'");
+                    string column = memberExpr.Member.Name.ToLower();
+                    var inList = new List<string>();
+                    foreach (var val in values)
+                    {
+                        inList.Add(val is string s ? $"'{s}'" : val.ToString());
+                    }
+                    _conditions.Add($"{column} IN ({string.Join(", ", inList)})");
+
+                    if (IsColumnFilterable(column) == false && _allowFiltering == false)
+                    {
+                        _allowFiltering = true;
+                        Trace.TraceWarning($" Member name {_tableName}.{column} is used in condition, but it is not indexed field. Can be very slow!");
+                    }
+
                     return node;
                 }
-                else if (node.Object == null && node.Arguments.Count == 2)
-                {
-                    // collection.Contains(x.prop)
-                    var values = TryEvaluateConstans(node.Arguments[0]) as IEnumerable;
-                    var memberExpr = node.Arguments[1] as MemberExpression;
-                    if (values != null && memberExpr != null)
-                    {
-                        string column = memberExpr.Member.Name.ToLower();
-                        var inList = new List<string>();
-                        foreach (var val in values)
-                        {
-                            inList.Add(val is string s ? $"'{s}'" : val.ToString());
-                        }
-                        _conditions.Add($"{column} IN ({string.Join(", ", inList)})");
-                        return node;
-                    }
-                }
-            }
-
-            if (node.Method.Name == "StartsWith" && node.Object is MemberExpression memberSw)
-            {
-                string column = memberSw.Member.Name.ToLower();
-                object value = TryEvaluateConstans(node.Arguments[0]);
-                string valStr = $"{value}%";
-                _conditions.Add($"{column} LIKE '{valStr}'");
-                return node;
-            }
-
-            if (node.Method.Name == "EndsWith" && node.Object is MemberExpression memberEw)
-            {
-                string column = memberEw.Member.Name.ToLower();
-                object value = TryEvaluateConstans(node.Arguments[0]);
-                string valStr = $"%{value}";
-                _conditions.Add($"{column} LIKE '{valStr}'");
-                return node;
             }
 
             if (node.Method.Name == "Take" && node.Arguments.Count == 2)
@@ -549,12 +540,19 @@ namespace PolyPersist.Net.ColumnStore.Cassandra
                 return node;
             }
 
-            if ((node.Method.Name == "OrderBy" || node.Method.Name == "OrderByDescending") && node.Arguments.Count == 2)
+            if ((node.Method.Name == "OrderBy" || node.Method.Name == "OrderByDescending" || node.Method.Name == "ThenBy" || node.Method.Name == "ThenByDescending" ) && node.Arguments.Count == 2)
             {
                 var lambda = (LambdaExpression)StripQuotes(node.Arguments[1]);
                 if (lambda.Body is MemberExpression memberExpr)
                 {
-                    _orderBy = $"{memberExpr.Member.Name.ToLower()} {(node.Method.Name == "OrderByDescending" ? "DESC" : "ASC")}";
+                    string direction = (node.Method.Name.EndsWith("Descending")) ? "DESC" : "ASC";
+                    string columnName = memberExpr.Member.Name.ToLower();
+
+                    _orderBy.Add($"{columnName} {direction}");
+                }
+                else
+                {
+                    throw new NotSupportedException("Only member expressions are supported in OrderBy/ThenBy clauses.");
                 }
                 Visit(node.Arguments[0]);
                 return node;
