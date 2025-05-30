@@ -1,4 +1,5 @@
 ﻿using Cassandra;
+using PolyPersist.Net.ColumnStore.Cassandra.Linq;
 using PolyPersist.Net.Common;
 using System.Collections.Concurrent;
 
