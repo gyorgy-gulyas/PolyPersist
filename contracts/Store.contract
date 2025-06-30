@@ -29,15 +29,15 @@ namespace PolyPersist {
 
             # Vector databases are specialized for storing and searching large-scale, high-dimensional vector data.
             # These are used in machine learning, AI, and search systems, with examples like Faiss and Milvus.
-            Vector,
+            # Vector,
 
             # Graph databases store data as nodes and edges, representing entities and their relationships.
             # They are particularly useful for modeling complex networks, social graphs, and interconnected data.
-            Graph,
+            # Graph,
 
             # Key-value stores are simple and fast databases where data is stored as key-value pairs.
             # These are typically used for caching and simple lookups, such as Redis, DynamoDB, and Riak.
-            KeyValue,
+            # KeyValue,
 
             # Column store databases organize data into columns rather than rows, optimized for read-heavy workloads.
             # They are widely used in big data systems and include databases like Cassandra, ScyllaDB, and HBase.
@@ -45,7 +45,7 @@ namespace PolyPersist {
 
             # Spatial databases store geographical or spatial data and are used for location-based queries and analysis.
             # Examples include PostGIS (an extension for PostgreSQL) and Oracle Spatial.
-            Spatial,
+            # Spatial,
 
             # File or File storage systems are used for storing unstructured data, such as files, images, or blobs.
             # Azure Blob Storage and Amazon S3 are prime examples of file storage systems.
@@ -62,5 +62,10 @@ namespace PolyPersist {
         # This could be a name like "MongoDB", "Cassandra", "PostgreSQL", etc., depending on which provider is being used.
         # The ProviderName is useful for understanding the context of the data store, such as its behavior, features, and limitations.
         readonly property ProviderName: string
+    }
+
+    # Abstract interface for creating stores
+    interface IStoreProvider {
+        method getStore(storageModel:IStore.StorageModels ) => IStore
     }
 }
