@@ -115,6 +115,9 @@ namespace PolyPersist.Net.Common
             var properties = type.GetProperties(BindingFlags.Public | BindingFlags.Instance);
             foreach (var property in properties)
             {
+                if (_HasIgnoreAttribute(property))
+                    continue;
+
                 var accessor = new MemberAccessor
                 {
                     Name = property.Name,
@@ -129,6 +132,9 @@ namespace PolyPersist.Net.Common
             var fields = type.GetFields(BindingFlags.Public | BindingFlags.Instance);
             foreach (var field in fields)
             {
+                if (_HasIgnoreAttribute(field))
+                    continue;
+
                 var accessor = new MemberAccessor
                 {
                     Name = field.Name,
@@ -144,6 +150,17 @@ namespace PolyPersist.Net.Common
                 NormalNames = accessors,
                 LowerCaseNames = accessors.ToDictionary(kvp => kvp.Key.ToLower(), kvp => kvp.Value)
             };
+        }
+
+        private static bool _HasIgnoreAttribute(MemberInfo member)
+        {
+            return member.GetCustomAttributes(inherit: true).Any(attr =>
+                attr.GetType().Name is "IgnoreAttribute"      // saját [Ignore]
+                || attr.GetType().Name is "JsonIgnoreAttribute" // System.Text.Json
+                || attr.GetType().Name is "ProtoIgnoreAttribute" // Protobuf
+                || attr.GetType().Name is "IgnoreDataMemberAttribute" // DataContractSerializer
+                || attr.GetType().Name is "XmlIgnoreAttribute" // XML Serializer
+            );
         }
 
         public static Dictionary<string, MemberAccessor> GetAccessors<T>(bool lowerCaseNames = false)
