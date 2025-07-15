@@ -12,15 +12,20 @@ namespace PolyPersist.Net.BlobStore.GoogleCloudStorage
         private readonly string _bucketName;
         private readonly StorageService _storageService;
         private readonly string _projectId;
+        private readonly GoogleCloudStorage_BlobStore _store;
 
-        public GoogleCloudStorage_BlobContainer(string bucketName, StorageService storageService, string projectId)
+        public GoogleCloudStorage_BlobContainer(string bucketName, StorageService storageService, string projectId, GoogleCloudStorage_BlobStore store)
         {
             _bucketName = bucketName;
             _storageService = storageService;
             _projectId = projectId;
+            _store = store;
         }
 
-        public string Name => _bucketName;
+        /// <inheritdoc/>
+        string IBlobContainer<TBlob>.Name => _bucketName;
+        /// <inheritdoc/>
+        IStore IBlobContainer<TBlob>.ParentStore => _store;
 
         public async Task Upload(TBlob blob, Stream content)
         {
@@ -76,6 +81,7 @@ namespace PolyPersist.Net.BlobStore.GoogleCloudStorage
             return true;
         }
 
+        /// <inheritdoc/>
         public async Task<Stream> Download(TBlob blob)
         {
             var content = new MemoryStream();
@@ -100,6 +106,7 @@ namespace PolyPersist.Net.BlobStore.GoogleCloudStorage
             return content;
         }
 
+        /// <inheritdoc/>
         public async Task<TBlob> Find(string partitionKey, string id)
         {
             try
@@ -119,6 +126,7 @@ namespace PolyPersist.Net.BlobStore.GoogleCloudStorage
             }
         }
 
+        /// <inheritdoc/>
         public async Task Delete(string partitionKey, string id)
         {
             try
@@ -133,6 +141,7 @@ namespace PolyPersist.Net.BlobStore.GoogleCloudStorage
             }
         }
 
+        /// <inheritdoc/>
         public async Task UpdateContent(TBlob blob, Stream content)
         {
             if (content == null || content.CanRead == false)
@@ -176,6 +185,7 @@ namespace PolyPersist.Net.BlobStore.GoogleCloudStorage
                 throw new Exception($"Blob '{blob.id}' cannot be uploaded '{_bucketName}'");
         }
 
+        /// <inheritdoc/>
         public async Task UpdateMetadata(TBlob blob)
         {
             Google.Apis.Storage.v1.Data.Object existingObject;
@@ -203,6 +213,7 @@ namespace PolyPersist.Net.BlobStore.GoogleCloudStorage
             await patchRequest.ExecuteAsync().ConfigureAwait(false);
         }
 
+        /// <inheritdoc/>
         public object GetUnderlyingImplementation() => _storageService;
     }
 }

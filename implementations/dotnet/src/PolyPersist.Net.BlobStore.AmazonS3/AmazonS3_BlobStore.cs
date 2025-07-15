@@ -46,7 +46,7 @@ namespace PolyPersist.Net.BlobStore.AmazonS3
                 UseClientRegion = true
             });
 
-            return new AmazonS3_BlobContainer<TBlob>(containerName, _s3Client);
+            return new AmazonS3_BlobContainer<TBlob>(containerName, _s3Client, this);
         }
 
         async Task<IBlobContainer<TBlob>> IBlobStore.GetContainerByName<TBlob>(string containerName)
@@ -54,7 +54,7 @@ namespace PolyPersist.Net.BlobStore.AmazonS3
             if (!await ((IBlobStore)this).IsContainerExists(containerName).ConfigureAwait(false))
                 throw new Exception($"Container '{containerName}' does not exist in AmazonS3");
 
-            return new AmazonS3_BlobContainer<TBlob>(containerName, _s3Client);
+            return new AmazonS3_BlobContainer<TBlob>(containerName, _s3Client, this);
         }
 
         async Task IBlobStore.DropContainer(string containerName)

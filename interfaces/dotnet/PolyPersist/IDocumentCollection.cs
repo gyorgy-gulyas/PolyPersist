@@ -17,6 +17,8 @@ namespace PolyPersist
 	public interface IDocumentCollection<TDocument>
 		where TDocument: IDocument, new()
 	{
+		/// Read-only property for parent Store.
+		public IStore ParentStore { get; }
 		/// Read-only property representing the name of the collection.
 		public string Name { get; }
 

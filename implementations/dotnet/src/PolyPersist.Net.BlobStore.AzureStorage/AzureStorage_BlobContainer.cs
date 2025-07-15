@@ -8,15 +8,19 @@ namespace PolyPersist.Net.BlobStore.AzureStorage
     internal class AzureStorage_BlobContainer<TBlob> : IBlobContainer<TBlob>
         where TBlob : IBlob, new()
     {
-        private BlobContainerClient _containerClient;
+        private readonly BlobContainerClient _containerClient;
+        private readonly AzureStorage_BlobStore _store;
 
-        public AzureStorage_BlobContainer(BlobContainerClient containerClient)
+        public AzureStorage_BlobContainer(BlobContainerClient containerClient, AzureStorage_BlobStore store)
         {
             _containerClient = containerClient;
+            _store = store;
         }
 
         /// <inheritdoc/>
         string IBlobContainer<TBlob>.Name => _containerClient.Name;
+        /// <inheritdoc/>
+        IStore IBlobContainer<TBlob>.ParentStore => _store;
 
         /// <inheritdoc/>
         async Task IBlobContainer<TBlob>.Upload(TBlob blob, Stream content)

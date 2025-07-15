@@ -21,6 +21,8 @@ namespace PolyPersist
 	public interface IBlobContainer<TBlob>
 		where TBlob: IBlob, new()
 	{
+		/// Read-only property for parent Store.
+		public IStore ParentStore { get; }
 		/// Read-only property representing the name of the container.
 		///
 		/// Example:

@@ -11,16 +11,20 @@ namespace PolyPersist.Net.BlobStore.MinIO
         where TBlob : IBlob, new()
     {
         private readonly string _bucketName;
-        internal IMinioClient _minioClient;
+        private readonly IMinioClient _minioClient;
+        private readonly MinIO_BlobStore _store;
 
-        public MinIO_BlobContainer(string containerName, IMinioClient minioClient)
+        public MinIO_BlobContainer(string containerName, IMinioClient minioClient, MinIO_BlobStore store)
         {
             _bucketName = containerName;
             _minioClient = minioClient;
+            _store = store;
         }
 
         /// <inheritdoc/>
         string IBlobContainer<TBlob>.Name => _bucketName;
+        /// <inheritdoc/>
+        IStore IBlobContainer<TBlob>.ParentStore => _store;
 
         /// <inheritdoc/>
         async Task IBlobContainer<TBlob>.Upload(TBlob blob, Stream content)

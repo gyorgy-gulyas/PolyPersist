@@ -66,7 +66,7 @@ namespace PolyPersist.Net.BlobStore.GoogleCloudStorage
                 throw new Exception($"Failed to create bucket '{containerName}': {ex.Message}", ex);
             }
 
-            return new GoogleCloudStorage_BlobContainer<TBlob>(containerName, _gcsService, _config.ProjectId);
+            return new GoogleCloudStorage_BlobContainer<TBlob>(containerName, _gcsService, _config.ProjectId, this);
         }
 
         async Task<IBlobContainer<TBlob>> IBlobStore.GetContainerByName<TBlob>(string containerName)
@@ -74,7 +74,7 @@ namespace PolyPersist.Net.BlobStore.GoogleCloudStorage
             if (!await ((IBlobStore)this).IsContainerExists(containerName).ConfigureAwait(false))
                 throw new Exception($"Container '{containerName}' does not exist in Google Cloud Storage");
 
-            return new GoogleCloudStorage_BlobContainer<TBlob>(containerName, _gcsService, _config.ProjectId);
+            return new GoogleCloudStorage_BlobContainer<TBlob>(containerName, _gcsService, _config.ProjectId, this);
         }
 
         async Task IBlobStore.DropContainer(string containerName)

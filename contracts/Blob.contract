@@ -116,6 +116,9 @@ namespace PolyPersist {
     # - A container for logs, where each blob is a log file.
     interface IBlobContainer<TBlob constraint IBlob instantiable> {
 
+        # Read-only property for parent Store.
+        readonly property ParentStore: IStore
+
         # Read-only property representing the name of the container.
         #
         # Example:

@@ -19,6 +19,8 @@ namespace PolyPersist.Net.DocumentStore.Memory
 
         /// <inheritdoc/>
         string IDocumentCollection<TDocument>.Name => _name;
+        /// <inheritdoc/>
+        IStore IDocumentCollection<TDocument>.ParentStore => _dataStore;
 
         /// <inheritdoc/>
         async Task IDocumentCollection<TDocument>.Insert(TDocument document)

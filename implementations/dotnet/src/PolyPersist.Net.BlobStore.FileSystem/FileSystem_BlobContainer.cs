@@ -6,15 +6,20 @@ namespace PolyPersist.Net.BlobStore.FileSystem
     internal class FileSystem_BlobContainer<TBlob> : IBlobContainer<TBlob> where TBlob : IBlob, new()
     {
         private readonly string _containerPath;
+        private readonly FileSystem_BlobStore _store;
 
-        public FileSystem_BlobContainer(string containerPath)
+        public FileSystem_BlobContainer(string containerPath,FileSystem_BlobStore store)
         {
             _containerPath = containerPath;
             Directory.CreateDirectory(_containerPath);
+            _store = store;
         }
 
+        /// <inheritdoc/>
         string IBlobContainer<TBlob>.Name => new DirectoryInfo(_containerPath).Name;
+        IStore IBlobContainer<TBlob>.ParentStore => _store;
 
+        /// <inheritdoc/>
         async Task IBlobContainer<TBlob>.Upload(TBlob blob, Stream content)
         {
             if (content == null || content.CanRead == false)
@@ -22,13 +27,13 @@ namespace PolyPersist.Net.BlobStore.FileSystem
 
             await CollectionCommon.CheckBeforeInsert(blob).ConfigureAwait(false);
 
-            if(string.IsNullOrEmpty(blob.id) == true )
+            if (string.IsNullOrEmpty(blob.id) == true)
                 blob.id = Guid.NewGuid().ToString();
             blob.etag = Guid.NewGuid().ToString();
             blob.LastUpdate = DateTime.UtcNow;
 
             var path = _makeFilePath(blob.id);
-            if( File.Exists(path))
+            if (File.Exists(path))
                 throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} cannot be uploaded, beacuse of duplicate key");
 
             Directory.CreateDirectory(Path.GetDirectoryName(path));
@@ -37,6 +42,7 @@ namespace PolyPersist.Net.BlobStore.FileSystem
             File.WriteAllText(path + ".meta.json", JsonSerializer.Serialize(blob));
         }
 
+        /// <inheritdoc/>
         Task<Stream> IBlobContainer<TBlob>.Download(TBlob blob)
         {
             var path = _makeFilePath(blob.id);
@@ -47,6 +53,7 @@ namespace PolyPersist.Net.BlobStore.FileSystem
             return Task.FromResult<Stream>(fs);
         }
 
+        /// <inheritdoc/>
         Task<TBlob> IBlobContainer<TBlob>.Find(string partitionKey, string id)
         {
             var path = _makeFilePath(id);
@@ -62,6 +69,7 @@ namespace PolyPersist.Net.BlobStore.FileSystem
             return Task.FromResult(blob);
         }
 
+        /// <inheritdoc/>
         Task IBlobContainer<TBlob>.Delete(string partitionKey, string id)
         {
             var path = _makeFilePath(id);
@@ -76,6 +84,7 @@ namespace PolyPersist.Net.BlobStore.FileSystem
             return Task.CompletedTask;
         }
 
+        /// <inheritdoc/>
         Task IBlobContainer<TBlob>.UpdateContent(TBlob blob, Stream content)
         {
             if (content == null || content.CanRead == false)
@@ -96,6 +105,7 @@ namespace PolyPersist.Net.BlobStore.FileSystem
             return Task.CompletedTask;
         }
 
+        /// <inheritdoc/>
         Task IBlobContainer<TBlob>.UpdateMetadata(TBlob blob)
         {
             var path = _makeFilePath(blob.id);
@@ -109,6 +119,7 @@ namespace PolyPersist.Net.BlobStore.FileSystem
             return Task.CompletedTask;
         }
 
+        /// <inheritdoc/>
         object IBlobContainer<TBlob>.GetUnderlyingImplementation() => _containerPath;
 
         private string _makeFilePath(string id)

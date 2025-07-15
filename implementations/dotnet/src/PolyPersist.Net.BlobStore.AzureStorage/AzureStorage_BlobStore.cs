@@ -28,10 +28,10 @@ namespace PolyPersist.Net.BlobStore.AzureStorage
         {
             BlobContainerClient containerClient = _blobServiceClient.GetBlobContainerClient(containerName);
             if (await containerClient.ExistsAsync().ConfigureAwait(false) == true)
-                throw new Exception($"Container '{containerName}' is already exist in Azure Storage" );
+                throw new Exception($"Container '{containerName}' is already exist in Azure Storage");
 
             await containerClient.CreateAsync().ConfigureAwait(false);
-            return new AzureStorage_BlobContainer<TBlob>(containerClient);
+            return new AzureStorage_BlobContainer<TBlob>(containerClient, this);
         }
 
         /// <inheritdoc/>
@@ -41,7 +41,7 @@ namespace PolyPersist.Net.BlobStore.AzureStorage
             if (await containerClient.ExistsAsync().ConfigureAwait(false) == false)
                 throw new Exception($"Container '{containerName}' does not exist in Azure Storage");
 
-            return new AzureStorage_BlobContainer<TBlob>(containerClient);
+            return new AzureStorage_BlobContainer<TBlob>(containerClient, this);
         }
 
         /// <inheritdoc/>

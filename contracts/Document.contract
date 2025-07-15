@@ -46,6 +46,9 @@ namespace PolyPersist {
     # This interface is used for collections that store entities.
     interface IDocumentCollection<TDocument constraint IDocument instantiable> {
 
+        # Read-only property for parent Store.
+        readonly property ParentStore: IStore
+
         # Read-only property representing the name of the collection.
         readonly property Name: string
 

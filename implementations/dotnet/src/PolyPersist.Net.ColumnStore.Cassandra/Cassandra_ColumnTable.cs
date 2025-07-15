@@ -11,19 +11,26 @@ namespace PolyPersist.Net.ColumnStore.Cassandra
         internal readonly ISession _session;
         internal readonly string _tableName;
         internal readonly TableMetadata _tableMeta;
+        internal readonly Cassandra_ColumnStore _store;
+
         private static readonly ConcurrentDictionary<string, PreparedStatement> _preparedStatements = new();
 
-        public Cassandra_ColumnTable(ISession session, string tableName)
+        public Cassandra_ColumnTable(ISession session, string tableName, Cassandra_ColumnStore store)
         {
             _session = session;
             _tableName = tableName;
             _tableMeta = _session.Cluster.Metadata
                 .GetKeyspace(_session.Keyspace)
                 .GetTableMetadata(tableName);
+            _store = store;
         }
 
+        /// <inheritdoc/>
         string IColumnTable<TRow>.Name => _tableName;
+        /// <inheritdoc/>
+        IStore IColumnTable<TRow>.ParentStore => _store;
 
+        /// <inheritdoc/>
         async Task IColumnTable<TRow>.Insert(TRow row)
         {
             await CollectionCommon.CheckBeforeInsert(row).ConfigureAwait(false);
@@ -80,6 +87,7 @@ namespace PolyPersist.Net.ColumnStore.Cassandra
             return _insertStatemant;
         }
 
+        /// <inheritdoc/>
         async Task IColumnTable<TRow>.Update(TRow row)
         {
             await CollectionCommon.CheckBeforeUpdate(row).ConfigureAwait(false);
@@ -143,6 +151,7 @@ namespace PolyPersist.Net.ColumnStore.Cassandra
             return _updateStatemant;
         }
 
+        /// <inheritdoc/>
         async Task IColumnTable<TRow>.Delete(string partitionKey, string id)
         {
             var original_etag = await _FindInternal(partitionKey, id).ConfigureAwait(false);
@@ -216,11 +225,13 @@ namespace PolyPersist.Net.ColumnStore.Cassandra
             return _findMappedAccessors;
         }
 
+        /// <inheritdoc/>
         object IColumnTable<TRow>.Query()
         {
             return new Cassandra_Queryable<TRow,TRow>(this);
         }
 
+        /// <inheritdoc/>
         object IColumnTable<TRow>.GetUnderlyingImplementation() => _session;
 
         private async Task<string> _FindInternal(string partitionKey, string id)

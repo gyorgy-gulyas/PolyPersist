@@ -10,20 +10,22 @@ namespace PolyPersist.Net.BlobStore.GridFS
         where TBlob : IBlob, new()
     {
         private GridFSBucket _gridFSBucket;
-        private GridFS_BlobStore _database;
+        private GridFS_BlobStore _store;
         public IMongoCollection<GridFSFileInfo> _filesCollection;
         public IMongoCollection<TBlob> _metadataCollection;
 
-        public GridFS_BlobContainer(GridFSBucket gridFSBucket, GridFS_BlobStore database)
+        public GridFS_BlobContainer(GridFSBucket gridFSBucket, GridFS_BlobStore store)
         {
             _gridFSBucket = gridFSBucket;
-            _database = database;
-            _filesCollection = _database._mongoDatabase.GetCollection<GridFSFileInfo>(gridFSBucket.Options.BucketName + ".files");
-            _metadataCollection = _database._mongoDatabase.GetCollection<TBlob>(gridFSBucket.Options.BucketName + ".metadata");
+            _store = store;
+            _filesCollection = _store._mongoDatabase.GetCollection<GridFSFileInfo>(gridFSBucket.Options.BucketName + ".files");
+            _metadataCollection = _store._mongoDatabase.GetCollection<TBlob>(gridFSBucket.Options.BucketName + ".metadata");
         }
 
         /// <inheritdoc/>
         string IBlobContainer<TBlob>.Name => _gridFSBucket.Options.BucketName;
+        /// <inheritdoc/>
+        IStore IBlobContainer<TBlob>.ParentStore => _store;
 
         /// <inheritdoc/>
         async Task IBlobContainer<TBlob>.Upload(TBlob blob, Stream content)

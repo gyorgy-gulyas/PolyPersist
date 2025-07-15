@@ -7,16 +7,18 @@ namespace PolyPersist.Net.DocumentStore.MongoDB
         where TDocument : IDocument, new()
     {
         private readonly IMongoCollection<TDocument> _mongoCollection;
-        private readonly MongoDB_DocumentStore _mongoDB_Database;
+        private readonly MongoDB_DocumentStore _store;
 
-        public MongoDB_DocumentCollection(IMongoCollection<TDocument> mongoCollection, MongoDB_DocumentStore mongoDB_Database)
+        public MongoDB_DocumentCollection(IMongoCollection<TDocument> mongoCollection, MongoDB_DocumentStore store)
         {
             _mongoCollection = mongoCollection;
-            _mongoDB_Database = mongoDB_Database;
+            _store = store;
         }
 
         /// <inheritdoc/>
         string IDocumentCollection<TDocument>.Name => _mongoCollection.CollectionNamespace.CollectionName;
+        /// <inheritdoc/>
+        IStore IDocumentCollection<TDocument>.ParentStore => _store;
 
         /// <inheritdoc/>
         async Task IDocumentCollection<TDocument>.Insert(TDocument document)

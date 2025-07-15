@@ -51,6 +51,9 @@ namespace PolyPersist {
     
     interface IColumnTable<TRow constraint IRow instantiable> {
 
+        # Read-only property for parent Store.
+        readonly property ParentStore: IStore
+
         # Read-only property representing the name of the table.
         readonly property Name: string
 

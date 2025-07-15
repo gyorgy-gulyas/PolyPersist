@@ -37,7 +37,7 @@ namespace PolyPersist.Net.BlobStore.MinIO
 
             await _minioClient.MakeBucketAsync(new MakeBucketArgs().WithBucket(containerName));
 
-            return new MinIO_BlobContainer<TBlob>(containerName, _minioClient);
+            return new MinIO_BlobContainer<TBlob>(containerName, _minioClient, this);
         }
 
         /// <inheritdoc/>
@@ -46,7 +46,7 @@ namespace PolyPersist.Net.BlobStore.MinIO
             if (await _IsBucketExistsInternal(containerName).ConfigureAwait(false) == false)
                 throw new Exception($"Container '{containerName}' does not exist in Azure Storage");
 
-            return new MinIO_BlobContainer<TBlob>(containerName,_minioClient);
+            return new MinIO_BlobContainer<TBlob>(containerName, _minioClient, this);
         }
 
         /// <inheritdoc/>
@@ -71,19 +71,19 @@ namespace PolyPersist.Net.BlobStore.MinIO
         private async Task<bool> _IsBucketExistsInternal(string containerName)
         {
             bool result = await _minioClient
-                .BucketExistsAsync( new BucketExistsArgs().WithBucket(containerName))
+                .BucketExistsAsync(new BucketExistsArgs().WithBucket(containerName))
                 .ConfigureAwait(false);
 
             return result;
-             /*
-            var list = await _minioClient.ListBucketsAsync();
-            var buckets = list.Buckets ?? Enumerable.Empty<Minio.DataModel.Bucket>();
+            /*
+           var list = await _minioClient.ListBucketsAsync();
+           var buckets = list.Buckets ?? Enumerable.Empty<Minio.DataModel.Bucket>();
 
-            var bucket = buckets.FirstOrDefault(b => b.Name == containerName);
-            if (bucket != null)
-                return true;
+           var bucket = buckets.FirstOrDefault(b => b.Name == containerName);
+           if (bucket != null)
+               return true;
 
-            return false;*/
+           return false;*/
         }
     }
 
@@ -125,7 +125,7 @@ namespace PolyPersist.Net.BlobStore.MinIO
             {
                 Type = type,
                 Endpoint = endpoint,
-                Port = ushort.Parse( port ),
+                Port = ushort.Parse(port),
                 AccessKey = accessKey,
                 SecretKey = secretKey,
                 WithSSL = bool.TryParse(withSslStr, out var withSsl) && withSsl

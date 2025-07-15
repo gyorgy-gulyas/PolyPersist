@@ -22,26 +22,26 @@
         Task<IBlobContainer<TBlob>> IBlobStore.CreateContainer<TBlob>(string containerName)
         {
             var path = Path.Combine(_rootPath, containerName);
-            if (Directory.Exists(path)) 
+            if (Directory.Exists(path))
                 throw new Exception($"Container '{containerName}' already exists");
 
             Directory.CreateDirectory(path);
-            return Task.FromResult<IBlobContainer<TBlob>>(new FileSystem_BlobContainer<TBlob>(path));
+            return Task.FromResult<IBlobContainer<TBlob>>(new FileSystem_BlobContainer<TBlob>(path, this));
         }
 
         Task<IBlobContainer<TBlob>> IBlobStore.GetContainerByName<TBlob>(string containerName)
         {
             var path = Path.Combine(_rootPath, containerName);
-            if (!Directory.Exists(path)) 
+            if (!Directory.Exists(path))
                 throw new Exception($"Container '{containerName}' does not exist");
 
-            return Task.FromResult<IBlobContainer<TBlob>>(new FileSystem_BlobContainer<TBlob>(path));
+            return Task.FromResult<IBlobContainer<TBlob>>(new FileSystem_BlobContainer<TBlob>(path, this));
         }
 
         Task IBlobStore.DropContainer(string containerName)
         {
             var path = Path.Combine(_rootPath, containerName);
-            if (!Directory.Exists(path)) 
+            if (!Directory.Exists(path))
                 throw new Exception($"Container '{containerName}' does not exist");
 
             Directory.Delete(path, recursive: true);

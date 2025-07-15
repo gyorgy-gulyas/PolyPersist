@@ -9,16 +9,21 @@ namespace PolyPersist.Net.BlobStore.AmazonS3
         where TBlob : IBlob, new()
     {
         private readonly string _bucketName;
-        internal IAmazonS3 _amazonS3Client;
+        private readonly IAmazonS3 _amazonS3Client;
+        private readonly AmazonS3_BlobStore _store;
 
 
-        public AmazonS3_BlobContainer(string containerName, IAmazonS3 amazonS3Client)
+        public AmazonS3_BlobContainer(string containerName, IAmazonS3 amazonS3Client, AmazonS3_BlobStore store)
         {
             _bucketName = containerName;
             _amazonS3Client = amazonS3Client;
+            _store = store;
         }
 
+        /// <inheritdoc/>
         string IBlobContainer<TBlob>.Name => _bucketName;
+        /// <inheritdoc/>
+        IStore IBlobContainer<TBlob>.ParentStore => _store;
 
         async Task IBlobContainer<TBlob>.Upload(TBlob blob, Stream content)
         {

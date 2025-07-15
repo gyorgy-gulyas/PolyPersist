@@ -35,7 +35,7 @@ namespace PolyPersist.Net.ColumnStore.Cassandra
             if (await _IsTableExistsInternal(tableName).ConfigureAwait(false) == false)
                 throw new Exception($"Table '{tableName}' does not exist");
 
-            return new Cassandra_ColumnTable<TRow>(_session, tableName);
+            return new Cassandra_ColumnTable<TRow>(_session, tableName, this);
         }
 
         async Task<IColumnTable<TRow>> IColumnStore.CreateTable<TRow>(string tableName)
@@ -71,7 +71,7 @@ namespace PolyPersist.Net.ColumnStore.Cassandra
                 )";
             await _session.ExecuteAsync(new SimpleStatement(createQuery));
 
-            return new Cassandra_ColumnTable<TRow>(_session, tableName);
+            return new Cassandra_ColumnTable<TRow>(_session, tableName, this);
         }
 
         async Task IColumnStore.DropTable(string tableName)

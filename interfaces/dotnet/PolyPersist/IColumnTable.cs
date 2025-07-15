@@ -15,6 +15,8 @@ namespace PolyPersist
 	public interface IColumnTable<TRow>
 		where TRow: IRow, new()
 	{
+		/// Read-only property for parent Store.
+		public IStore ParentStore { get; }
 		/// Read-only property representing the name of the table.
 		public string Name { get; }
 

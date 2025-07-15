@@ -19,6 +19,8 @@ namespace PolyPersist.Net.BlobStore.Memory
 
         /// <inheritdoc/>
         string IBlobContainer<TBlob>.Name => _name;
+        IStore IBlobContainer<TBlob>.ParentStore => _dataStore;
+
 
         /// <inheritdoc/>
         async Task IBlobContainer<TBlob>.Upload(TBlob blob, Stream content)
