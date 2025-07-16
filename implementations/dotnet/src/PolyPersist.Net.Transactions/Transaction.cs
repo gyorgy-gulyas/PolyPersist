@@ -23,15 +23,21 @@ namespace PolyPersist.Net.Transactions
         // Holds deep clone JSON and optional blob content
         private readonly record struct _EntityData(string Json, ReadOnlyMemory<byte> Content);
         // Holds deep-cloned state of tracked entities (JSON + blob content)
+        // Reason: multiple threads might AddOriginal concurrently in rare cases. eg: Task.WhenAll( ... ) for multiple objects
         private readonly ConcurrentDictionary<string, _EntityData> _deepCloneOfEntities = [];
         // List of rollback actions to revert state if the transaction is aborted
+        // Reason: rollback actions might be added from different threads. eg: Task.WhenAll( ... ) for multiple objects
         private readonly ConcurrentBag<Func<ValueTask>> _rollBackActions = [];
         // List of commit actions to finalize state when the transaction succeeds
+        // Reason: commit actions might be added from different threads. eg: Task.WhenAll( ... ) for multiple objects
         private readonly ConcurrentBag<Func<ValueTask>> _commitActions = [];
-        // Tracks executed operations for auditing or diagnostics        
+        // Tracks executed operations for auditing or diagnostics
+        // Reason: multiple threads might Update/Insert concurrently in rare cases. eg: Task.WhenAll( ... ) for multiple objects
         private readonly ConcurrentBag<(Operations, IEntity)> _executedOperations = [];
 
+        // Tracks whether Dispose/DisposeAsync was called(Interlocked used for thread-safety).
         private int _disposed;
+        // Tracks whether Commit() succeeded. Volatile for lock-free checks.
         private int _committed;
 
         /// <summary>
@@ -119,7 +125,7 @@ namespace PolyPersist.Net.Transactions
             });
         }
 
-        // <summary>
+        /// <summary>
         /// Inserts a new row and registers a rollback action to delete it if needed.
         /// </summary>
         /// <typeparam name="TRow">The type of the row entity.</typeparam>
@@ -399,6 +405,9 @@ namespace PolyPersist.Net.Transactions
             _Clear();
         }
 
+        // _ExecuteSafely runs all actions concurrently and collects exceptions.
+        // Decision: aggregate all failures into AggregateException instead of failing fast.
+        // Reason: Allows all rollback steps to be attempted even if some fail.
         private static async Task _ExecuteSafely(IEnumerable<Func<ValueTask>> actions, [CallerMemberName] string function = "")
         {
             var tasks = actions.Select(async action =>
@@ -424,6 +433,8 @@ namespace PolyPersist.Net.Transactions
         // Reads all bytes from a stream into ReadOnlyMemory<byte>
         private static async Task<ReadOnlyMemory<byte>> _readAllBytesAsync(Stream stream)
         {
+            // Decision: _readAllBytesAsync uses MemoryStream.GetBuffer + AsMemory.
+            // Reason: efficient zero-copy of data; safe because we trim to actual length.
             using var ms = new MemoryStream();
             await stream.CopyToAsync(ms).ConfigureAwait(false);
             var buffer = ms.GetBuffer();
@@ -450,7 +461,13 @@ namespace PolyPersist.Net.Transactions
         /// </summary>
         public async ValueTask DisposeAsync()
         {
+            // Decision: Dispose fallback to blocking rollback if not committed.
+            // Reason: ensures resources aren't leaked even if Dispose called synchronously.
+            // Known risk: potential deadlock if rollback involves async I/O on sync context.
+
             // is already disposed ?
+            // Decision: use Interlocked.Exchange to guard Commit() and Dispose() against double execution.
+            // Reason: ensures idempotency even under race conditions.
             if (Interlocked.Exchange(ref _disposed, 1) == 1)
                 return;
 
@@ -465,9 +482,13 @@ namespace PolyPersist.Net.Transactions
         public void Dispose()
         {
             // is already disposed ?
+            // Decision: use Interlocked.Exchange to guard Commit() and Dispose() against double execution.
+            // Reason: ensures idempotency even under race conditions.
             if (Interlocked.Exchange(ref _disposed, 1) == 1)
                 return;
 
+            // Decision: Dispose fallback to blocking rollback if not committed.
+            // Reason: ensures resources aren't leaked even if Dispose called synchronously.
             if (Volatile.Read(ref _committed) == 0 && _executedOperations.Any())
             {
                 // Blocking fallback: not recommended for I/O
