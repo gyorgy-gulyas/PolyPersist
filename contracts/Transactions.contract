@@ -1,0 +1,57 @@
+#---------------------------------------------------------------------------------------------------
+# These files are part of the PolyPersist project and are intended to be processed by the unicontract tool.
+# After modifying these files, running unicontract is required to propagate the changes to the interface files in every supported programming language.
+# unicontract will generate the necessary interface files in .NET, Java, and Python, reflecting the modifications made in this file.
+#---------------------------------------------------------------------------------------------------
+
+import Document
+import Blob
+import ColumnStore
+
+namespace PolyPersist {
+
+    interface ITransaction {
+        
+        # Defines supported transactional operations.
+        enum Operations {
+            Insert,
+            Update,
+            Delete
+        }
+
+        # Adds an existing document to the transaction for change tracking.
+        method AddOriginal<TDocument constraint IDocument instantiable>(collection:IDocumentCollection<TDocument>, document:TDocument )
+        # Adds an existing row to the transaction for change tracking.
+        method AddOriginal<TRow constraint IRow instantiable>(table:IColumnTable<TRow>, row:TRow )
+        # Adds an existing blob to the transaction for change tracking, including its content snapshot.
+        async method AddOriginal<TBlob constraint IBlob instantiable>(container:IBlobContainer<TBlob>, blob:TBlob )
+
+        # Inserts a new document and registers a rollback action to delete it if needed.
+        async method Insert<TDocument constraint IDocument instantiable>(collection:IDocumentCollection<TDocument>, document:TDocument)
+        # Inserts a new row and registers a rollback action to delete it if needed.
+        async method Insert<TRow constraint IRow instantiable>(table:IColumnTable<TRow>, row:TRow)
+        # Uploads a new blob and registers a rollback action to delete it if needed.
+        async method Upload<TBlob constraint IBlob instantiable>(container:IBlobContainer<TBlob>, blob:TBlob, content:stream)
+
+        # Updates an existing document and registers a rollback action to restore its original state if needed.
+        async method Update<TDocument constraint IDocument instantiable>(collection:IDocumentCollection<TDocument>, document:TDocument)
+        # Updates an existing row and registers a rollback action to restore its original state if needed.
+        async method Update<TRow constraint IRow instantiable>(table:IColumnTable<TRow>, row:TRow)
+        # Updates the content of an existing blob and registers a rollback action to restore its original content if needed.
+        async method UpdateContent<TBlob constraint IBlob instantiable>(container:IBlobContainer<TBlob>, blob:TBlob, content:stream)
+        # Updates the metadata of an existing blob and registers a rollback action to restore its original metadata if needed.
+        async method UpdateMetadata<TBlob constraint IBlob instantiable>(container:IBlobContainer<TBlob>, blob:TBlob)
+
+        # Deletes an existing document and registers a rollback action to re-insert its original state if needed.
+        async method Delete<TDocument constraint IDocument instantiable>(collection:IDocumentCollection<TDocument>, document:TDocument)
+        # Deletes an existing row and registers a rollback action to re-insert its original state if needed.
+        async method Delete<TRow constraint IRow instantiable>(table:IColumnTable<TRow>, row:TRow)
+        # Deletes an existing blob and registers a rollback action to re-upload its original state if needed.
+        async method Delete<TBlob constraint IBlob instantiable>(container:IBlobContainer<TBlob>, blob:TBlob)
+
+        # Commits the transaction by executing all registered commit actions in parallel.
+        async method Commit()
+        # Adds a custom rollback action to the transaction.
+        async method Rollback()
+    }
+}

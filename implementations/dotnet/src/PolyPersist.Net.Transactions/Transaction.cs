@@ -8,18 +8,8 @@ namespace PolyPersist.Net.Transactions
     /// Represents a transactional context for document, row, and blob operations.
     /// Tracks changes, supports rollback and commit semantics, and provides deep clones of entities for recovery.
     /// </summary>
-    public class Transaction : IAsyncDisposable, IDisposable
+    public class Transaction : ITransaction, IAsyncDisposable, IDisposable
     {
-        /// <summary>
-        /// Defines supported transactional operations.
-        /// </summary>
-        public enum Operations
-        {
-            Insert,
-            Update,
-            Delete
-        }
-
         // Holds deep clone JSON and optional blob content
         private readonly record struct _EntityData(string Json, ReadOnlyMemory<byte> Content);
         // Holds deep-cloned state of tracked entities (JSON + blob content)
@@ -33,7 +23,7 @@ namespace PolyPersist.Net.Transactions
         private readonly ConcurrentBag<Func<ValueTask>> _commitActions = [];
         // Tracks executed operations for auditing or diagnostics
         // Reason: multiple threads might Update/Insert concurrently in rare cases. eg: Task.WhenAll( ... ) for multiple objects
-        private readonly ConcurrentBag<(Operations, IEntity)> _executedOperations = [];
+        private readonly ConcurrentBag<(ITransaction.Operations, IEntity)> _executedOperations = [];
 
         // Tracks whether Dispose/DisposeAsync was called(Interlocked used for thread-safety).
         private int _disposed;
@@ -49,8 +39,7 @@ namespace PolyPersist.Net.Transactions
         /// <exception cref="InvalidOperationException">
         /// Thrown if the document is a new entity (no etag) or already tracked.
         /// </exception>
-        public void AddOriginal<TDocument>(IDocumentCollection<TDocument> collection, TDocument document)
-            where TDocument : IDocument, new()
+        void ITransaction.AddOriginal<TDocument>(IDocumentCollection<TDocument> collection, TDocument document)
         {
             if (string.IsNullOrWhiteSpace(document.etag))
                 throw new InvalidOperationException($"Document: '{document.GetType().FullName}' is a new entity, cannot be added as Original. Id: '{document.id}'");
@@ -70,8 +59,7 @@ namespace PolyPersist.Net.Transactions
         /// <exception cref="InvalidOperationException">
         /// Thrown if the row is a new entity (no etag) or already tracked.
         /// </exception>
-        public void AddOriginal<TRow>(IColumnTable<TRow> table, TRow row)
-            where TRow : IRow, new()
+        void ITransaction.AddOriginal<TRow>(IColumnTable<TRow> table, TRow row)
         {
             if (string.IsNullOrWhiteSpace(row.etag))
                 throw new InvalidOperationException($"Row: '{row.GetType().FullName}' is a new entity, cannot be added as Original. Id: '{row.id}'");
@@ -92,8 +80,7 @@ namespace PolyPersist.Net.Transactions
         /// <exception cref="InvalidOperationException">
         /// Thrown if the blob is a new entity (no etag) or already tracked.
         /// </exception>
-        public async ValueTask AddOriginal<TBlob>(IBlobContainer<TBlob> container, TBlob blob)
-            where TBlob : IBlob, new()
+        async Task ITransaction.AddOriginal<TBlob>(IBlobContainer<TBlob> container, TBlob blob)
         {
             if (string.IsNullOrWhiteSpace(blob.etag))
                 throw new InvalidOperationException($"Blob: '{blob.GetType().FullName}' is a new entity, cannot be added as Original. Id: '{blob.id}'");
@@ -113,11 +100,10 @@ namespace PolyPersist.Net.Transactions
         /// <param name="collection">The document collection to insert into.</param>
         /// <param name="document">The document instance to insert.</param>
         /// <returns>A task that represents the asynchronous operation.</returns>
-        public async ValueTask Insert<TDocument>(IDocumentCollection<TDocument> collection, TDocument document)
-            where TDocument : IDocument, new()
+         async Task ITransaction.Insert<TDocument>(IDocumentCollection<TDocument> collection, TDocument document)
         {
             await collection.Insert(document).ConfigureAwait(false);
-            _executedOperations.Add((Operations.Insert, document));
+            _executedOperations.Add((ITransaction.Operations.Insert, document));
 
             _rollBackActions.Add(async () =>
             {
@@ -132,11 +118,10 @@ namespace PolyPersist.Net.Transactions
         /// <param name="table">The table to insert into.</param>
         /// <param name="row">The row instance to insert.</param>
         /// <returns>A task that represents the asynchronous operation.</returns>
-        public async ValueTask Insert<TRow>(IColumnTable<TRow> table, TRow row)
-            where TRow : IRow, new()
+        async Task ITransaction.Insert<TRow>(IColumnTable<TRow> table, TRow row)
         {
             await table.Insert(row).ConfigureAwait(false);
-            _executedOperations.Add((Operations.Insert, row));
+            _executedOperations.Add((ITransaction.Operations.Insert, row));
 
             _rollBackActions.Add(async () =>
             {
@@ -154,15 +139,14 @@ namespace PolyPersist.Net.Transactions
         /// <exception cref="InvalidOperationException">
         /// Thrown if the document was not added as Original before update.
         /// </exception>
-        public async ValueTask Update<TDocument>(IDocumentCollection<TDocument> collection, TDocument document)
-            where TDocument : IDocument, new()
+        async Task ITransaction.Update<TDocument>(IDocumentCollection<TDocument> collection, TDocument document)
         {
             string key = _getEntityKey(document);
             if (!_deepCloneOfEntities.ContainsKey(key))
                 throw new InvalidOperationException($"Document: '{document.GetType().FullName}' not added as Original. Id: '{document.id}'");
 
             await collection.Update(document).ConfigureAwait(false);
-            _executedOperations.Add((Operations.Update, document));
+            _executedOperations.Add((ITransaction.Operations.Update, document));
 
             _rollBackActions.Add(async () =>
             {
@@ -181,15 +165,14 @@ namespace PolyPersist.Net.Transactions
         /// <exception cref="InvalidOperationException">
         /// Thrown if the row was not added as Original before update.
         /// </exception>
-        public async ValueTask Update<TRow>(IColumnTable<TRow> table, TRow row)
-            where TRow : IRow, new()
+        async Task ITransaction.Update<TRow>(IColumnTable<TRow> table, TRow row)
         {
             string key = _getEntityKey(row);
             if (!_deepCloneOfEntities.ContainsKey(key))
                 throw new InvalidOperationException($"Row: '{row.GetType().FullName}' not added as Original. Id: '{row.id}'");
 
             await table.Update(row).ConfigureAwait(false);
-            _executedOperations.Add((Operations.Update, row));
+            _executedOperations.Add((ITransaction.Operations.Update, row));
 
             _rollBackActions.Add(async () =>
             {
@@ -209,15 +192,14 @@ namespace PolyPersist.Net.Transactions
         /// <exception cref="InvalidOperationException">
         /// Thrown if the blob was not added as Original before upload.
         /// </exception>
-        public async ValueTask Upload<TBlob>(IBlobContainer<TBlob> container, TBlob blob, Stream content)
-            where TBlob : IBlob, new()
+        async Task ITransaction.Upload<TBlob>(IBlobContainer<TBlob> container, TBlob blob, Stream content)
         {
             string key = _getEntityKey(blob);
             if (!_deepCloneOfEntities.ContainsKey(key))
                 throw new InvalidOperationException($"Blob: '{blob.GetType().FullName}' not added as Original. Id: '{blob.id}'");
 
             await container.Upload(blob, content).ConfigureAwait(false);
-            _executedOperations.Add((Operations.Insert, blob));
+            _executedOperations.Add((ITransaction.Operations.Insert, blob));
 
             _rollBackActions.Add(async () =>
             {
@@ -236,15 +218,14 @@ namespace PolyPersist.Net.Transactions
         /// <exception cref="InvalidOperationException">
         /// Thrown if the blob was not added as Original before content update.
         /// </exception>
-        public async ValueTask UpdateContent<TBlob>(IBlobContainer<TBlob> container, TBlob blob, Stream content)
-            where TBlob : IBlob, new()
+        async Task ITransaction.UpdateContent<TBlob>(IBlobContainer<TBlob> container, TBlob blob, Stream content)
         {
             string key = _getEntityKey(blob);
             if (!_deepCloneOfEntities.ContainsKey(key))
                 throw new InvalidOperationException($"Blob: '{blob.GetType().FullName}' not added as Original. Id: '{blob.id}'");
 
             await container.UpdateContent(blob, content).ConfigureAwait(false);
-            _executedOperations.Add((Operations.Update, blob));
+            _executedOperations.Add((ITransaction.Operations.Update, blob));
 
             _rollBackActions.Add(async () =>
             {
@@ -264,15 +245,14 @@ namespace PolyPersist.Net.Transactions
         /// <exception cref="InvalidOperationException">
         /// Thrown if the blob was not added as Original before metadata update.
         /// </exception>
-        public async ValueTask UpdateMetadata<TBlob>(IBlobContainer<TBlob> container, TBlob blob)
-            where TBlob : IBlob, new()
+        async Task ITransaction.UpdateMetadata<TBlob>(IBlobContainer<TBlob> container, TBlob blob)
         {
             string key = _getEntityKey(blob);
             if (!_deepCloneOfEntities.ContainsKey(key))
                 throw new InvalidOperationException($"Blob: '{blob.GetType().FullName}' not added as Original. Id: '{blob.id}'");
 
             await container.UpdateMetadata(blob).ConfigureAwait(false);
-            _executedOperations.Add((Operations.Update, blob));
+            _executedOperations.Add((ITransaction.Operations.Update, blob));
 
             _rollBackActions.Add(async () =>
             {
@@ -291,15 +271,14 @@ namespace PolyPersist.Net.Transactions
         /// <exception cref="InvalidOperationException">
         /// Thrown if the document was not added as Original before deletion.
         /// </exception>
-        public async ValueTask Delete<TDocument>(IDocumentCollection<TDocument> collection, TDocument document)
-            where TDocument : IDocument, new()
+        async Task ITransaction.Delete<TDocument>(IDocumentCollection<TDocument> collection, TDocument document)
         {
             string key = _getEntityKey(document);
             if (!_deepCloneOfEntities.ContainsKey(key))
                 throw new InvalidOperationException($"Document: '{document.GetType().FullName}' not added as Original. Id: '{document.id}'");
 
             await collection.Delete(document.PartitionKey, document.id).ConfigureAwait(false);
-            _executedOperations.Add((Operations.Delete, document));
+            _executedOperations.Add((ITransaction.Operations.Delete, document));
 
             _rollBackActions.Add(async () =>
             {
@@ -318,15 +297,14 @@ namespace PolyPersist.Net.Transactions
         /// <exception cref="InvalidOperationException">
         /// Thrown if the row was not added as Original before deletion.
         /// </exception>
-        public async ValueTask Delete<TRow>(IColumnTable<TRow> table, TRow row)
-            where TRow : IRow, new()
+        async Task ITransaction.Delete<TRow>(IColumnTable<TRow> table, TRow row)
         {
             string key = _getEntityKey(row);
             if (!_deepCloneOfEntities.ContainsKey(key))
                 throw new InvalidOperationException($"Row: '{row.GetType().FullName}' not added as Original. Id: '{row.id}'");
 
             await table.Delete(row.PartitionKey, row.id).ConfigureAwait(false);
-            _executedOperations.Add((Operations.Delete, row));
+            _executedOperations.Add((ITransaction.Operations.Delete, row));
 
             _rollBackActions.Add(async () =>
             {
@@ -345,15 +323,14 @@ namespace PolyPersist.Net.Transactions
         /// <exception cref="InvalidOperationException">
         /// Thrown if the blob was not added as Original before deletion.
         /// </exception>
-        public async ValueTask Delete<TBlob>(IBlobContainer<TBlob> container, TBlob blob)
-            where TBlob : IBlob, new()
+        async Task ITransaction.Delete<TBlob>(IBlobContainer<TBlob> container, TBlob blob)
         {
             string key = _getEntityKey(blob);
             if (!_deepCloneOfEntities.ContainsKey(key))
                 throw new InvalidOperationException($"Blob: '{blob.GetType().FullName}' not added as Original. Id: '{blob.id}'");
 
             await container.Delete(blob.PartitionKey, blob.id).ConfigureAwait(false);
-            _executedOperations.Add((Operations.Delete, blob));
+            _executedOperations.Add((ITransaction.Operations.Delete, blob));
 
             _rollBackActions.Add(async () =>
             {
@@ -375,7 +352,7 @@ namespace PolyPersist.Net.Transactions
         /// Commits the transaction by executing all registered commit actions in parallel.
         /// </summary>
         /// <returns>A task that represents the asynchronous commit operation.</returns>
-        public async ValueTask Commit()
+        async Task ITransaction.Commit()
         {
             // is already committed ?
             if (Interlocked.Exchange(ref _committed, 1) == 1)
@@ -395,7 +372,7 @@ namespace PolyPersist.Net.Transactions
         /// Rolls back the transaction by executing all registered rollback actions in parallel.
         /// </summary>
         /// <returns>A task that represents the asynchronous rollback operation.</returns>
-        public async ValueTask Rollback()
+        async Task ITransaction.Rollback()
         {
             // is already committed ?
             if (Volatile.Read(ref _committed) == 1)
@@ -473,7 +450,7 @@ namespace PolyPersist.Net.Transactions
 
             if (Volatile.Read(ref _committed) == 0 && _executedOperations.Any())
             {
-                await Rollback().ConfigureAwait(false);
+                await (this as ITransaction).Rollback().ConfigureAwait(false);
             }
         }
         /// <summary>
@@ -492,7 +469,7 @@ namespace PolyPersist.Net.Transactions
             if (Volatile.Read(ref _committed) == 0 && _executedOperations.Any())
             {
                 // Blocking fallback: not recommended for I/O
-                Rollback().AsTask().GetAwaiter().GetResult();
+                (this as ITransaction).Rollback().GetAwaiter().GetResult();
             }
 
             GC.SuppressFinalize(this);
