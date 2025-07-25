@@ -27,7 +27,7 @@
         {
             _CollectionData collectionData = _Collections.Find(c => c.Name == collectionName);
             if (collectionData == null)
-                throw new Exception($"Collection '{collectionName}' does not exist in Memory Documnet Store");
+                throw new Exception($"Collection '{collectionName}' does not exist in Memory Document Store");
 
             IDocumentCollection<TDocument> collection = new Memory_DocumentCollection<TDocument>( collectionName, collectionData, this);
             return Task.FromResult(collection);
@@ -51,7 +51,7 @@
         {
             _CollectionData collectionData = _Collections.Find(c => c.Name == collectionName);
             if (collectionData == null)
-                throw new Exception($"Collection '{collectionName}' does not exist in Memory Documnet Store");
+                throw new Exception($"Collection '{collectionName}' does not exist in Memory Document Store");
 
             _Collections.Remove(collectionData);
             return Task.CompletedTask;

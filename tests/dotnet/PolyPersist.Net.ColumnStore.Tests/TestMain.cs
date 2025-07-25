@@ -2,6 +2,7 @@
 using DotNet.Testcontainers.Builders;
 using DotNet.Testcontainers.Containers;
 using PolyPersist.Net.ColumnStore.Cassandra;
+using PolyPersist.Net.ColumnStore.Memory;
 
 namespace PolyPersist.Net.ColumnStore.Tests
 {
@@ -12,7 +13,8 @@ namespace PolyPersist.Net.ColumnStore.Tests
 
         static TestMain()
         {
-            _Setup_Cassandra_ColumnStore();
+            _Setup_Memory_ColumnStore();
+            //_Setup_Cassandra_ColumnStore();
             //_Setup_Scylla_ColumnStore();
         }
 
@@ -31,6 +33,17 @@ namespace PolyPersist.Net.ColumnStore.Tests
                 await _cassandraContainer.DisposeAsync();
                 _cassandraContainer = null;
             }
+        }
+
+        private static void _Setup_Memory_ColumnStore()
+        {
+            var functor = new object[] {
+                new Func<string, Task<IColumnStore>>( (testname) => {
+                    var store = new Memory_ColumnStore("");
+                    return Task.FromResult<IColumnStore>( store );
+                } )
+            };
+            StoreInstances.Add(functor);
         }
 
         private static IContainer _cassandraContainer;

@@ -3,7 +3,7 @@
     public abstract class StoreContext
     {
         private readonly IStoreProvider _storeProvider;
-        private readonly Dictionary<Type,string> _collectionsByType = [];
+        private readonly Dictionary<Type, string> _collectionsByType = [];
 
         public StoreContext(IStoreProvider storeProvider)
         {
@@ -18,8 +18,10 @@
             if (string.IsNullOrEmpty(collectionName) == true)
                 collectionName = typeof(TDocument).Name;
 
-            var collection = await documentStore.GetCollectionByName<TDocument>(collectionName);
-            if (collection == null)
+            IDocumentCollection<TDocument> collection;
+            if (await documentStore.IsCollectionExists(collectionName) == true)
+                collection = await documentStore.GetCollectionByName<TDocument>(collectionName);
+            else
                 collection = await documentStore.CreateCollection<TDocument>(collectionName);
 
             _collectionsByType[typeof(TDocument)] = collectionName;
@@ -35,16 +37,18 @@
             if (string.IsNullOrEmpty(tableName) == true)
                 tableName = typeof(TRow).Name;
 
-            var table = await columnStore.GetTableByName<TRow>(tableName);
-            if (table == null)
+            IColumnTable<TRow> table;
+            if (await columnStore.IsTableExists(tableName) == true)
+                table = await columnStore.GetTableByName<TRow>(tableName);
+            else
                 table = await columnStore.CreateTable<TRow>(tableName);
 
             _collectionsByType[typeof(TRow)] = tableName;
 
             return table;
         }
-        
-        public async Task<IBlobContainer<TBlob>> GetOrCreateBlobContainer<TBlob>( string containerName )
+
+        public async Task<IBlobContainer<TBlob>> GetOrCreateBlobContainer<TBlob>(string containerName)
             where TBlob : IBlob, new()
         {
             IBlobStore blobStore = (IBlobStore)_storeProvider.getStore(IStore.StorageModels.BlobStore);
@@ -52,8 +56,10 @@
             if (string.IsNullOrEmpty(containerName) == true)
                 containerName = typeof(TBlob).Name;
 
-            var container = await blobStore.GetContainerByName<TBlob>(containerName);
-            if (container == null)
+            IBlobContainer<TBlob> container;
+            if (await blobStore.IsContainerExists(containerName) == true)
+                container = await blobStore.GetContainerByName<TBlob>(containerName);
+            else
                 container = await blobStore.CreateContainer<TBlob>(containerName);
 
             _collectionsByType[typeof(TBlob)] = containerName;

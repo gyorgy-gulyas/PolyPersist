@@ -1,0 +1,14 @@
+<Project>
+  <PropertyGroup>
+    <Version>1.0.3</Version>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Authors>György Gulyás</Authors>
+    <Description>PolyPersist is a cross-platform library that abstracts data persistence across different database types, including SQL, NoSQL, and file-based systems. It offers a unified interface, enabling seamless switching between databases while maintaining flexibility and minimal code changes</Description>
+    <Nullable>disable</Nullable>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <NoWarn>NU1604,NU1602</NoWarn>
+  </PropertyGroup>
+
+</Project>  
