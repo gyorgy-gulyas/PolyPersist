@@ -18,7 +18,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\..\implementations\dotnet\src\PolyPersist.Net.ColumnStore.Cassandra\PolyPersist.Net.ColumnStore.Cassandra.csproj" />
-    <ProjectReference Include="..\..\..\implementations\dotnet\src\PolyPersist.Net.ColumnStore.Cassandra\PolyPersist.Net.ColumnStore.Memory.csproj" />
+    <ProjectReference Include="..\..\..\implementations\dotnet\src\PolyPersist.Net.ColumnStore.Memory\PolyPersist.Net.ColumnStore.Memory.csproj" />
     <ProjectReference Include="..\..\..\interfaces\dotnet\PolyPersist\PolyPersist.Net.csproj" />
     <ProjectReference Include="..\PolyPersist.Net.Test\PolyPersist.Net.Test.csproj" />
   </ItemGroup>

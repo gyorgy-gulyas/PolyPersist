@@ -20,7 +20,7 @@ namespace PolyPersist.Net.ColumnStore.Tests
             {
                 new SampleRow { PartitionKey = "query-pk", id = "q1", str_value = "A", int_value = 10 },
                 new SampleRow { PartitionKey = "query-pk", id = "q2", str_value = "B", int_value = 20 },
-                new SampleRow { PartitionKey = "diffe-pk", id = "q2", str_value = "C", int_value = 30 }
+                new SampleRow { PartitionKey = "diffe-pk", id = "q3", str_value = "C", int_value = 30 }
             };
 
             foreach (var r in rows)
@@ -60,7 +60,7 @@ namespace PolyPersist.Net.ColumnStore.Tests
             {
                 new SampleRow { PartitionKey = "query-pk", id = "q1", str_value = "A", int_value = 10 },
                 new SampleRow { PartitionKey = "query-pk", id = "q2", str_value = "B", int_value = 20 },
-                new SampleRow { PartitionKey = "diffe-pk", id = "q2", str_value = "C", int_value = 30 }
+                new SampleRow { PartitionKey = "diffe-pk", id = "q3", str_value = "C", int_value = 30 }
             };
 
             foreach (var r in rows)
@@ -88,7 +88,7 @@ namespace PolyPersist.Net.ColumnStore.Tests
             {
                 new SampleRow { PartitionKey = "query-pk", id = "q1", str_value = "A", int_value = 10 },
                 new SampleRow { PartitionKey = "query-pk", id = "q2", str_value = "B", int_value = 20 },
-                new SampleRow { PartitionKey = "diffe-pk", id = "q2", str_value = "C", int_value = 30 }
+                new SampleRow { PartitionKey = "diffe-pk", id = "q3", str_value = "C", int_value = 30 }
             };
 
             foreach (var r in rows)
@@ -116,7 +116,7 @@ namespace PolyPersist.Net.ColumnStore.Tests
             {
                 new SampleRow { PartitionKey = "query-pk", id = "q1", str_value = "A", int_value = 10 },
                 new SampleRow { PartitionKey = "query-pk", id = "q2", str_value = "B", int_value = 20 },
-                new SampleRow { PartitionKey = "diffe-pk", id = "q2", str_value = "C", int_value = 30 }
+                new SampleRow { PartitionKey = "diffe-pk", id = "q3", str_value = "C", int_value = 30 }
             };
 
             foreach (var r in rows)
@@ -144,8 +144,8 @@ namespace PolyPersist.Net.ColumnStore.Tests
             {
                 new SampleRow { PartitionKey = "query-pk", id = "q1", str_value = "A", int_value = 10 },
                 new SampleRow { PartitionKey = "query-pk", id = "q2", str_value = "A", int_value = 20 },
-                new SampleRow { PartitionKey = "query-pk", id = "q3", str_value = "B", int_value = 20 },
-                new SampleRow { PartitionKey = "query-pk", id = "q3", str_value = "B", int_value = 40 },
+                new SampleRow { PartitionKey = "query-pk", id = "q3", str_value = "B", int_value = 30 },
+                new SampleRow { PartitionKey = "diff-pk", id = "q4", str_value = "B", int_value = 40 },
             };
 
             foreach (var r in rows)
@@ -185,7 +185,7 @@ namespace PolyPersist.Net.ColumnStore.Tests
             {
                 new SampleRow { PartitionKey = "query-pk", id = "q1", str_value = "A", int_value = 10 },
                 new SampleRow { PartitionKey = "query-pk", id = "q2", str_value = "B", int_value = 20 },
-                new SampleRow { PartitionKey = "diffe-pk", id = "q2", str_value = "C", int_value = 30 }
+                new SampleRow { PartitionKey = "diffe-pk", id = "q3", str_value = "C", int_value = 30 }
             };
 
             foreach (var r in rows)
@@ -215,7 +215,7 @@ namespace PolyPersist.Net.ColumnStore.Tests
             {
                 new SampleRow { PartitionKey = "query-pk", id = "q1", str_value = "A", int_value = 10 },
                 new SampleRow { PartitionKey = "query-pk", id = "q2", str_value = "B", int_value = 20 },
-                new SampleRow { PartitionKey = "diffe-pk", id = "q2", str_value = "C", int_value = 30 }
+                new SampleRow { PartitionKey = "diffe-pk", id = "q3", str_value = "C", int_value = 30 }
             };
 
             foreach (var r in rows)
@@ -396,9 +396,9 @@ namespace PolyPersist.Net.ColumnStore.Tests
 
             var rows = new[]
             {
-                new SampleRow { PartitionKey = "query-pk", id = "1", str_value = "AAA", int_value = 10 },
-                new SampleRow { PartitionKey = "query-pk", id = "1", str_value = "BBB", int_value = 20 },
-                new SampleRow { PartitionKey = "diffe-pk", id = "1", str_value = "CCC", int_value = 30 }
+                new SampleRow { PartitionKey = "query-pk", id = "q1", str_value = "AAA", int_value = 10 },
+                new SampleRow { PartitionKey = "query-pk", id = "q2", str_value = "BBB", int_value = 20 },
+                new SampleRow { PartitionKey = "diffe-pk", id = "q3", str_value = "CCC", int_value = 30 }
             };
 
             foreach (var r in rows)
@@ -409,7 +409,7 @@ namespace PolyPersist.Net.ColumnStore.Tests
                 .Where(r => r.PartitionKey == "query-pk")
                 .OrderBy(r => r.id).ThenBy(r => r.str_value)
                 .ToList();
-            Assert.AreEqual(1, list.Count);
+            Assert.AreEqual(2, list.Count);
             Assert.IsNotNull(list.First(r => r.id == "q1"));
             Assert.IsNotNull(list.First(r => r.id == "q2"));
 

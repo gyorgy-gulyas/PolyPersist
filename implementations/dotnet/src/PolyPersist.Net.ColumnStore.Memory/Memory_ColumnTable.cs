@@ -1,4 +1,5 @@
 using PolyPersist.Net.Common;
+using PolyPersist.Net.ColumnStore.Memory.Linq;
 using System.Text.Json;
 
 namespace PolyPersist.Net.ColumnStore.Memory
@@ -89,10 +90,12 @@ namespace PolyPersist.Net.ColumnStore.Memory
         /// <inheritdoc/>
         object IColumnTable<TRow>.Query()
         {
-            return _tableData
+            var queryable = _tableData
                 .ListOfDocments
                 .Select(data => JsonSerializer.Deserialize<TRow>(data.Value, JsonOptionsProvider.Options))
                 .AsQueryable();
+
+            return new Memory_Queryable<TRow>(queryable);
         }
 
         /// <inheritdoc/>
