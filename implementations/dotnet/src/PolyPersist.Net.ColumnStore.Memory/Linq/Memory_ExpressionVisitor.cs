@@ -84,6 +84,11 @@ namespace PolyPersist.Net.ColumnStore.Memory.Linq
                     // ok
                     return base.VisitMethodCall(node);
                 }
+                else if (lambda.Body is MemberExpression memberExpr)
+                {
+                    // ok
+                    return base.VisitMethodCall(node);
+                }
                 else
                 {
                     throw new NotSupportedException($"Unsupported Select projection expression: {node.NodeType}.");

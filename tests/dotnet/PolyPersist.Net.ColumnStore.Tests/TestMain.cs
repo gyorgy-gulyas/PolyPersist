@@ -14,7 +14,7 @@ namespace PolyPersist.Net.ColumnStore.Tests
         static TestMain()
         {
             _Setup_Memory_ColumnStore();
-            //_Setup_Cassandra_ColumnStore();
+            _Setup_Cassandra_ColumnStore();
             //_Setup_Scylla_ColumnStore();
         }
 

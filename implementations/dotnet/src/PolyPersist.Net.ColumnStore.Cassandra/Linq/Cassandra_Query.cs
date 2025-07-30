@@ -10,6 +10,7 @@ namespace PolyPersist.Net.ColumnStore.Cassandra.Linq
             SelectRow,
             ProjectionToClass,
             ProjectionToAnonymous,
+            ProjectionToSingleColumn,
         }
 
         internal string cql;

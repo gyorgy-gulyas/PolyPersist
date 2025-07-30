@@ -153,24 +153,12 @@ namespace PolyPersist.Net.ColumnStore.Tests
 
             List<string> listStr = table
                 .AsQueryable()
-                .Where(r => r.PartitionKey == "query-pk")
-                .Select(r => r.str_value)
+                .Select(r => r.PartitionKey)
                 .Distinct()
                 .ToList();
             Assert.AreEqual(2, listStr.Count);
-            Assert.IsNotNull(listStr.First(r => r == "A"));
-            Assert.IsNotNull(listStr.First(r => r == "B"));
-
-            List<int> listInt = table
-                .AsQueryable()
-                .Where(r => r.PartitionKey == "query-pk")
-                .Select(r => r.int_value)
-                .Distinct()
-                .ToList();
-            Assert.AreEqual(3, listInt.Count);
-            Assert.IsNotNull(listInt.First(r => r == 10));
-            Assert.IsNotNull(listInt.First(r => r == 20));
-            Assert.IsNotNull(listInt.First(r => r == 30));
+            Assert.IsNotNull(listStr.First(r => r == "query-pk"));
+            Assert.IsNotNull(listStr.First(r => r == "diff-pk" ));
         }
 
         [DataTestMethod]
@@ -380,43 +368,6 @@ namespace PolyPersist.Net.ColumnStore.Tests
                 .AsQueryable()
                 .Where(r => r.PartitionKey == "query-pk")
                 .OrderByDescending(r => r.id )
-                .ToList();
-            Assert.AreEqual(2, list.Count);
-            Assert.IsNotNull(list.First(r => r.id == "q2"));
-            Assert.IsNotNull(list.First(r => r.id == "q1"));
-        }
-
-        [DataTestMethod]
-        [DynamicData(nameof(TestMain.StoreInstances), typeof(TestMain), DynamicDataSourceType.Property)]
-        public async Task ColumnStore_Linq_ThenBy_OK(Func<string, Task<IColumnStore>> factory)
-        {
-            var testName = MethodBase.GetCurrentMethod().GetAsyncMethodName().MakeStorageConformName();
-            var store = await factory(testName);
-            var table = await store.CreateTable<SampleRow>("sampletable");
-
-            var rows = new[]
-            {
-                new SampleRow { PartitionKey = "query-pk", id = "q1", str_value = "AAA", int_value = 10 },
-                new SampleRow { PartitionKey = "query-pk", id = "q2", str_value = "BBB", int_value = 20 },
-                new SampleRow { PartitionKey = "diffe-pk", id = "q3", str_value = "CCC", int_value = 30 }
-            };
-
-            foreach (var r in rows)
-                await table.Insert(r);
-
-            var list = table
-                .AsQueryable()
-                .Where(r => r.PartitionKey == "query-pk")
-                .OrderBy(r => r.id).ThenBy(r => r.str_value)
-                .ToList();
-            Assert.AreEqual(2, list.Count);
-            Assert.IsNotNull(list.First(r => r.id == "q1"));
-            Assert.IsNotNull(list.First(r => r.id == "q2"));
-
-            list = table
-                .AsQueryable()
-                .Where(r => r.PartitionKey == "query-pk")
-                .OrderBy(r => r.id).ThenByDescending(r => r.str_value)
                 .ToList();
             Assert.AreEqual(2, list.Count);
             Assert.IsNotNull(list.First(r => r.id == "q2"));

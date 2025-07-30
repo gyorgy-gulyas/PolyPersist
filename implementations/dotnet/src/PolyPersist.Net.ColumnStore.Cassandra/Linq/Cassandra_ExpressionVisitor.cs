@@ -72,6 +72,11 @@ namespace PolyPersist.Net.ColumnStore.Cassandra.Linq
             {
                 return (" COUNT(*) ", Cassandra_Query.ResultTypes.Count);
             }
+            else if (_selectedFields?.Count == 1 && _projectionAnonymousCtor == null && _projectionMap.Count == 1)
+            {
+                // Single column projection (primitive)
+                return (_selectedFields[0], Cassandra_Query.ResultTypes.ProjectionToSingleColumn);
+            }
             else if (_selectedFields?.Count > 0)
             {
                 return (string.Join(", ", _selectedFields), _projectionAnonymousCtor != null
@@ -217,6 +222,13 @@ namespace PolyPersist.Net.ColumnStore.Cassandra.Linq
                 {
                     VisitNew(newExpr);
                 }
+                else if (lambda.Body is MemberExpression memberExpr)
+                {
+                    // egyszerű property select: r => r.id
+                    var columnName = memberExpr.Member.Name.ToLower();
+                    _selectedFields.Add(columnName);
+                    _projectionMap[columnName] = columnName;
+                }
                 else
                 {
                     throw new NotSupportedException($"Unsupported Select projection expression: {node.NodeType}.");
@@ -273,7 +285,7 @@ namespace PolyPersist.Net.ColumnStore.Cassandra.Linq
                     string direction = (node.Method.Name.EndsWith("Descending")) ? "DESC" : "ASC";
                     string columnName = memberExpr.Member.Name.ToLower();
 
-                    _orderBy.Add($"{columnName} {direction}");
+                    _orderBy.Insert(0, $"{columnName} {direction}");
                 }
                 else
                 {

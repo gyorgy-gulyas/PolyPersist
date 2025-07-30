@@ -109,6 +109,42 @@ namespace PolyPersist.Net.ColumnStore.Cassandra.Linq
 
                             return StreamRows();
                         }
+                    case Cassandra_Query.ResultTypes.ProjectionToSingleColumn:
+                        {
+                            // Determine the element type (pl. string, int, Guid)
+                            Type elementType = expression.Type.GetGenericArguments().First();
+
+                            // csak egyetlen selectedField-et kell olvasni (ExpressionVisitor már úgy adja)
+                            string columnName = query.projectionMemberMap.Count == 1
+                                ? query.projectionMemberMap.Values.First()
+                                : query.projectionMemberMap.FirstOrDefault().Key;
+
+                            // Cassandra getter készítése a típushoz
+                            var cassandraGetter = Cassandra_Mapper.BuildTypedGetter(elementType);
+
+                            IEnumerable<object> StreamRows()
+                            {
+                                // Build index map, hogy gyorsabban elérjük a mezőt
+                                var fieldIndexMap = rs.Columns
+                                    .Select((col, idx) => new { col.Name, idx })
+                                    .ToDictionary(x => x.Name.ToLower(), x => x.idx);
+
+                                int fieldIndex = fieldIndexMap[columnName.ToLower()];
+
+                                foreach (var row in rs)
+                                {
+                                    yield return cassandraGetter(row, fieldIndex);
+                                }
+                            }
+
+                            // reflection-nel castoljuk a helyes típusra
+                            var castMethod = typeof(Enumerable)
+                                .GetMethod(nameof(Enumerable.Cast), BindingFlags.Static | BindingFlags.Public)
+                                .MakeGenericMethod(elementType);
+
+                            var castedEnumerable = castMethod.Invoke(null, new object[] { StreamRows() });
+                            return castedEnumerable;
+                        }
                     case Cassandra_Query.ResultTypes.ProjectionToClass:
                         {
                             Type resultItemType = expression.Type.GetGenericArguments().First();
