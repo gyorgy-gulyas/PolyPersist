@@ -33,7 +33,7 @@ namespace PolyPersist.Net.BlobStore.GridFS
             if (content == null || content.CanRead == false)
                 throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} content cannot be read");
 
-            await CollectionCommon.CheckBeforeInsert(blob).ConfigureAwait(false);
+            CollectionCommon.CheckBeforeInsert(blob);
 
             if (string.IsNullOrEmpty(blob.id) == true)
                 blob.id = Guid.NewGuid().ToString();
@@ -115,7 +115,7 @@ namespace PolyPersist.Net.BlobStore.GridFS
         /// <inheritdoc/>
         async Task IBlobContainer<TBlob>.UpdateMetadata(TBlob blob)
         {
-            await CollectionCommon.CheckBeforeUpdate(blob).ConfigureAwait(false);
+            CollectionCommon.CheckBeforeUpdate(blob);
 
             GridFSFileInfo fileInfo = await _getFileInfo(blob.PartitionKey, blob.id).ConfigureAwait(false);
             if (fileInfo == null)

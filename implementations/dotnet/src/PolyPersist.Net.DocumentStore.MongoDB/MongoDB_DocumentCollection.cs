@@ -23,7 +23,7 @@ namespace PolyPersist.Net.DocumentStore.MongoDB
         /// <inheritdoc/>
         async Task IDocumentCollection<TDocument>.Insert(TDocument document)
         {
-            await CollectionCommon.CheckBeforeInsert(document).ConfigureAwait(false);
+            CollectionCommon.CheckBeforeInsert(document);
             document.etag = Guid.NewGuid().ToString();
             document.LastUpdate = DateTime.UtcNow;
 
@@ -44,7 +44,7 @@ namespace PolyPersist.Net.DocumentStore.MongoDB
         /// <inheritdoc/>
         async Task IDocumentCollection<TDocument>.Update(TDocument document)
         {
-            await CollectionCommon.CheckBeforeUpdate(document).ConfigureAwait(false);
+            CollectionCommon.CheckBeforeUpdate(document);
 
             string oldETag = document.etag;
             document.etag = Guid.NewGuid().ToString();

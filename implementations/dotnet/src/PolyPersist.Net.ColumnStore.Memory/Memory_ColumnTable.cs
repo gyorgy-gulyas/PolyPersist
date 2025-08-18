@@ -24,9 +24,9 @@ namespace PolyPersist.Net.ColumnStore.Memory
         IStore IColumnTable<TRow>.ParentStore => _dataStore;
 
         /// <inheritdoc/>
-        async Task IColumnTable<TRow>.Insert(TRow row)
+        Task IColumnTable<TRow>.Insert(TRow row)
         {
-            await CollectionCommon.CheckBeforeInsert(row).ConfigureAwait(false);
+            CollectionCommon.CheckBeforeInsert(row);
 
             row.etag = Guid.NewGuid().ToString();
             row.LastUpdate = DateTime.UtcNow;
@@ -41,17 +41,19 @@ namespace PolyPersist.Net.ColumnStore.Memory
                 id = row.id,
                 partitionKey = row.PartitionKey,
                 etag = row.etag,
-                Value = JsonSerializer.Serialize(row, typeof(TRow), JsonOptionsProvider.Options)
+                Value = JsonSerializer.Serialize(row, typeof(TRow), JsonOptionsProvider.Options())
             };
 
             _tableData.MapOfDocments.Add(row.id, data);
             _tableData.ListOfDocments.Add(data);
+
+            return Task.CompletedTask;
         }
 
         /// <inheritdoc/>
-        async Task IColumnTable<TRow>.Update(TRow row)
+        Task IColumnTable<TRow>.Update(TRow row)
         {
-            await CollectionCommon.CheckBeforeUpdate(row).ConfigureAwait(false);
+            CollectionCommon.CheckBeforeUpdate(row);
 
             if (_tableData.MapOfDocments.TryGetValue(row.id, out _RowData data) == false)
                 throw new Exception($"Row '{typeof(TRow).Name}' {row.id} can not be updated because does not exist");
@@ -63,7 +65,9 @@ namespace PolyPersist.Net.ColumnStore.Memory
             row.LastUpdate = DateTime.Now;
 
             data.etag = row.etag;
-            data.Value = JsonSerializer.Serialize(row, typeof(TRow), JsonOptionsProvider.Options);
+            data.Value = JsonSerializer.Serialize(row, typeof(TRow), JsonOptionsProvider.Options());
+
+            return Task.CompletedTask;
         }
 
         /// <inheritdoc/>
@@ -82,7 +86,7 @@ namespace PolyPersist.Net.ColumnStore.Memory
         Task<TRow> IColumnTable<TRow>.Find(string partitionKey, string id)
         {
             if (_tableData.MapOfDocments.TryGetValue(id, out _RowData row) == true)
-                return Task.FromResult(JsonSerializer.Deserialize<TRow>(row.Value, JsonOptionsProvider.Options));
+                return Task.FromResult(JsonSerializer.Deserialize<TRow>(row.Value, JsonOptionsProvider.Options()));
 
             return Task.FromResult<TRow>((TRow)default(TRow));
         }
@@ -92,7 +96,7 @@ namespace PolyPersist.Net.ColumnStore.Memory
         {
             var queryable = _tableData
                 .ListOfDocments
-                .Select(data => JsonSerializer.Deserialize<TRow>(data.Value, JsonOptionsProvider.Options))
+                .Select(data => JsonSerializer.Deserialize<TRow>(data.Value, JsonOptionsProvider.Options()))
                 .AsQueryable();
 
             return new Memory_Queryable<TRow>(queryable);

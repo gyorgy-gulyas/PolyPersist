@@ -33,7 +33,7 @@ namespace PolyPersist.Net.ColumnStore.Cassandra
         /// <inheritdoc/>
         async Task IColumnTable<TRow>.Insert(TRow row)
         {
-            await CollectionCommon.CheckBeforeInsert(row).ConfigureAwait(false);
+            CollectionCommon.CheckBeforeInsert(row);
             row.etag = Guid.NewGuid().ToString();
 
             if (string.IsNullOrEmpty(row.id) == true)
@@ -90,7 +90,7 @@ namespace PolyPersist.Net.ColumnStore.Cassandra
         /// <inheritdoc/>
         async Task IColumnTable<TRow>.Update(TRow row)
         {
-            await CollectionCommon.CheckBeforeUpdate(row).ConfigureAwait(false);
+            CollectionCommon.CheckBeforeUpdate(row);
 
             var original_etag = row.etag;
 

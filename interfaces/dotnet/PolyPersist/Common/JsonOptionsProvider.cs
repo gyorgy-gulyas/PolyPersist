@@ -5,10 +5,17 @@ namespace PolyPersist.Net.Common
 {
     public static class JsonOptionsProvider
     {
-        public static JsonSerializerOptions Options => new()
+        public static JsonSerializerOptions Options()
         {
-            WriteIndented = true,
-            Converters = { new JsonStringEnumConverter() }
-        };
+            var options = new JsonSerializerOptions()
+            {
+                WriteIndented = true,
+                Converters = { new JsonStringEnumConverter() }
+            };
+
+            PolymorphismHandler.Configure(options);
+
+            return options;
+        }
     }
 }

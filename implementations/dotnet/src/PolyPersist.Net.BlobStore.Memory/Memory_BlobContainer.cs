@@ -23,12 +23,12 @@ namespace PolyPersist.Net.BlobStore.Memory
 
 
         /// <inheritdoc/>
-        async Task IBlobContainer<TBlob>.Upload(TBlob blob, Stream content)
+        Task IBlobContainer<TBlob>.Upload(TBlob blob, Stream content)
         {
             if (content == null || content.CanRead == false)
                 throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} content cannot be read");
 
-            await CollectionCommon.CheckBeforeInsert(blob).ConfigureAwait(false);
+            CollectionCommon.CheckBeforeInsert(blob);
 
             if (string.IsNullOrEmpty(blob.id) == true)
                 blob.id = Guid.NewGuid().ToString();
@@ -43,11 +43,13 @@ namespace PolyPersist.Net.BlobStore.Memory
                 id = blob.id,
                 partitionKey = blob.PartitionKey,
                 etag = blob.etag,
-                MetadataJSON = JsonSerializer.Serialize(blob, typeof(TBlob), JsonOptionsProvider.Options),
+                MetadataJSON = JsonSerializer.Serialize(blob, typeof(TBlob), JsonOptionsProvider.Options()),
                 Content = _streamToByteArray(content)
             };
             _collectionData.MapOfBlobs.Add(blob.id, blobData);
             _collectionData.ListOfBlobs.Add(blobData);
+
+            return Task.CompletedTask;
         }
 
         /// <inheritdoc/>
@@ -80,7 +82,7 @@ namespace PolyPersist.Net.BlobStore.Memory
         {
             if (_collectionData.MapOfBlobs.TryGetValue(id, out _BlobData blobData) == true && blobData.partitionKey == partitionKey)
             {
-                TBlob blob = JsonSerializer.Deserialize<TBlob>(blobData.MetadataJSON, JsonOptionsProvider.Options);
+                TBlob blob = JsonSerializer.Deserialize<TBlob>(blobData.MetadataJSON, JsonOptionsProvider.Options());
                 return Task.FromResult(blob);
             }
 
@@ -98,16 +100,16 @@ namespace PolyPersist.Net.BlobStore.Memory
 
             blob.etag = Guid.NewGuid().ToString();
             blob.LastUpdate = DateTime.UtcNow;
-            blobData.MetadataJSON = JsonSerializer.Serialize(blob, typeof(TBlob), JsonOptionsProvider.Options);
+            blobData.MetadataJSON = JsonSerializer.Serialize(blob, typeof(TBlob), JsonOptionsProvider.Options());
 
             blobData.Content = _streamToByteArray(content);
             return Task.CompletedTask;
         }
 
         /// <inheritdoc/>
-        async Task IBlobContainer<TBlob>.UpdateMetadata(TBlob blob)
+        Task IBlobContainer<TBlob>.UpdateMetadata(TBlob blob)
         {
-            await CollectionCommon.CheckBeforeUpdate(blob).ConfigureAwait(false);
+            CollectionCommon.CheckBeforeUpdate(blob);
 
             if (_collectionData.MapOfBlobs.TryGetValue(blob.id, out _BlobData blobData) == false || blobData.partitionKey != blob.PartitionKey)
                 throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not be updated because it is does not exist");
@@ -119,7 +121,9 @@ namespace PolyPersist.Net.BlobStore.Memory
             blob.LastUpdate = DateTime.UtcNow;
 
             blobData.etag = blob.etag;
-            blobData.MetadataJSON = JsonSerializer.Serialize(blob, typeof(TBlob), JsonOptionsProvider.Options);
+            blobData.MetadataJSON = JsonSerializer.Serialize(blob, typeof(TBlob), JsonOptionsProvider.Options());
+
+            return Task.CompletedTask;
         }
 
         /// <inheritdoc/>

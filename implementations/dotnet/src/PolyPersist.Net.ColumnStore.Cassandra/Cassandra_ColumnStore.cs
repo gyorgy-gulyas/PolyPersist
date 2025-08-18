@@ -1,5 +1,7 @@
 ﻿using Cassandra;
 using PolyPersist.Net.Attributes;
+using System;
+using System.Net.NetworkInformation;
 using System.Reflection;
 
 namespace PolyPersist.Net.ColumnStore.Cassandra
@@ -67,9 +69,15 @@ namespace PolyPersist.Net.ColumnStore.Cassandra
             string createQuery = $@"
                 CREATE TABLE {_keyspace}.{tableName} (
                     {columnSection},
-                    PRIMARY KEY (partitionkey, id {clustingSection})
+                    PRIMARY KEY (partitionkey, id)
                 )";
             await _session.ExecuteAsync(new SimpleStatement(createQuery));
+
+            foreach (var columnName in clusteringProps)
+            {
+                string createIndexQuery = $"CREATE INDEX ON {_keyspace}.{tableName} ({columnName})";
+                await _session.ExecuteAsync(new SimpleStatement(createIndexQuery));
+            }
 
             return new Cassandra_ColumnTable<TRow>(_session, tableName, this);
         }

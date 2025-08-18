@@ -23,9 +23,9 @@ namespace PolyPersist.Net.DocumentStore.Memory
         IStore IDocumentCollection<TDocument>.ParentStore => _dataStore;
 
         /// <inheritdoc/>
-        async Task IDocumentCollection<TDocument>.Insert(TDocument document)
+        Task IDocumentCollection<TDocument>.Insert(TDocument document)
         {
-            await CollectionCommon.CheckBeforeInsert(document).ConfigureAwait(false);
+            CollectionCommon.CheckBeforeInsert(document);
 
             document.etag = Guid.NewGuid().ToString();
             document.LastUpdate = DateTime.UtcNow;
@@ -40,17 +40,19 @@ namespace PolyPersist.Net.DocumentStore.Memory
                 id = document.id,
                 partitionKey = document.PartitionKey,
                 etag = document.etag,
-                Value = JsonSerializer.Serialize(document, typeof(TDocument), JsonOptionsProvider.Options)
+                Value = JsonSerializer.Serialize(document, typeof(TDocument), JsonOptionsProvider.Options())
             };
 
             _collectionData.MapOfDocments.Add(document.id, row);
             _collectionData.ListOfDocments.Add(row);
+
+            return Task.CompletedTask;
         }
 
         /// <inheritdoc/>
-        async Task IDocumentCollection<TDocument>.Update(TDocument document)
+        Task IDocumentCollection<TDocument>.Update(TDocument document)
         {
-            await CollectionCommon.CheckBeforeUpdate(document).ConfigureAwait(false);
+            CollectionCommon.CheckBeforeUpdate(document);
 
             if (_collectionData.MapOfDocments.TryGetValue(document.id, out _RowData row) == false)
                 throw new Exception($"Document '{typeof(TDocument).Name}' {document.id} can not be updated because does not exist");
@@ -62,13 +64,15 @@ namespace PolyPersist.Net.DocumentStore.Memory
             document.LastUpdate = DateTime.Now;
 
             row.etag = document.etag;
-            row.Value = JsonSerializer.Serialize(document, typeof(TDocument), JsonOptionsProvider.Options);
+            row.Value = JsonSerializer.Serialize(document, typeof(TDocument), JsonOptionsProvider.Options());
+
+            return Task.CompletedTask;
         }
 
         /// <inheritdoc/>
         Task IDocumentCollection<TDocument>.Delete(string partitionKey, string id)
         {
-            if (_collectionData.MapOfDocments.TryGetValue(id, out _RowData row) == false)
+            if (_collectionData.MapOfDocments.TryGetValue(id, out _RowData row) == false )
                 throw new Exception($"Document '{typeof(TDocument).Name}' {id} can not be removed because it is already removed");
 
             _collectionData.MapOfDocments.Remove(id);
@@ -80,8 +84,8 @@ namespace PolyPersist.Net.DocumentStore.Memory
         /// <inheritdoc/>
         Task<TDocument> IDocumentCollection<TDocument>.Find(string partitionKey, string id)
         {
-            if (_collectionData.MapOfDocments.TryGetValue(id, out _RowData row) == true)
-                return Task.FromResult(JsonSerializer.Deserialize<TDocument>(row.Value, JsonOptionsProvider.Options));
+            if (_collectionData.MapOfDocments.TryGetValue(id, out _RowData row) == true && row.partitionKey == partitionKey )
+                return Task.FromResult(JsonSerializer.Deserialize<TDocument>(row.Value, JsonOptionsProvider.Options()));
 
             return Task.FromResult(default(TDocument));
         }
@@ -91,7 +95,7 @@ namespace PolyPersist.Net.DocumentStore.Memory
         {
             return _collectionData
                 .ListOfDocments
-                .Select(data => JsonSerializer.Deserialize<TDocument>(data.Value, JsonOptionsProvider.Options))
+                .Select(data => JsonSerializer.Deserialize<TDocument>(data.Value, JsonOptionsProvider.Options()))
                 .AsQueryable();
         }
 

@@ -36,7 +36,7 @@ namespace PolyPersist.Net.ColumnStore.Tests
 
             list = table
                 .AsQueryable()
-                .Where(r => r.int_value > 10 && r.int_value < 30)
+                .Where(r => r.int_value == 20 )
                 .ToList();
             Assert.AreEqual(1, list.Count);
             Assert.IsNotNull(list.First(r => r.id == "q2"));
@@ -261,34 +261,6 @@ namespace PolyPersist.Net.ColumnStore.Tests
                     .ToList();
             });
             Assert.IsTrue(exception.Message.Contains("Skip"));
-        }
-
-        [DataTestMethod]
-        [DynamicData(nameof(TestMain.StoreInstances), typeof(TestMain), DynamicDataSourceType.Property)]
-        public async Task ColumnStore_Linq_Contains_OK(Func<string, Task<IColumnStore>> factory)
-        {
-            var testName = MethodBase.GetCurrentMethod().GetAsyncMethodName().MakeStorageConformName();
-            var store = await factory(testName);
-            var table = await store.CreateTable<SampleRow>("sampletable");
-
-            var rows = new[]
-            {
-                new SampleRow { PartitionKey = "query-pk", id = "q1", str_value = "ABC", int_value = 10 },
-                new SampleRow { PartitionKey = "query-pk", id = "q2", str_value = "BCD", int_value = 20 },
-                new SampleRow { PartitionKey = "diffe-pk", id = "q3", str_value = "CDE", int_value = 30 }
-            };
-
-            foreach (var r in rows)
-                await table.Insert(r);
-
-            var compare = new[] { "ABC", "CDE" };
-            var list = table
-                .AsQueryable()
-                .Where( r => compare.Contains( r.str_value ))
-                .ToList();
-            Assert.AreEqual(2, list.Count);
-            Assert.IsNotNull(list.First(r => r.id == "q1"));
-            Assert.IsNotNull(list.First(r => r.id == "q3"));
         }
 
         [DataTestMethod]

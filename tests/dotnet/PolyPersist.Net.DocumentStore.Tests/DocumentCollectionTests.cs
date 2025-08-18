@@ -1,7 +1,10 @@
-﻿using PolyPersist.Net.Extensions;
+﻿using PolyPersist.Net.Common;
+using PolyPersist.Net.Core;
+using PolyPersist.Net.Extensions;
 using PolyPersist.Net.Test;
 using System;
 using System.Reflection;
+using static PolyPersist.Net.DocumentStore.Tests.DocumentCollectionTests;
 
 namespace PolyPersist.Net.DocumentStore.Tests
 {
@@ -116,6 +119,8 @@ namespace PolyPersist.Net.DocumentStore.Tests
             Assert.IsTrue(exception.Message.Contains("does not exist"));
         }
 
+
+
         [DataTestMethod]
         [DynamicData(nameof(TestMain.StoreInstances), typeof(TestMain), DynamicDataSourceType.Property)]
         public async Task Document_Delete_NotFound_Fails(Func<string, Task<IDocumentStore>> factory)
@@ -138,6 +143,26 @@ namespace PolyPersist.Net.DocumentStore.Tests
             var col = await store.CreateCollection<SampleDocument>("docs");
 
             var result = await col.Find("nonexistent", "nope");
+            Assert.IsNull(result);
+        }
+
+        [DataTestMethod]
+        [DynamicData(nameof(TestMain.StoreInstances), typeof(TestMain), DynamicDataSourceType.Property)]
+        public async Task Document_Find_NotFound_WrongPK(Func<string, Task<IDocumentStore>> factory)
+        {
+            var store = await factory(MethodBase.GetCurrentMethod().GetAsyncMethodName());
+            var col = await store.CreateCollection<SampleDocument>("docs");
+
+            var doc = new SampleDocument { PartitionKey = "p1", id = "d1", str_value = "abc" };
+            await col.Insert(doc);
+
+            var result = await col.Find(doc.PartitionKey, doc.id);
+            Assert.IsNotNull(result);
+
+            result = await col.Find("wrong-pk", doc.id);
+            Assert.IsNull(result);
+
+            result = await col.Find(doc.PartitionKey, "wrong-id");
             Assert.IsNull(result);
         }
 
@@ -183,6 +208,71 @@ namespace PolyPersist.Net.DocumentStore.Tests
             list = col.AsQueryable().Where(d => d.int_value > 10 && d.int_value < 30).ToList();
             Assert.AreEqual(1, list.Count);
             Assert.AreEqual("i2", list[0].id);
+        }
+
+
+        public class Animal : Entity, IDocument
+        {
+            public string Name { get; set; } = string.Empty;
+        }
+        public sealed class Dog : Animal
+        {
+            public int BarkVolume { get; set; }
+        }
+        public sealed class Cat : Animal
+        {
+            public int Lives { get; set; }
+        }
+
+        [DataTestMethod]
+        [DynamicData(nameof(TestMain.StoreInstances), typeof(TestMain), DynamicDataSourceType.Property)]
+        public async Task Document_Polymorphism_OK(Func<string, Task<IDocumentStore>> factory)
+        {
+            PolymorphismHandler.Register<Animal, Dog>();
+            PolymorphismHandler.Register<Animal, Cat>();
+
+            var store = await factory(MethodBase.GetCurrentMethod().GetAsyncMethodName());
+            var col = await store.CreateCollection<Animal>("animals");
+
+            var animals = new Animal[]
+            {
+                new Dog { PartitionKey = "pk1", id = "tirion", Name = "Tirion" },
+                new Dog { PartitionKey = "pk1", id = "debby", Name = "Debby" },
+                new Cat { PartitionKey = "pk1", id = "garfield", Name = "Garfield" },
+                new Cat { PartitionKey = "pk1", id = "grumpy", Name = "Grumpy Cat" },
+            };
+
+            foreach (var doc in animals)
+                await col.Insert(doc);
+
+            var list = col.AsQueryable().Where(d => d.PartitionKey == "pk1").ToList();
+            Assert.AreEqual(4, list.Count);
+
+            foreach (var animal in list)
+            {
+                switch (animal.id)
+                {
+                    case "tirion":
+                        Assert.IsTrue(animal is Dog);
+                        break;
+                    case "debby":
+                        Assert.IsTrue(animal is Dog);
+                        break;
+                    case "garfield":
+                        Assert.IsTrue(animal is Cat);
+                        break;
+                    case "grumpy":
+                        Assert.IsTrue(animal is Cat);
+                        break;
+                }
+            }
+
+            Assert.IsTrue(await col.Find("pk1", "tirion") is Dog);
+            Assert.IsTrue(await col.Find("pk1", "debby") is Dog);
+            Assert.IsTrue(await col.Find("pk1", "garfield") is Cat);
+            Assert.IsTrue(await col.Find("pk1", "grumpy") is Cat);
+
+            PolymorphismHandler.Clear();
         }
     }
 }

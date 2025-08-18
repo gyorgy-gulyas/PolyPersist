@@ -10,7 +10,7 @@ namespace PolyPersist.Net.ColumnStore.Tests
     public class SampleRow : Entity, IRow
     {
         [ClusteringColumn(1)]
-        public string str_value { get; set; }
+        public string str_value { get; set; } = "";
         [ClusteringColumn(2)]
         public int int_value { get; set; }
         public decimal decimal_value { get; set; }

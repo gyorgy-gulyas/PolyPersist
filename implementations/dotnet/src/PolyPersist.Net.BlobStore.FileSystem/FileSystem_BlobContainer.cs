@@ -20,12 +20,12 @@ namespace PolyPersist.Net.BlobStore.FileSystem
         IStore IBlobContainer<TBlob>.ParentStore => _store;
 
         /// <inheritdoc/>
-        async Task IBlobContainer<TBlob>.Upload(TBlob blob, Stream content)
+        Task IBlobContainer<TBlob>.Upload(TBlob blob, Stream content)
         {
             if (content == null || content.CanRead == false)
                 throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} content cannot be read");
 
-            await CollectionCommon.CheckBeforeInsert(blob).ConfigureAwait(false);
+            CollectionCommon.CheckBeforeInsert(blob);
 
             if (string.IsNullOrEmpty(blob.id) == true)
                 blob.id = Guid.NewGuid().ToString();
@@ -40,6 +40,8 @@ namespace PolyPersist.Net.BlobStore.FileSystem
             using var fs = File.Create(path);
             content.CopyTo(fs);
             File.WriteAllText(path + ".meta.json", JsonSerializer.Serialize(blob));
+
+            return Task.CompletedTask;
         }
 
         /// <inheritdoc/>

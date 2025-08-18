@@ -24,6 +24,6 @@ namespace PolyPersist
 		///
 		/// @param errors: A list of IValidationError objects that will be populated with errors if the validation fails.
 		/// @returns: A boolean indicating whether the validation succeeded (true) or failed (false).
-		public Task<bool> Validate( IList<IValidationError> errors );
+		public bool Validate( IList<IValidationError> errors );
 	}
 }

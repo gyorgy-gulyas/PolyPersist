@@ -30,7 +30,7 @@ namespace PolyPersist.Net.BlobStore.AmazonS3
             if (content == null || content.CanRead == false)
                 throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} content cannot be read");
 
-            await CollectionCommon.CheckBeforeInsert(blob).ConfigureAwait(false);
+            CollectionCommon.CheckBeforeInsert(blob);
 
             if (string.IsNullOrEmpty(blob.id) == true)
                 blob.id = Guid.NewGuid().ToString();
