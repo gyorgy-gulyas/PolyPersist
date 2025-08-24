@@ -12,9 +12,30 @@
             if (collection is null)
                 throw new ArgumentNullException(nameof(collection));
 
-            var query = collection.Query();
+            var query = collection.Query<TDocument>();
 
             if (query is IQueryable<TDocument> typedQuery)
+            {
+                return typedQuery;
+            }
+
+            throw new InvalidCastException($"The returned query object from table '{collection.Name}' is not an IQueryable<{typeof(TDocument).Name}>.");
+        }
+
+        /// <summary>
+        /// Provides a strongly-typed IQueryable interface for the given IDocumentCollection.
+        /// Throws InvalidCastException if the implementation does not return IQueryable.
+        /// </summary>
+        public static IQueryable<TQueryType> AsQueryable<TQueryType, TDocument>(this IDocumentCollection<TDocument> collection)
+            where TDocument : IDocument, new()
+            where TQueryType : TDocument, new()
+        {
+            if (collection is null)
+                throw new ArgumentNullException(nameof(collection));
+
+            var query = collection.Query<TQueryType>();
+
+            if (query is IQueryable<TQueryType> typedQuery)
             {
                 return typedQuery;
             }

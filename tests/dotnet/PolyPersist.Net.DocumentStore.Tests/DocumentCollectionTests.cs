@@ -213,14 +213,31 @@ namespace PolyPersist.Net.DocumentStore.Tests
 
         public class Animal : Entity, IDocument
         {
+            public enum Kinds
+            {
+                Cat,
+                Dog,
+            }
+
+            public Kinds Kind { get; set; }
             public string Name { get; set; } = string.Empty;
         }
         public sealed class Dog : Animal
         {
+            public Dog()
+            {
+                Kind = Kinds.Dog;
+            }
+
             public int BarkVolume { get; set; }
         }
         public sealed class Cat : Animal
         {
+            public Cat()
+            {
+                Kind = Kinds.Cat;
+            }
+
             public int Lives { get; set; }
         }
 
@@ -266,11 +283,17 @@ namespace PolyPersist.Net.DocumentStore.Tests
                         break;
                 }
             }
-
             Assert.IsTrue(await col.Find("pk1", "tirion") is Dog);
             Assert.IsTrue(await col.Find("pk1", "debby") is Dog);
             Assert.IsTrue(await col.Find("pk1", "garfield") is Cat);
             Assert.IsTrue(await col.Find("pk1", "grumpy") is Cat);
+
+            var all = col.AsQueryable<Animal>().ToList();
+            Assert.AreEqual(4, all.Count);
+            var dogs = col.AsQueryable<Dog,Animal>().ToList();
+            Assert.AreEqual(2, dogs.Count);
+            var cats = col.AsQueryable<Cat, Animal>().ToList();
+            Assert.AreEqual(2, cats.Count);
 
             PolymorphismHandler.Clear();
         }

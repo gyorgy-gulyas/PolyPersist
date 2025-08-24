@@ -91,11 +91,12 @@ namespace PolyPersist.Net.DocumentStore.Memory
         }
 
         /// <inheritdoc/>
-        object IDocumentCollection<TDocument>.Query()
+        object IDocumentCollection<TDocument>.Query<T>()
         {
             return _collectionData
                 .ListOfDocments
                 .Select(data => JsonSerializer.Deserialize<TDocument>(data.Value, JsonOptionsProvider.Options()))
+                .OfType<T>()
                 .AsQueryable();
         }
 

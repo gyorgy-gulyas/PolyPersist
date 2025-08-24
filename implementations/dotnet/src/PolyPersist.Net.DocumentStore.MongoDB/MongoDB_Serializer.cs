@@ -2,6 +2,7 @@
 using MongoDB.Bson.IO;
 using MongoDB.Bson.Serialization;
 using MongoDB.Bson.Serialization.Conventions;
+using PolyPersist.Net.Common;
 
 namespace PolyPersist.Net.DocumentStore.MongoDB
 {
@@ -22,6 +23,7 @@ namespace PolyPersist.Net.DocumentStore.MongoDB
 
         static public void RegisterType<T>(Type type)
         {
+            var derivedTypes = PolymorphismHandler.GetDerivedTypes(type);
             lock (locker)
             {
                 if (BsonClassMap.IsClassMapRegistered(type) == false)
@@ -29,7 +31,19 @@ namespace PolyPersist.Net.DocumentStore.MongoDB
                     BsonClassMap.RegisterClassMap<T>(classMap =>
                     {
                         classMap.AutoMap();
+                        if(derivedTypes.Any())
+                            classMap.SetIsRootClass(true);
                     });
+                }
+
+                foreach (var derivedType in derivedTypes)
+                {
+                    if (!BsonClassMap.IsClassMapRegistered(derivedType.Derived))
+                    {
+                        var cm = new BsonClassMap(derivedType.Derived);
+                        cm.AutoMap();
+                        BsonClassMap.RegisterClassMap(cm);
+                    }
                 }
             }
         }

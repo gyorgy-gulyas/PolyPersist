@@ -1,4 +1,6 @@
-﻿using System.Text.Json;
+﻿using System.Collections;
+using System.Collections.Generic;
+using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
 
 namespace PolyPersist.Net.Common
@@ -35,6 +37,14 @@ namespace PolyPersist.Net.Common
             RegisterCore(typeof(TBase), typeof(TDerived), typeof(TDerived).Name);
         }
 
+        public static IEnumerable<(Type Derived, object Discriminator)> GetDerivedTypes(Type baseType)
+        {
+            if (_map.TryGetValue(baseType, out List<(Type Derived, object Discriminator)> result) == true)
+                return result;
+
+            return [];
+        }
+            
 
         /// <summary>
         /// Az összegyűjtött regisztrációk alkalmazása a megadott JsonSerializerOptions példányra.
