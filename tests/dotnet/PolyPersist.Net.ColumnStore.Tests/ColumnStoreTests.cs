@@ -1,7 +1,9 @@
-﻿using PolyPersist.Net.Attributes;
+﻿using Cassandra;
+using PolyPersist.Net.Attributes;
 using PolyPersist.Net.Core;
 using PolyPersist.Net.Test;
 using System.Reflection;
+using System.Security.Principal;
 
 
 namespace PolyPersist.Net.ColumnStore.Tests
@@ -14,10 +16,19 @@ namespace PolyPersist.Net.ColumnStore.Tests
         [ClusteringColumn(2)]
         public int int_value { get; set; }
         public decimal decimal_value { get; set; }
+        public double double_value { get; set; }
+        public float float_value { get; set; }
         public bool bool_value { get; set; }
         public DateOnly date_value { get; set; }
         public TimeOnly time_value { get; set; }
         public DateTime datetime_value { get; set; }
+        public enum EnumValues
+        {
+            One,
+            Two,
+            Three
+        }
+        public EnumValues enum_value { get; set; }
     }
     #endregion
 
@@ -39,7 +50,7 @@ namespace PolyPersist.Net.ColumnStore.Tests
 
         [DataTestMethod]
         [DynamicData(nameof(TestMain.StoreInstances), typeof(TestMain), DynamicDataSourceType.Property)]
-        public async Task BlobStore_Table_Ok(Func<string, Task<IColumnStore>> factory)
+        public async Task ColumnStore_Table_Ok(Func<string, Task<IColumnStore>> factory)
         {
             var testName = MethodBase.GetCurrentMethod().GetAsyncMethodName().MakeStorageConformName();
             var store = await factory(testName);
@@ -59,9 +70,75 @@ namespace PolyPersist.Net.ColumnStore.Tests
             Assert.IsFalse(await store.IsTableExists("sampletable"));
         }
 
+        public partial class Account
+        {
+            public enum Types
+            {
+                User,
+                ExternalSystem,
+                InternalService,
+            }
+        }
+
+        public partial class Auth
+        {
+            public enum Methods
+            {
+                Email,
+                ActiveDirectory,
+                KAU,
+                Certificate,
+            }
+        }
+
+        public partial class LoginAuditEventLog
+        {
+            #region IBaseEntity
+            public string id { get; set; }
+            public string etag { get; set; }
+            public DateTime LastUpdate { get; set; }
+            #endregion IBaseEntity
+
+            #region IAuditLog
+            public string operation { get; set; }
+            [ClusteringColumn(1)]
+            public DateTime timestamp { get; set; }
+            public string idenityId { get; set; }
+            public string idenityName { get; set; }
+            public string correlationId { get; set; }
+            public string payload { get; set; }
+            #endregion IAuditLog
+
+            public Account.Types AccountType { get; set; }
+            public Auth.Methods authMethod { get; set; }
+        }
+
         [DataTestMethod]
         [DynamicData(nameof(TestMain.StoreInstances), typeof(TestMain), DynamicDataSourceType.Property)]
-        public async Task BlobStore_CreateTable_Fail(Func<string, Task<IColumnStore>> factory)
+        public async Task ColumnStore_Table_Complex_Ok(Func<string, Task<IColumnStore>> factory)
+        {
+            var testName = MethodBase.GetCurrentMethod().GetAsyncMethodName().MakeStorageConformName();
+            var store = await factory(testName);
+            var tableName = typeof(LoginAuditEventLog).Name;
+
+            Assert.IsFalse(await store.IsTableExists(tableName));
+
+            var table = await store.CreateTable<SampleRow>(tableName);
+            Assert.IsTrue(await store.IsTableExists(tableName));
+            Assert.AreEqual(tableName, table.Name);
+            Assert.IsNotNull(table.GetUnderlyingImplementation());
+
+            var get = await store.GetTableByName<SampleRow>(tableName);
+            Assert.IsNotNull(get);
+            Assert.AreEqual(tableName, get.Name);
+
+            await store.DropTable(tableName);
+            Assert.IsFalse(await store.IsTableExists(tableName));
+        }
+
+        [DataTestMethod]
+        [DynamicData(nameof(TestMain.StoreInstances), typeof(TestMain), DynamicDataSourceType.Property)]
+        public async Task ColumnStore_CreateTable_Fail(Func<string, Task<IColumnStore>> factory)
         {
             var testName = MethodBase.GetCurrentMethod().GetAsyncMethodName().MakeStorageConformName();
             var store = await factory(testName);
@@ -74,7 +151,7 @@ namespace PolyPersist.Net.ColumnStore.Tests
 
         [DataTestMethod]
         [DynamicData(nameof(TestMain.StoreInstances), typeof(TestMain), DynamicDataSourceType.Property)]
-        public async Task BlobStore_GetTable_Fail(Func<string, Task<IColumnStore>> factory)
+        public async Task ColumnStore_GetTable_Fail(Func<string, Task<IColumnStore>> factory)
         {
             var testName = MethodBase.GetCurrentMethod().GetAsyncMethodName().MakeStorageConformName();
             var store = await factory(testName);
@@ -85,7 +162,7 @@ namespace PolyPersist.Net.ColumnStore.Tests
 
         [DataTestMethod]
         [DynamicData(nameof(TestMain.StoreInstances), typeof(TestMain), DynamicDataSourceType.Property)]
-        public async Task BlobStore_DropTable_Fail(Func<string, Task<IColumnStore>> factory)
+        public async Task ColumnStore_DropTable_Fail(Func<string, Task<IColumnStore>> factory)
         {
             var testName = MethodBase.GetCurrentMethod().GetAsyncMethodName().MakeStorageConformName();
             var store = await factory(testName);

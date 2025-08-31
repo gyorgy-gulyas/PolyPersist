@@ -1,7 +1,5 @@
 ﻿using Cassandra;
 using PolyPersist.Net.Attributes;
-using System;
-using System.Net.NetworkInformation;
 using System.Reflection;
 
 namespace PolyPersist.Net.ColumnStore.Cassandra
@@ -93,11 +91,15 @@ namespace PolyPersist.Net.ColumnStore.Cassandra
 
         private async Task<bool> _IsTableExistsInternal(string tableName)
         {
-            var tables = await _session.ExecuteAsync(new SimpleStatement("SELECT table_name FROM system_schema.tables WHERE keyspace_name = ?", _keyspace)).ConfigureAwait(false);
-            return tables.Any(row => row.GetValue<string>("table_name") == tableName);
+            tableName = tableName.ToLower();
+            RowSet tables = await _session.ExecuteAsync(
+                new SimpleStatement(
+                    "SELECT table_name FROM system_schema.tables WHERE keyspace_name = ? AND table_name = ?",
+                    _keyspace, tableName))
+                .ConfigureAwait(false);
+
+            return tables.Any();
         }
-
-
     }
 
     public class CassandraConnectionInfo

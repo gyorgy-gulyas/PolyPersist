@@ -10,7 +10,7 @@
             _storeProvider = storeProvider;
         }
 
-        public async Task<IDocumentCollection<TDocument>> GetOrCreateDocumentCollection<TDocument>(string collectionName = default(string))
+        public async Task<IDocumentCollection<TDocument>> GetOrCreateDocumentCollection<TDocument>(string collectionName = default)
             where TDocument : IDocument, new()
         {
             IDocumentStore documentStore = (IDocumentStore)_storeProvider.getStore(IStore.StorageModels.Document);
@@ -29,13 +29,13 @@
             return collection;
         }
 
-        public async Task<IColumnTable<TRow>> GetOrCreateColumnTable<TRow>(string tableName = default(string))
+        public async Task<IColumnTable<TRow>> GetOrCreateColumnTable<TRow>(string tableName = default)
             where TRow : IRow, new()
         {
             IColumnStore columnStore = (IColumnStore)_storeProvider.getStore(IStore.StorageModels.ColumnStore);
 
             if (string.IsNullOrEmpty(tableName) == true)
-                tableName = typeof(TRow).Name;
+                tableName = typeof(TRow).Name.Normalize().ToLower();
 
             IColumnTable<TRow> table;
             if (await columnStore.IsTableExists(tableName) == true)
@@ -48,7 +48,7 @@
             return table;
         }
 
-        public async Task<IBlobContainer<TBlob>> GetOrCreateBlobContainer<TBlob>(string containerName)
+        public async Task<IBlobContainer<TBlob>> GetOrCreateBlobContainer<TBlob>(string containerName = default)
             where TBlob : IBlob, new()
         {
             IBlobStore blobStore = (IBlobStore)_storeProvider.getStore(IStore.StorageModels.BlobStore);

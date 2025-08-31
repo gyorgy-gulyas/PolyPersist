@@ -1,7 +1,4 @@
-﻿using PolyPersist.Net.Extensions;
-using PolyPersist.Net.Test;
-using System;
-using System.Linq;
+﻿using PolyPersist.Net.Test;
 using System.Reflection;
 
 namespace PolyPersist.Net.ColumnStore.Tests
@@ -40,7 +37,10 @@ namespace PolyPersist.Net.ColumnStore.Tests
                 bool_value = true,
                 date_value = DateOnly.Parse("2024-05-01"),
                 time_value = TimeOnly.Parse("15:45"),
-                datetime_value = DateTime.UtcNow
+                datetime_value = DateTime.UtcNow,
+                double_value = 3.1415,
+                float_value = 2.71828f,
+                enum_value = SampleRow.EnumValues.Two,
             };
 
             await table.Insert(row);
@@ -53,6 +53,9 @@ namespace PolyPersist.Net.ColumnStore.Tests
             Assert.AreEqual(row.bool_value, found.bool_value);
             Assert.AreEqual(row.date_value, found.date_value);
             Assert.AreEqual(row.time_value, found.time_value);
+            Assert.AreEqual(row.double_value, found.double_value);
+            Assert.AreEqual(row.float_value, found.float_value);
+            Assert.AreEqual(row.enum_value, found.enum_value);
             Assert.AreEqual(row.datetime_value.ToString("s"), found.datetime_value.ToString("s")); // rounded compare
         }
 

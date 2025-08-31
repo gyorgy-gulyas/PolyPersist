@@ -13,9 +13,9 @@ namespace PolyPersist.Net.ColumnStore.Tests
 
         static TestMain()
         {
-            //_Setup_Memory_ColumnStore();
-            _Setup_Cassandra_ColumnStore();
-            //_Setup_Scylla_ColumnStore();
+            _Setup_Memory_ColumnStore();
+            //_Setup_Cassandra_ColumnStore();
+            _Setup_Scylla_ColumnStore();
         }
 
         [AssemblyInitialize]
@@ -112,7 +112,7 @@ namespace PolyPersist.Net.ColumnStore.Tests
                             if (_scyllaContainer == null) // re-check
                             {
                                 _scyllaContainer = new ContainerBuilder()
-                                    .WithImage("scylladb/scylla:5.4") // vagy aktuális stabil verzió
+                                    .WithImage("scylladb/scylla:5.4")
                                     .WithCleanUp(true)
                                     .WithPortBinding(9042, assignRandomHostPort: true)
                                     .WithWaitStrategy(Wait.ForUnixContainer().UntilPortIsAvailable(9042))

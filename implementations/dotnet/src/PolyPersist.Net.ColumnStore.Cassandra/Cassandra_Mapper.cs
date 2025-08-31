@@ -13,9 +13,11 @@ namespace PolyPersist.Net.ColumnStore.Cassandra
             [typeof(long)] = "bigint",
             [typeof(bool)] = "boolean",
             [typeof(double)] = "double",
+            [typeof(float)] = "float",
             [typeof(Guid)] = "uuid",
             [typeof(DateTime)] = "timestamp",
             [typeof(decimal)] = "decimal",
+            [typeof(byte[])] = "blob",
             [typeof(DateOnly)] = "text",
             [typeof(TimeOnly)] = "text",
         };
@@ -24,8 +26,13 @@ namespace PolyPersist.Net.ColumnStore.Cassandra
 
         internal static string MapType(Type type)
         {
-            if (_typeMap.TryGetValue(type, out var cassandraType))
+            var t = Nullable.GetUnderlyingType(type) ?? type;
+            if (t.IsEnum)
+                return "text";
+
+            if (_typeMap.TryGetValue(t, out var cassandraType))
                 return cassandraType;
+
             throw new NotSupportedException($"Type '{type.Name}' is not supported for Cassandra mapping.");
         }
 
@@ -33,19 +40,24 @@ namespace PolyPersist.Net.ColumnStore.Cassandra
         {
             if (value == null) return null;
 
-            var type = value.GetType();
-
-            var converter = _toCassandraConverters.GetOrAdd(type, _CreateToConverter);
+            var t = value.GetType();
+            var converter = _toCassandraConverters.GetOrAdd(t, _CreateToConverter);
             return converter(value);
         }
 
         private static Func<object, object> _CreateToConverter(Type type)
         {
+            // Nullable unwrap
+            var t = Nullable.GetUnderlyingType(type) ?? type;
+
             if (type == typeof(DateOnly))
                 return v => ((DateOnly)v).ToString("yyyy-MM-dd");
 
             if (type == typeof(TimeOnly))
                 return v => ((TimeOnly)v).ToString("HH:mm:ss.fff");
+
+            if (t.IsEnum)
+                return v => Enum.GetName(t, v);
 
             return v => v; // Default: no conversion
         }
@@ -58,7 +70,7 @@ namespace PolyPersist.Net.ColumnStore.Cassandra
             var actualType = underlyingType ?? targetType;
 
             Type readType = actualType;
-            if (actualType == typeof(DateOnly) || actualType == typeof(TimeOnly))
+            if (actualType == typeof(DateOnly) || actualType == typeof(TimeOnly) || actualType.IsEnum)
                 readType = typeof(string);
 
             var method = typeof(Row)
@@ -74,7 +86,7 @@ namespace PolyPersist.Net.ColumnStore.Cassandra
             {
                 Type t when t == typeof(DateOnly) =>
                     Expression.Convert(
-                        Expression.Call(typeof(DateOnly).GetMethod(nameof(DateOnly.ParseExact), new[] { typeof(string), typeof(string) })!,
+                        Expression.Call(typeof(DateOnly).GetMethod(nameof(DateOnly.ParseExact), [typeof(string), typeof(string)])!,
                             callExpr,
                             Expression.Constant("yyyy-MM-dd")
                         ), typeof(object)
@@ -82,10 +94,19 @@ namespace PolyPersist.Net.ColumnStore.Cassandra
 
                 Type t when t == typeof(TimeOnly) =>
                     Expression.Convert(
-                        Expression.Call(typeof(TimeOnly).GetMethod(nameof(TimeOnly.ParseExact), new[] { typeof(string), typeof(string) })!,
+                        Expression.Call(typeof(TimeOnly).GetMethod(nameof(TimeOnly.ParseExact), [typeof(string), typeof(string)])!,
                             callExpr,
                             Expression.Constant("HH:mm:ss.fff")
                         ), typeof(object)
+                    ),
+
+                Type t when t.IsEnum =>
+                    Expression.Convert(
+                        Expression.Call(
+                            typeof(Enum).GetMethod(nameof(Enum.Parse), [typeof(Type), typeof(string), typeof(bool)])!,
+                            Expression.Constant(t), callExpr, Expression.Constant(true)
+                        ),
+                        typeof(object)
                     ),
 
                 _ => Expression.Convert(callExpr, typeof(object))
