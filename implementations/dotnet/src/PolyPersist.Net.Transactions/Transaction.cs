@@ -29,7 +29,10 @@ namespace PolyPersist.Net.Transactions
 
         // Tracks whether Dispose/DisposeAsync was called(Interlocked used for thread-safety).
         private int _disposed;
-        // Tracks whether Commit() succeeded. Volatile for lock-free checks.
+        // Tracks whether a Commit() has started (guards against double/concurrent commit).
+        private int _commitStarted;
+        // Tracks whether Commit() succeeded. Volatile for lock-free checks. Set only AFTER
+        // the commit actions ran, so a failed commit does not block Rollback().
         private int _committed;
 
         /// <summary>
@@ -375,11 +378,16 @@ namespace PolyPersist.Net.Transactions
         /// <returns>A task that represents the asynchronous commit operation.</returns>
         public async Task Commit()
         {
-            // is already committed ?
-            if (Interlocked.Exchange(ref _committed, 1) == 1)
+            // guard against double / concurrent Commit
+            if (Interlocked.Exchange(ref _commitStarted, 1) == 1)
                 return;
 
+            // Run the commit actions FIRST and only mark the transaction committed if they
+            // all succeed. If a commit action throws, _committed stays 0, so Rollback() and
+            // Dispose() can still compensate the already-executed operations.
             await _ExecuteSafely(_commitActions).ConfigureAwait(false);
+
+            Volatile.Write(ref _committed, 1);
             _Clear();
         }
 
