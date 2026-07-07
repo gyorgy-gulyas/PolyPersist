@@ -61,7 +61,7 @@ namespace PolyPersist.Net.DocumentStore.Memory
                 throw new Exception($"Document '{typeof(TDocument).Name}' {document.id} can not be updated because it is already changed");
 
             document.etag = Guid.NewGuid().ToString();
-            document.LastUpdate = DateTime.Now;
+            document.LastUpdate = DateTime.UtcNow;
 
             row.etag = document.etag;
             row.Value = JsonSerializer.Serialize(document, typeof(TDocument), JsonOptionsProvider.Options());

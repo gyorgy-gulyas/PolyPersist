@@ -497,8 +497,10 @@ namespace PolyPersist.Net.Transactions
             // Reason: ensures resources aren't leaked even if Dispose called synchronously.
             if (Volatile.Read(ref _committed) == 0 && _executedOperations.Any())
             {
-                // Blocking fallback: not recommended for I/O
-                (this as ITransaction).Rollback().GetAwaiter().GetResult();
+                // Blocking fallback (prefer `await using` / DisposeAsync). Offload to the
+                // thread pool so the async rollback does not capture a caller
+                // SynchronizationContext, which would deadlock this blocking wait.
+                Task.Run(async () => await (this as ITransaction).Rollback().ConfigureAwait(false)).GetAwaiter().GetResult();
             }
 
             GC.SuppressFinalize(this);

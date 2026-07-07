@@ -57,10 +57,14 @@ errors. We go through these ONE BY ONE.
 [ ] PP-08  No ClickHouse implementation (analytics store).
 [ ] PP-09  No Redis / KeyValue implementation (cache store).
 [ ] PP-12  Entity-tracking key collisions ({TypeName}_{id} ignores partitionKey).
-[ ] PP-13  Dispose sync-over-async deadlock risk (Rollback().GetAwaiter().GetResult()).
+[x] PP-13  Dispose sync-over-async deadlock risk — DONE. The sync Dispose blocked on
+           Rollback().GetAwaiter().GetResult(); if the async rollback captured a caller
+           SynchronizationContext it could deadlock. Now offloaded via Task.Run so the
+           continuation never needs the calling thread. (Prefer `await using`/DisposeAsync.)
 [x] PP-22  Memory Document Delete ignored partitionKey — DONE. Find already checked it; Delete
            now also requires row.partitionKey to match. Docker-free test.
-[ ] PP-23  DateTime.Now vs UtcNow inconsistency (Memory Document/Column Update).
+[x] PP-23  DateTime.Now vs UtcNow — DONE. Memory Column/Document Update set LastUpdate with
+           DateTime.Now (local) while everything else uses UtcNow. Both switched to UtcNow.
 [ ] PP-24  Debug + copy-paste + wasteful ops (Console.WriteLine in Find hot path, etc.).
 [ ] PP-25  LINQ FROM without keyspace (QueryProvider uses `FROM {table}`).
 [ ] PP-26  Existence-check / metadata-update waste (S3 GetObjectAsync full download).
