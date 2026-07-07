@@ -345,5 +345,28 @@ namespace PolyPersist.Net.ColumnStore.Tests
             Assert.IsNotNull(list.First(r => r.id == "q2"));
             Assert.IsNotNull(list.First(r => r.id == "q1"));
         }
+
+        // PP-01: a string value containing a quote would break an interpolated CQL literal
+        // (injection); bound parameters make it round-trip and match exactly.
+        [DataTestMethod]
+        [DynamicData(nameof(TestMain.StoreInstances), typeof(TestMain), DynamicDataSourceType.Property)]
+        public async Task ColumnStore_Linq_QuotedString_OK(Func<string, Task<IColumnStore>> factory)
+        {
+            var testName = MethodBase.GetCurrentMethod().GetAsyncMethodName().MakeStorageConformName();
+            var store = await factory(testName);
+            var table = await store.CreateTable<SampleRow>("sampletable");
+
+            var tricky = "O'Brien'; DROP TABLE x--";
+            await table.Insert(new SampleRow { PartitionKey = "inj-pk", id = "s1", str_value = tricky, int_value = 1 });
+            await table.Insert(new SampleRow { PartitionKey = "inj-pk", id = "s2", str_value = "plain", int_value = 2 });
+
+            var list = table
+                .AsQueryable()
+                .Where(r => r.str_value == tricky)
+                .ToList();
+
+            Assert.AreEqual(1, list.Count);
+            Assert.AreEqual("s1", list[0].id);
+        }
     }
 }
