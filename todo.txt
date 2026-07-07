@@ -36,7 +36,11 @@ errors. We go through these ONE BY ONE.
            a failed commit still allows rollback. Test: Insert + failing AddCommitAction ->
            Commit throws -> Rollback still removes the insert.
 [ ] PP-14  Mongo Update mutates etag/LastUpdate BEFORE the write (not after success).
-[ ] PP-15  Memory column Find ignores partitionKey (matches on id only).
+[x] PP-15  Memory column Find/Delete ignored partitionKey — DONE. MapOfDocments is keyed by
+           id alone; Find/Delete now also check the stored row.partitionKey matches the
+           requested one (a matching id in another partition is not the row). Docker-free
+           tests: Find/Delete respect partitionKey. (Deeper: the id-only map still can't hold
+           same-id-different-partition rows — related to PP-12, left for later.)
 [ ] PP-16  CQL WHERE: bare AND/OR, no `!=`, no parentheses.
 [ ] PP-17  LINQ scalar/bool branches return null (Cassandra_QueryProvider empty branches).
 [ ] PP-18  Blob (?): no partitionKey, no etag, truncation on write.
