@@ -89,8 +89,8 @@ errors. We go through these ONE BY ONE.
 [ ] PP-25  LINQ FROM without keyspace (QueryProvider uses `FROM {table}`).
 [ ] PP-26  Existence-check / metadata-update waste (S3 GetObjectAsync full download).
 [ ] PP-27  LINQ provider expression coverage (only member<op>constant supported).
-[ ] PP-29  Generated Java/Python/Rust interfaces missing (only .gitkeep).
+[ ] PP-29  Generated Java/Python interfaces missing (only .gitkeep).
 [ ] PP-31  Cloud blob cross-partition isolation never tested.
 
 == P3 — low ==
-[ ] PP-28  Java/Python/Rust implementations empty (only .gitkeep).
+[ ] PP-28  Java/Python implementations empty (only .gitkeep).
