@@ -15,9 +15,11 @@ namespace PolyPersist.Net.Transactions
         // Holds deep-cloned state of tracked entities (JSON + blob content)
         // Reason: multiple threads might AddOriginal concurrently in rare cases. eg: Task.WhenAll( ... ) for multiple objects
         private readonly ConcurrentDictionary<string, _EntityData> _deepCloneOfEntities = [];
-        // List of rollback actions to revert state if the transaction is aborted
-        // Reason: rollback actions might be added from different threads. eg: Task.WhenAll( ... ) for multiple objects
-        private readonly ConcurrentBag<Func<ValueTask>> _rollBackActions = [];
+        // List of rollback actions to revert state if the transaction is aborted.
+        // A queue (not a bag) so insertion order is preserved: rollback runs them in reverse
+        // (LIFO) so later operations are compensated before the ones they may depend on.
+        // ConcurrentQueue is still thread-safe for concurrent Enqueue (eg. Task.WhenAll).
+        private readonly ConcurrentQueue<Func<ValueTask>> _rollBackActions = new();
         // List of commit actions to finalize state when the transaction succeeds
         // Reason: commit actions might be added from different threads. eg: Task.WhenAll( ... ) for multiple objects
         private readonly ConcurrentBag<Func<ValueTask>> _commitActions = [];
@@ -109,7 +111,7 @@ namespace PolyPersist.Net.Transactions
             await collection.Insert(document).ConfigureAwait(false);
             _executedOperations.Add((ITransaction.Operations.Insert, document));
 
-            _rollBackActions.Add(async () =>
+            _rollBackActions.Enqueue(async () =>
             {
                 await collection.Delete(document.PartitionKey, document.id).ConfigureAwait(false);
             });
@@ -128,7 +130,7 @@ namespace PolyPersist.Net.Transactions
             await table.Insert(row).ConfigureAwait(false);
             _executedOperations.Add((ITransaction.Operations.Insert, row));
 
-            _rollBackActions.Add(async () =>
+            _rollBackActions.Enqueue(async () =>
             {
                 await table.Delete(row.PartitionKey, row.id).ConfigureAwait(false);
             });
@@ -154,7 +156,7 @@ namespace PolyPersist.Net.Transactions
             await collection.Update(document).ConfigureAwait(false);
             _executedOperations.Add((ITransaction.Operations.Update, document));
 
-            _rollBackActions.Add(async () =>
+            _rollBackActions.Enqueue(async () =>
             {
                 TDocument original = JsonSerializer.Deserialize<TDocument>(_deepCloneOfEntities[key].Json);
                 original.etag = document.etag;   // adopt the current etag so the optimistic-concurrency check passes
@@ -182,7 +184,7 @@ namespace PolyPersist.Net.Transactions
             await table.Update(row).ConfigureAwait(false);
             _executedOperations.Add((ITransaction.Operations.Update, row));
 
-            _rollBackActions.Add(async () =>
+            _rollBackActions.Enqueue(async () =>
             {
                 TRow original = JsonSerializer.Deserialize<TRow>(_deepCloneOfEntities[key].Json);
                 original.etag = row.etag;   // adopt the current etag so the optimistic-concurrency check passes
@@ -211,7 +213,7 @@ namespace PolyPersist.Net.Transactions
             await container.Upload(blob, content).ConfigureAwait(false);
             _executedOperations.Add((ITransaction.Operations.Insert, blob));
 
-            _rollBackActions.Add(async () =>
+            _rollBackActions.Enqueue(async () =>
             {
                 await container.Delete(blob.PartitionKey, blob.id).ConfigureAwait(false);
             });
@@ -238,7 +240,7 @@ namespace PolyPersist.Net.Transactions
             await container.UpdateContent(blob, content).ConfigureAwait(false);
             _executedOperations.Add((ITransaction.Operations.Update, blob));
 
-            _rollBackActions.Add(async () =>
+            _rollBackActions.Enqueue(async () =>
             {
                 var originalContent = _deepCloneOfEntities[key].Content;
                 using var ms = new MemoryStream(originalContent.ToArray(), writable: false);
@@ -266,7 +268,7 @@ namespace PolyPersist.Net.Transactions
             await container.UpdateMetadata(blob).ConfigureAwait(false);
             _executedOperations.Add((ITransaction.Operations.Update, blob));
 
-            _rollBackActions.Add(async () =>
+            _rollBackActions.Enqueue(async () =>
             {
                 TBlob original = JsonSerializer.Deserialize<TBlob>(_deepCloneOfEntities[key].Json);
                 original.etag = blob.etag;   // adopt the current etag so the optimistic-concurrency check passes
@@ -294,7 +296,7 @@ namespace PolyPersist.Net.Transactions
             await collection.Delete(document.PartitionKey, document.id).ConfigureAwait(false);
             _executedOperations.Add((ITransaction.Operations.Delete, document));
 
-            _rollBackActions.Add(async () =>
+            _rollBackActions.Enqueue(async () =>
             {
                 TDocument original = JsonSerializer.Deserialize<TDocument>(_deepCloneOfEntities[key].Json);
                 original.etag = null;   // Insert requires an empty etag; it assigns a fresh one
@@ -322,7 +324,7 @@ namespace PolyPersist.Net.Transactions
             await table.Delete(row.PartitionKey, row.id).ConfigureAwait(false);
             _executedOperations.Add((ITransaction.Operations.Delete, row));
 
-            _rollBackActions.Add(async () =>
+            _rollBackActions.Enqueue(async () =>
             {
                 TRow original = JsonSerializer.Deserialize<TRow>(_deepCloneOfEntities[key].Json);
                 original.etag = null;   // Insert requires an empty etag; it assigns a fresh one
@@ -350,7 +352,7 @@ namespace PolyPersist.Net.Transactions
             await container.Delete(blob.PartitionKey, blob.id).ConfigureAwait(false);
             _executedOperations.Add((ITransaction.Operations.Delete, blob));
 
-            _rollBackActions.Add(async () =>
+            _rollBackActions.Enqueue(async () =>
             {
                 TBlob original = JsonSerializer.Deserialize<TBlob>(_deepCloneOfEntities[key].Json);
                 original.etag = null;   // Upload requires an empty etag; it assigns a fresh one
@@ -385,7 +387,7 @@ namespace PolyPersist.Net.Transactions
         /// Adds a custom rollback action to the transaction.
         /// </summary>
         /// <param name="action">The asynchronous action to perform during rollback.</param>
-        public void AddRollBackAction(Func<ValueTask> action) => _rollBackActions.Add(action);
+        public void AddRollBackAction(Func<ValueTask> action) => _rollBackActions.Enqueue(action);
 
         /// <summary>
         /// Rolls back the transaction by executing all registered rollback actions in parallel.
@@ -406,7 +408,11 @@ namespace PolyPersist.Net.Transactions
         // Reason: Allows all rollback steps to be attempted even if some fail.
         private static async Task _ExecuteSafely(IEnumerable<Func<ValueTask>> actions, [CallerMemberName] string function = "")
         {
-            var tasks = actions.Select(async action =>
+            // Run sequentially in the given order (Rollback passes them reversed), so a later
+            // operation is compensated before the earlier one it may depend on. Best-effort:
+            // keep going after a failure and aggregate the errors at the end.
+            var exceptions = new List<Exception>();
+            foreach (var action in actions)
             {
                 try
                 {
@@ -414,13 +420,9 @@ namespace PolyPersist.Net.Transactions
                 }
                 catch (Exception ex)
                 {
-                    return ex;
+                    exceptions.Add(ex);
                 }
-                return null;
-            });
-
-            var results = await Task.WhenAll(tasks).ConfigureAwait(false);
-            var exceptions = results.Where(ex => ex != null).Cast<Exception>().ToList();
+            }
 
             if (exceptions.Any())
                 throw new AggregateException($"One or more actions failed in {function}.", exceptions);

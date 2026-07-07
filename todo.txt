@@ -24,7 +24,11 @@ errors. We go through these ONE BY ONE.
 == P1 — high ==
 [ ] PP-05  No PostgreSQL (Relational) implementation.
 [ ] PP-06  No EventStoreDB implementation (central to the event-sourcing vision).
-[ ] PP-10  Rollback runs in parallel against Reverse() ordering.
+[x] PP-10  Rollback ordering — DONE. `_rollBackActions` was a ConcurrentBag (no insertion
+           order) executed via Task.WhenAll (concurrent), so `.Reverse()` was meaningless.
+           Now a ConcurrentQueue (order-preserving, still thread-safe) executed SEQUENTIALLY
+           in reverse (LIFO), so a later op is compensated before the earlier one it depends
+           on. Added a spy-collection test asserting reverse Delete order (A,B,C -> C,B,A).
 [ ] PP-11  Pre-commit flag blocks compensation (Commit sets _committed=1 before the ops).
 [ ] PP-14  Mongo Update mutates etag/LastUpdate BEFORE the write (not after success).
 [ ] PP-15  Memory column Find ignores partitionKey (matches on id only).
