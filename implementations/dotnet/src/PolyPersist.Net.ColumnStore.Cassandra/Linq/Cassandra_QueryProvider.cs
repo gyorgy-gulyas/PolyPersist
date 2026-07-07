@@ -46,6 +46,7 @@ namespace PolyPersist.Net.ColumnStore.Cassandra.Linq
             return new Cassandra_Query()
             {
                 cql = cql,
+                parameters = visitor._parameters.ToArray(),
                 resultType = resultType,
                 projectionCtorForAnonymous = visitor._projectionAnonymousCtor,
                 projectionMemberMap = visitor._projectionMap,
@@ -55,7 +56,7 @@ namespace PolyPersist.Net.ColumnStore.Cassandra.Linq
         public object Execute(Expression expression)
         {
             var query = BuildQuery(expression);
-            RowSet rs = _table._session.Execute(new SimpleStatement(query.cql));
+            RowSet rs = _table._session.Execute(new SimpleStatement(query.cql, query.parameters));
 
             if (expression.Type == typeof(int))
             {

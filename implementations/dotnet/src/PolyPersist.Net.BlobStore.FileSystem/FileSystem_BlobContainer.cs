@@ -126,7 +126,17 @@ namespace PolyPersist.Net.BlobStore.FileSystem
 
         private string _makeFilePath(string id)
         {
-            return Path.Combine(_containerPath, id);
+            // Resolve the path and make sure it stays inside the container: an id such as
+            // "../../etc/passwd" must not escape (path traversal). Hierarchical ids
+            // ("folder/blob") are still allowed as long as they resolve within the root.
+            string root = Path.GetFullPath(_containerPath);
+            string full = Path.GetFullPath(Path.Combine(root, id));
+            string rootWithSeparator = root.EndsWith(Path.DirectorySeparatorChar)
+                ? root
+                : root + Path.DirectorySeparatorChar;
+            if (full.StartsWith(rootWithSeparator, StringComparison.Ordinal) == false)
+                throw new ArgumentException($"Invalid blob id '{id}': it resolves outside the container.");
+            return full;
         }
     }
 }
