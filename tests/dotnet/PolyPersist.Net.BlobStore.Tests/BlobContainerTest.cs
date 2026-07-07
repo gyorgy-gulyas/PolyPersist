@@ -167,6 +167,31 @@ namespace PolyPersist.Net.BlobStore.Tests
             Assert.AreEqual("Updated content", updatedText);
         }
 
+        // PP-19: UpdateContent must reject a stale etag (optimistic concurrency) on every store.
+        [DataTestMethod]
+        [DynamicData(nameof(TestMain.StoreInstances), typeof(TestMain), DynamicDataSourceType.Property)]
+        public async Task BlobStore_UpdateContent_StaleEtag_Throws(Func<Task<IBlobStore>> factory)
+        {
+            var testName = MethodBase.GetCurrentMethod().GetAsyncMethodName().MakeStorageConformName();
+            var store = await factory();
+            var container = await store.CreateContainer<SampleBlob>(testName);
+
+            var sample = new SampleBlob { fileName = "conc.txt", PartitionKey = "pk_conc" };
+            using (var s = new MemoryStream(Encoding.UTF8.GetBytes("v1")))
+                await container.Upload(sample, s);
+
+            // a second holder still carrying the original etag (a concurrent editor)
+            var stale = new SampleBlob { id = sample.id, PartitionKey = sample.PartitionKey, etag = sample.etag, fileName = "conc.txt" };
+
+            // first writer wins, bumping the stored etag
+            using (var s = new MemoryStream(Encoding.UTF8.GetBytes("v2")))
+                await container.UpdateContent(sample, s);
+
+            // the stale writer must be rejected
+            using (var s = new MemoryStream(Encoding.UTF8.GetBytes("v3")))
+                await Assert.ThrowsExceptionAsync<Exception>(async () => await container.UpdateContent(stale, s));
+        }
+
         [DataTestMethod]
         [DynamicData(nameof(TestMain.StoreInstances), typeof(TestMain), DynamicDataSourceType.Property)]
         public async Task BlobStore_UpdateMetadata_OK(Func<Task<IBlobStore>> factory)

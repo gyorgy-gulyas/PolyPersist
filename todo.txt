@@ -56,11 +56,15 @@ errors. We go through these ONE BY ONE.
            so a failed write no longer truncates/loses the old content; (2) UpdateContent/
            UpdateMetadata do optimistic-concurrency etag checks; (3) Find/Delete verify the
            stored partitionKey (key stays id, per the identity contract). Docker-free tests.
-[ ] PP-19  Cloud object stores (S3/Azure/GCS/MinIO): object key = blob.id only. PLAN:
-           key = $"{partitionKey}/{blob.id}" across all 4 stores in every method
-           (Upload/Find/Delete/Download/Update) -> fixes collision + cross-partition. etag via
-           conditional writes (S3 If-Match, Azure ETag) is a separate follow-up. Big (4 stores).
-           Testcontainers (MinIO/Azurite). (Depends on the partitionKey design below.)
+[x] PP-19  Cloud blob etag concurrency — DONE (per the identity contract the object key stays
+           `id`; NOT partitionKey/id). Added optimistic-concurrency etag checks to UpdateContent
+           + UpdateMetadata for S3/Azure/GCS/MinIO (read the stored etag from object metadata,
+           reject if it no longer matches). Also fixed Memory blob UpdateContent (it lacked the
+           etag check UpdateMetadata already had) and GridFS UpdateContent (NullRef in the
+           concurrency-fail path + reordered so the metadata etag guard runs BEFORE the chunks
+           are replaced, which was corrupting content on a stale update). New cross-store test
+           BlobStore_UpdateContent_StaleEtag_Throws: green on Memory/FileSystem/GridFS/MinIO/GCS/
+           Azure; S3 unverified (LocalStack container won't start in this env).
 [x] PP-20  GridFS Delete orphaned chunks — DONE. Now deletes the GridFS content/chunks FIRST
            (via _getFileInfo), then the metadata doc, so a failure can't leave orphan chunks
            (at worst a dangling metadata, which is detectable/retryable). Verified: GridFS

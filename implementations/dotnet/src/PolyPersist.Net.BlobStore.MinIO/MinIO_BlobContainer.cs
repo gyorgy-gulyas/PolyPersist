@@ -141,9 +141,10 @@ namespace PolyPersist.Net.BlobStore.MinIO
             if (content == null || content.CanRead == false)
                 throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} content cannot be read");
 
+            ObjectStat stat;
             try
             {
-                await _minioClient.StatObjectAsync(new StatObjectArgs()
+                stat = await _minioClient.StatObjectAsync(new StatObjectArgs()
                     .WithBucket(_bucketName)
                     .WithObject(blob.id)).ConfigureAwait(false);
             }
@@ -151,6 +152,10 @@ namespace PolyPersist.Net.BlobStore.MinIO
             {
                 throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not be updated because it is does not exist", ex);
             }
+
+            // PP-19: optimistic concurrency - the stored etag must still match
+            if (System.Text.Json.JsonSerializer.Deserialize<TBlob>(stat.MetaData["meta_json"]).etag != blob.etag)
+                throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not be updated because it is already changed");
 
             blob.etag = Guid.NewGuid().ToString();
             blob.LastUpdate = DateTime.UtcNow;
@@ -175,9 +180,10 @@ namespace PolyPersist.Net.BlobStore.MinIO
         {
             var content = new MemoryStream();
 
+            ObjectStat stat;
             try
             {
-                await _minioClient.GetObjectAsync(new GetObjectArgs()
+                stat = await _minioClient.GetObjectAsync(new GetObjectArgs()
                     .WithBucket(_bucketName)
                     .WithObject(blob.id)
                     .WithCallbackStream(stream => stream.CopyTo(content))).ConfigureAwait(false);
@@ -186,6 +192,10 @@ namespace PolyPersist.Net.BlobStore.MinIO
             {
                 throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not be updated because it is does not exist", ex);
             }
+
+            // PP-19: optimistic concurrency - the stored etag must still match
+            if (System.Text.Json.JsonSerializer.Deserialize<TBlob>(stat.MetaData["meta_json"]).etag != blob.etag)
+                throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not be updated because it is already changed");
 
             blob.etag = Guid.NewGuid().ToString();
             blob.LastUpdate = DateTime.UtcNow;

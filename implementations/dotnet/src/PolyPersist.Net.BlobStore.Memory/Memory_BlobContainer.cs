@@ -98,8 +98,13 @@ namespace PolyPersist.Net.BlobStore.Memory
             if (_collectionData.MapOfBlobs.TryGetValue(blob.id, out _BlobData blobData) == false || blobData.partitionKey != blob.PartitionKey)
                 throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not upload, because it is does not exist");
 
+            // optimistic concurrency (as UpdateMetadata already does): the stored etag must match
+            if (blobData.etag != blob.etag)
+                throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not be updated because it is already changed");
+
             blob.etag = Guid.NewGuid().ToString();
             blob.LastUpdate = DateTime.UtcNow;
+            blobData.etag = blob.etag;
             blobData.MetadataJSON = JsonSerializer.Serialize(blob, typeof(TBlob), JsonOptionsProvider.Options());
 
             blobData.Content = _streamToByteArray(content);

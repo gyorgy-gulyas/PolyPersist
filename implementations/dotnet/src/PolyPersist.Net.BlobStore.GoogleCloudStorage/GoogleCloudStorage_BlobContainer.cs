@@ -160,6 +160,10 @@ namespace PolyPersist.Net.BlobStore.GoogleCloudStorage
                 throw new Exception($"Blob '{blob.id}' does not exist in bucket '{_bucketName}'", ex);
             }
 
+            // PP-19: optimistic concurrency - the stored etag must still match
+            if (System.Text.Json.JsonSerializer.Deserialize<TBlob>(existingObject.Metadata["meta_json"]).etag != blob.etag)
+                throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not be updated because it is already changed");
+
             blob.etag = Guid.NewGuid().ToString();
             blob.LastUpdate = DateTime.UtcNow;
             string meta_json = System.Text.Json.JsonSerializer.Serialize(blob);
@@ -198,6 +202,10 @@ namespace PolyPersist.Net.BlobStore.GoogleCloudStorage
             {
                 throw new Exception($"Cannot update metadata because the object '{blob.id}' does not exist in bucket '{_bucketName}'", ex);
             }
+
+            // PP-19: optimistic concurrency - the stored etag must still match
+            if (System.Text.Json.JsonSerializer.Deserialize<TBlob>(existingObject.Metadata["meta_json"]).etag != blob.etag)
+                throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not be updated because it is already changed");
 
             blob.etag = Guid.NewGuid().ToString();
             blob.LastUpdate = DateTime.UtcNow;

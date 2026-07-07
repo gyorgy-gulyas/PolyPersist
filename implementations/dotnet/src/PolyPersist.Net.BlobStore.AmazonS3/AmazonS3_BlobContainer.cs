@@ -132,6 +132,10 @@ namespace PolyPersist.Net.BlobStore.AmazonS3
                 throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not upload, because it is does not exist");
             }
 
+            // PP-19: optimistic concurrency - the stored etag must still match
+            if (System.Text.Json.JsonSerializer.Deserialize<TBlob>(response.Metadata["meta_json"]).etag != blob.etag)
+                throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not be updated because it is already changed");
+
             var request = new PutObjectRequest
             {
                 BucketName = _bucketName,
@@ -160,6 +164,10 @@ namespace PolyPersist.Net.BlobStore.AmazonS3
             {
                 throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not upload, because it is does not exist");
             }
+
+            // PP-19: optimistic concurrency - the stored etag must still match
+            if (System.Text.Json.JsonSerializer.Deserialize<TBlob>(metadata.Metadata["meta_json"]).etag != blob.etag)
+                throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not be updated because it is already changed");
 
             // 2. Download the existing object content
             var originalStream = new MemoryStream();

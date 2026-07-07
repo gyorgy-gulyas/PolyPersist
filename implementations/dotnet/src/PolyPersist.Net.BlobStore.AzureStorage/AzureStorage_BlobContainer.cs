@@ -112,6 +112,11 @@ namespace PolyPersist.Net.BlobStore.AzureStorage
             if (await blobClient.ExistsAsync().ConfigureAwait(false) == false)
                 throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not be updated because it does not exist.");
 
+            // PP-19: optimistic concurrency - the stored etag must still match
+            var props = await blobClient.GetPropertiesAsync().ConfigureAwait(false);
+            if (JsonSerializer.Deserialize<TBlob>(props.Value.Metadata["meta_json"]).etag != blob.etag)
+                throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not be updated because it is already changed");
+
             blob.etag = Guid.NewGuid().ToString();
             blob.LastUpdate = DateTime.UtcNow;
 
@@ -135,6 +140,11 @@ namespace PolyPersist.Net.BlobStore.AzureStorage
             BlobClient blobClient = _containerClient.GetBlobClient(blob.id);
             if (await blobClient.ExistsAsync().ConfigureAwait(false) == false)
                 throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not be updated because it does not exist.");
+
+            // PP-19: optimistic concurrency - the stored etag must still match
+            var props = await blobClient.GetPropertiesAsync().ConfigureAwait(false);
+            if (JsonSerializer.Deserialize<TBlob>(props.Value.Metadata["meta_json"]).etag != blob.etag)
+                throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not be updated because it is already changed");
 
             blob.etag = Guid.NewGuid().ToString();
             blob.LastUpdate = DateTime.UtcNow;

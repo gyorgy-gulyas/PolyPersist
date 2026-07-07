@@ -104,16 +104,20 @@ namespace PolyPersist.Net.BlobStore.GridFS
             if (fileInfo == null)
                 throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not upload, because it is does not exist");
 
-            await _gridFSBucket.DeleteAsync(fileInfo.Id).ConfigureAwait(false);
-            await _gridFSBucket.UploadFromStreamAsync(_makeId(blob), content).ConfigureAwait(false);
-
             string oldETag = blob.etag;
             blob.etag = Guid.NewGuid().ToString();
             blob.LastUpdate = DateTime.UtcNow;
 
-            blob = await _metadataCollection.FindOneAndReplaceAsync(e => e.id == blob.id && e.PartitionKey == blob.PartitionKey && e.etag == oldETag, blob).ConfigureAwait(false);
-            if (blob == null)
-                throw new Exception($"Entity '{typeof(TBlob).Name}' {blob.id} can not be updated because it is already changed");
+            // Update the metadata FIRST: FindOneAndReplace is the atomic etag guard, so a stale
+            // update is rejected before the chunks are touched (otherwise the content would be
+            // replaced even though the update fails). (Also fixes a NullRef: `blob` used to be
+            // reassigned to the null result and then dereferenced in the throw.)
+            var replaced = await _metadataCollection.FindOneAndReplaceAsync(e => e.id == blob.id && e.PartitionKey == blob.PartitionKey && e.etag == oldETag, blob).ConfigureAwait(false);
+            if (replaced == null)
+                throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not be updated because it is already changed");
+
+            await _gridFSBucket.DeleteAsync(fileInfo.Id).ConfigureAwait(false);
+            await _gridFSBucket.UploadFromStreamAsync(_makeId(blob), content).ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
@@ -129,9 +133,9 @@ namespace PolyPersist.Net.BlobStore.GridFS
             blob.etag = Guid.NewGuid().ToString();
             blob.LastUpdate = DateTime.UtcNow;
 
-            blob = await _metadataCollection.FindOneAndReplaceAsync(e => e.id == blob.id && e.PartitionKey == blob.PartitionKey && e.etag == oldETag, blob).ConfigureAwait(false);
-            if (blob == null)
-                throw new Exception($"Entity '{typeof(TBlob).Name}' {blob.id} can not be updated because it is already changed");
+            var replaced = await _metadataCollection.FindOneAndReplaceAsync(e => e.id == blob.id && e.PartitionKey == blob.PartitionKey && e.etag == oldETag, blob).ConfigureAwait(false);
+            if (replaced == null)
+                throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not be updated because it is already changed");
         }
 
 
