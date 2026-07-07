@@ -44,10 +44,10 @@ namespace PolyPersist.Net.BlobStore.AzureStorage
             await blobClient.UploadAsync(content).ConfigureAwait(false);
 
             // set metadata
-            string meta_json = System.Text.Json.JsonSerializer.Serialize(blob);
+            string meta_json = BlobMetadata.Serialize(blob);
             var metadata = new Dictionary<string, string>
             {
-                [nameof(meta_json)] = meta_json,
+                [BlobMetadata.Key] = meta_json,
             };
             await blobClient.SetMetadataAsync(metadata).ConfigureAwait(false);
         }
@@ -85,8 +85,8 @@ namespace PolyPersist.Net.BlobStore.AzureStorage
 
             var properties = await blobClient.GetPropertiesAsync().ConfigureAwait(false);
             // Create a new instance of the target type
-            string meta_json = properties.Value.Metadata[nameof(meta_json)];
-            var blob = JsonSerializer.Deserialize<TBlob>(meta_json);
+            string meta_json = properties.Value.Metadata[BlobMetadata.Key];
+            var blob = BlobMetadata.Deserialize<TBlob>(meta_json);
 
             return blob;
         }
@@ -104,6 +104,8 @@ namespace PolyPersist.Net.BlobStore.AzureStorage
         /// <inheritdoc/>
         async Task IBlobContainer<TBlob>.UpdateContent(TBlob blob, Stream content)
         {
+            CollectionCommon.CheckBeforeUpdate(blob);
+
             if (content == null || content.CanRead == false)
                 throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} content cannot be read");
 
@@ -112,18 +114,16 @@ namespace PolyPersist.Net.BlobStore.AzureStorage
             if (await blobClient.ExistsAsync().ConfigureAwait(false) == false)
                 throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not be updated because it does not exist.");
 
-            // PP-19: optimistic concurrency - the stored etag must still match
             var props = await blobClient.GetPropertiesAsync().ConfigureAwait(false);
-            if (JsonSerializer.Deserialize<TBlob>(props.Value.Metadata["meta_json"]).etag != blob.etag)
-                throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not be updated because it is already changed");
+            CollectionCommon.CheckEtagMatch(BlobMetadata.Deserialize<TBlob>(props.Value.Metadata[BlobMetadata.Key]), blob);
 
             blob.etag = Guid.NewGuid().ToString();
             blob.LastUpdate = DateTime.UtcNow;
 
-            string meta_json = JsonSerializer.Serialize(blob);
+            string meta_json = BlobMetadata.Serialize(blob);
             var metadata = new Dictionary<string, string>
             {
-                [nameof(meta_json)] = meta_json
+                [BlobMetadata.Key] = meta_json
             };
 
             // Upload new content (overwrite)
@@ -136,24 +136,24 @@ namespace PolyPersist.Net.BlobStore.AzureStorage
         /// <inheritdoc/>
         async Task IBlobContainer<TBlob>.UpdateMetadata(TBlob blob)
         {
+            CollectionCommon.CheckBeforeUpdate(blob);
+
             // create blob client
             BlobClient blobClient = _containerClient.GetBlobClient(blob.id);
             if (await blobClient.ExistsAsync().ConfigureAwait(false) == false)
                 throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not be updated because it does not exist.");
 
-            // PP-19: optimistic concurrency - the stored etag must still match
             var props = await blobClient.GetPropertiesAsync().ConfigureAwait(false);
-            if (JsonSerializer.Deserialize<TBlob>(props.Value.Metadata["meta_json"]).etag != blob.etag)
-                throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not be updated because it is already changed");
+            CollectionCommon.CheckEtagMatch(BlobMetadata.Deserialize<TBlob>(props.Value.Metadata[BlobMetadata.Key]), blob);
 
             blob.etag = Guid.NewGuid().ToString();
             blob.LastUpdate = DateTime.UtcNow;
 
             // set metadata
-            string meta_json = System.Text.Json.JsonSerializer.Serialize(blob);
+            string meta_json = BlobMetadata.Serialize(blob);
             var metadata = new Dictionary<string, string>
             {
-                [nameof(meta_json)] = meta_json,
+                [BlobMetadata.Key] = meta_json,
             };
             await blobClient.SetMetadataAsync(metadata).ConfigureAwait(false);
         }

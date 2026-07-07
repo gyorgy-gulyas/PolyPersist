@@ -97,6 +97,8 @@ namespace PolyPersist.Net.BlobStore.GridFS
         /// <inheritdoc/>
         async Task IBlobContainer<TBlob>.UpdateContent(TBlob blob, Stream content)
         {
+            CollectionCommon.CheckBeforeUpdate(blob);
+
             if (content == null || content.CanRead == false)
                 throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} content cannot be read");
 

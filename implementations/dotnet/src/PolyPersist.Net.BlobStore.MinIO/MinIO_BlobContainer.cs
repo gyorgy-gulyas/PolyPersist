@@ -44,9 +44,9 @@ namespace PolyPersist.Net.BlobStore.MinIO
 
             content.Seek(0, SeekOrigin.Begin);
 
-            string meta_json = System.Text.Json.JsonSerializer.Serialize(blob);
+            string meta_json = BlobMetadata.Serialize(blob);
             var metadata = new Dictionary<string, string> {
-                [nameof(meta_json)] = meta_json,
+                [BlobMetadata.Key] = meta_json,
             };
 
             await _minioClient.PutObjectAsync(new PutObjectArgs()
@@ -110,8 +110,8 @@ namespace PolyPersist.Net.BlobStore.MinIO
                 return default(TBlob);
             }
 
-            string meta_json = stat.MetaData[nameof(meta_json)];
-            var blob = JsonSerializer.Deserialize<TBlob>(meta_json);
+            string meta_json = stat.MetaData[BlobMetadata.Key];
+            var blob = BlobMetadata.Deserialize<TBlob>(meta_json);
 
             return blob;
         }
@@ -138,6 +138,8 @@ namespace PolyPersist.Net.BlobStore.MinIO
         /// <inheritdoc/>
         async Task IBlobContainer<TBlob>.UpdateContent(TBlob blob, Stream content)
         {
+            CollectionCommon.CheckBeforeUpdate(blob);
+
             if (content == null || content.CanRead == false)
                 throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} content cannot be read");
 
@@ -153,16 +155,14 @@ namespace PolyPersist.Net.BlobStore.MinIO
                 throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not be updated because it is does not exist", ex);
             }
 
-            // PP-19: optimistic concurrency - the stored etag must still match
-            if (System.Text.Json.JsonSerializer.Deserialize<TBlob>(stat.MetaData["meta_json"]).etag != blob.etag)
-                throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not be updated because it is already changed");
+            CollectionCommon.CheckEtagMatch(BlobMetadata.Deserialize<TBlob>(stat.MetaData[BlobMetadata.Key]), blob);
 
             blob.etag = Guid.NewGuid().ToString();
             blob.LastUpdate = DateTime.UtcNow;
-            string meta_json = System.Text.Json.JsonSerializer.Serialize(blob);
+            string meta_json = BlobMetadata.Serialize(blob);
             var metadata = new Dictionary<string, string>
             {
-                [nameof(meta_json)] = meta_json,
+                [BlobMetadata.Key] = meta_json,
             };
 
             content.Seek(0, SeekOrigin.Begin);
@@ -178,6 +178,8 @@ namespace PolyPersist.Net.BlobStore.MinIO
         /// <inheritdoc/>
         async Task IBlobContainer<TBlob>.UpdateMetadata(TBlob blob)
         {
+            CollectionCommon.CheckBeforeUpdate(blob);
+
             var content = new MemoryStream();
 
             ObjectStat stat;
@@ -193,16 +195,14 @@ namespace PolyPersist.Net.BlobStore.MinIO
                 throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not be updated because it is does not exist", ex);
             }
 
-            // PP-19: optimistic concurrency - the stored etag must still match
-            if (System.Text.Json.JsonSerializer.Deserialize<TBlob>(stat.MetaData["meta_json"]).etag != blob.etag)
-                throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not be updated because it is already changed");
+            CollectionCommon.CheckEtagMatch(BlobMetadata.Deserialize<TBlob>(stat.MetaData[BlobMetadata.Key]), blob);
 
             blob.etag = Guid.NewGuid().ToString();
             blob.LastUpdate = DateTime.UtcNow;
-            string meta_json = System.Text.Json.JsonSerializer.Serialize(blob);
+            string meta_json = BlobMetadata.Serialize(blob);
             var metadata = new Dictionary<string, string>
             {
-                [nameof(meta_json)] = meta_json,
+                [BlobMetadata.Key] = meta_json,
             };
 
             content.Seek(0, SeekOrigin.Begin);

@@ -39,7 +39,7 @@ namespace PolyPersist.Net.BlobStore.FileSystem
             Directory.CreateDirectory(Path.GetDirectoryName(path));
             using var fs = File.Create(path);
             content.CopyTo(fs);
-            File.WriteAllText(path + ".meta.json", JsonSerializer.Serialize(blob));
+            File.WriteAllText(path + ".meta.json", BlobMetadata.Serialize(blob));
 
             return Task.CompletedTask;
         }
@@ -63,7 +63,7 @@ namespace PolyPersist.Net.BlobStore.FileSystem
             if (File.Exists(path) == false || File.Exists(metadataPath) == false)
                 return Task.FromResult<TBlob>(default);
 
-            var blob = JsonSerializer.Deserialize<TBlob>(File.ReadAllText(metadataPath));
+            var blob = BlobMetadata.Deserialize<TBlob>(File.ReadAllText(metadataPath));
             // the blob is identified by (partitionKey, id): a different partition is not it
             if (blob.PartitionKey != partitionKey)
                 return Task.FromResult<TBlob>(default);
@@ -77,7 +77,7 @@ namespace PolyPersist.Net.BlobStore.FileSystem
             var path = _makeFilePath(id);
             var metaPath = path + ".meta.json";
             if (File.Exists(path) == false || File.Exists(metaPath) == false
-                || JsonSerializer.Deserialize<TBlob>(File.ReadAllText(metaPath)).PartitionKey != partitionKey)
+                || BlobMetadata.Deserialize<TBlob>(File.ReadAllText(metaPath)).PartitionKey != partitionKey)
                 throw new Exception($"Blob '{typeof(TBlob).Name}' {id} can not be removed because it is does not exist");
 
             File.Delete(path);
@@ -89,6 +89,8 @@ namespace PolyPersist.Net.BlobStore.FileSystem
         /// <inheritdoc/>
         Task IBlobContainer<TBlob>.UpdateContent(TBlob blob, Stream content)
         {
+            CollectionCommon.CheckBeforeUpdate(blob);
+
             if (content == null || content.CanRead == false)
                 throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} content cannot be read");
 
@@ -98,9 +100,7 @@ namespace PolyPersist.Net.BlobStore.FileSystem
                 throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not upload, because it is does not exist");
 
             // optimistic concurrency: the stored etag must still match
-            var stored = JsonSerializer.Deserialize<TBlob>(File.ReadAllText(metaPath));
-            if (stored.etag != blob.etag)
-                throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not be updated because it is already changed");
+            CollectionCommon.CheckEtagMatch(BlobMetadata.Deserialize<TBlob>(File.ReadAllText(metaPath)), blob);
 
             // write to a temp file then replace atomically, so a failed write does not truncate
             // (lose) the existing content
@@ -111,7 +111,7 @@ namespace PolyPersist.Net.BlobStore.FileSystem
 
             blob.etag = Guid.NewGuid().ToString();
             blob.LastUpdate = DateTime.UtcNow;
-            File.WriteAllText(metaPath, JsonSerializer.Serialize(blob));
+            File.WriteAllText(metaPath, BlobMetadata.Serialize(blob));
 
             return Task.CompletedTask;
         }
@@ -119,18 +119,18 @@ namespace PolyPersist.Net.BlobStore.FileSystem
         /// <inheritdoc/>
         Task IBlobContainer<TBlob>.UpdateMetadata(TBlob blob)
         {
+            CollectionCommon.CheckBeforeUpdate(blob);
+
             var path = _makeFilePath(blob.id);
             var metaPath = path + ".meta.json";
             if (File.Exists(path) == false || File.Exists(metaPath) == false)
                 throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not upload, because it is does not exist");
 
-            var stored = JsonSerializer.Deserialize<TBlob>(File.ReadAllText(metaPath));
-            if (stored.etag != blob.etag)
-                throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not be updated because it is already changed");
+            CollectionCommon.CheckEtagMatch(BlobMetadata.Deserialize<TBlob>(File.ReadAllText(metaPath)), blob);
 
             blob.etag = Guid.NewGuid().ToString();
             blob.LastUpdate = DateTime.UtcNow;
-            File.WriteAllText(metaPath, JsonSerializer.Serialize(blob));
+            File.WriteAllText(metaPath, BlobMetadata.Serialize(blob));
 
             return Task.CompletedTask;
         }
