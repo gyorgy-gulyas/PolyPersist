@@ -1,0 +1,49 @@
+TODO — PolyPersist   (from the MicronIQ roadmap review + code analysis, 2026-07-07)
+
+Build: `dotnet build implementations/dotnet/PolyPersist.Net.sln` -> succeeds (net8.0,
+0 errors). The issues below are runtime correctness / security / test gaps, not build
+errors. We go through these ONE BY ONE.
+
+== P0 — critical ==
+[ ] PP-01  CQL injection (Cassandra): Cassandra_ExpressionVisitor interpolates values
+           straight into CQL (`$"'{s}'"`). Fix: parameter binding / bound statements.
+[ ] PP-02  Path traversal (FileSystem blob): _makeFilePath = Path.Combine(container, id)
+           with an unsanitized id -> `../..` escapes. Fix: validate id / keep the
+           resolved path inside the container.
+[by design] PP-03  "No real atomicity": INTENTIONAL — the transaction is optimistic
+           (runs eagerly, compensates/rolls back on failure). This is a deliberate design
+           choice, hard to do otherwise. NOT a defect; dropped from the backlog.
+[ ] PP-04  Zero transaction test coverage. (Still wanted even though PP-03 is by design.)
+
+== P1 — high ==
+[ ] PP-05  No PostgreSQL (Relational) implementation.
+[ ] PP-06  No EventStoreDB implementation (central to the event-sourcing vision).
+[ ] PP-10  Rollback runs in parallel against Reverse() ordering.
+[ ] PP-11  Pre-commit flag blocks compensation (Commit sets _committed=1 before the ops).
+[ ] PP-14  Mongo Update mutates etag/LastUpdate BEFORE the write (not after success).
+[ ] PP-15  Memory column Find ignores partitionKey (matches on id only).
+[ ] PP-16  CQL WHERE: bare AND/OR, no `!=`, no parentheses.
+[ ] PP-17  LINQ scalar/bool branches return null (Cassandra_QueryProvider empty branches).
+[ ] PP-18  Blob (?): no partitionKey, no etag, truncation on write.
+[ ] PP-19  Blob object key = blob.id only (no partitionKey in key, no etag).
+[ ] PP-20  GridFS Delete can orphan chunks (deletes metadata doc first).
+[ ] PP-21  Untyped exceptions everywhere (bare Exception). Refactor to typed exceptions.
+[ ] PP-30  Cassandra/Scylla effectively untested (setup commented out).
+
+== P2 — medium ==
+[ ] PP-07  No OpenSearch implementation (search/index store).
+[ ] PP-08  No ClickHouse implementation (analytics store).
+[ ] PP-09  No Redis / KeyValue implementation (cache store).
+[ ] PP-12  Entity-tracking key collisions ({TypeName}_{id} ignores partitionKey).
+[ ] PP-13  Dispose sync-over-async deadlock risk (Rollback().GetAwaiter().GetResult()).
+[ ] PP-22  Memory Document Delete ignores partitionKey (id-only).
+[ ] PP-23  DateTime.Now vs UtcNow inconsistency (Memory Document/Column Update).
+[ ] PP-24  Debug + copy-paste + wasteful ops (Console.WriteLine in Find hot path, etc.).
+[ ] PP-25  LINQ FROM without keyspace (QueryProvider uses `FROM {table}`).
+[ ] PP-26  Existence-check / metadata-update waste (S3 GetObjectAsync full download).
+[ ] PP-27  LINQ provider expression coverage (only member<op>constant supported).
+[ ] PP-29  Generated Java/Python/Rust interfaces missing (only .gitkeep).
+[ ] PP-31  Cloud blob cross-partition isolation never tested.
+
+== P3 — low ==
+[ ] PP-28  Java/Python/Rust implementations empty (only .gitkeep).

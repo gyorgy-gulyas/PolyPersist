@@ -12,6 +12,7 @@ namespace PolyPersist.Net.ColumnStore.Cassandra.Linq
         private string _tableName;
         private TableMetadata _tableMeta;
         private readonly List<string> _conditions = new();
+        internal readonly List<object> _parameters = new();   // bound values for '?' placeholders
         private List<string> _orderBy = new();
         private int? _limit = null;
         private bool _allowFiltering = false;
@@ -150,18 +151,27 @@ namespace PolyPersist.Net.ColumnStore.Cassandra.Linq
                 _ => throw new NotSupportedException($"Operator '{node.NodeType}' not supported")
             };
 
-            string valStr = right switch
+            // A string value is the CQL-injection vector (a quote in the value would break
+            // out of the literal), so bind it as a positional parameter instead of
+            // interpolating it. The other types render to safe, unforgeable literals.
+            if (right is string s)
             {
-                string s => $"'{s}'",
-                DateTime dt => $"'{dt:yyyy-MM-dd HH:mm:ss}'",
-                DateOnly d => $"'{d:yyyy-MM-dd}'",
-                TimeOnly t => ((long)(t.ToTimeSpan().TotalMilliseconds * 1_000_000)).ToString(),
-                Guid g => $"'{g}'",
-                bool b => b.ToString().ToLower(),
-                _ => right.ToString()
-            };
-
-            _conditions.Add($"{left} {opSymbol} {valStr}");
+                _parameters.Add(s);
+                _conditions.Add($"{left} {opSymbol} ?");
+            }
+            else
+            {
+                string valStr = right switch
+                {
+                    DateTime dt => $"'{dt:yyyy-MM-dd HH:mm:ss}'",
+                    DateOnly d => $"'{d:yyyy-MM-dd}'",
+                    TimeOnly t => ((long)(t.ToTimeSpan().TotalMilliseconds * 1_000_000)).ToString(),
+                    Guid g => $"'{g}'",
+                    bool b => b.ToString().ToLower(),
+                    _ => right.ToString()
+                };
+                _conditions.Add($"{left} {opSymbol} {valStr}");
+            }
             return node;
         }
 

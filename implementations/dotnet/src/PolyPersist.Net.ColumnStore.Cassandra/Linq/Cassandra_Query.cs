@@ -14,6 +14,7 @@ namespace PolyPersist.Net.ColumnStore.Cassandra.Linq
         }
 
         internal string cql;
+        internal object[] parameters = System.Array.Empty<object>();   // bound values for '?' in cql
         internal ResultTypes resultType;
         internal Dictionary<string, string> projectionMemberMap;
         internal NewExpression projectionCtorForAnonymous;
