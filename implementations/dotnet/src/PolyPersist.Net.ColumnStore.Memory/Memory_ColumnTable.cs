@@ -62,7 +62,7 @@ namespace PolyPersist.Net.ColumnStore.Memory
                 throw new Exception($"Row '{typeof(TRow).Name}' {row.id} can not be updated because it is already changed");
 
             row.etag = Guid.NewGuid().ToString();
-            row.LastUpdate = DateTime.Now;
+            row.LastUpdate = DateTime.UtcNow;
 
             data.etag = row.etag;
             data.Value = JsonSerializer.Serialize(row, typeof(TRow), JsonOptionsProvider.Options());
