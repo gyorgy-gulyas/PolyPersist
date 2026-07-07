@@ -13,7 +13,13 @@ errors. We go through these ONE BY ONE.
 [by design] PP-03  "No real atomicity": INTENTIONAL — the transaction is optimistic
            (runs eagerly, compensates/rolls back on failure). This is a deliberate design
            choice, hard to do otherwise. NOT a defect; dropped from the backlog.
-[ ] PP-04  Zero transaction test coverage. (Still wanted even though PP-03 is by design.)
+[x] PP-04  Transaction test coverage — DONE. New PolyPersist.Net.Transactions.Tests project
+           (in-memory store, no Docker), 6 tests: Insert+Commit keeps, Insert+Rollback removes,
+           Dispose-without-Commit auto-rolls-back, Update+Rollback restores, Delete+Rollback
+           re-inserts, Rollback-after-Commit is a no-op. The tests revealed and FIXED two
+           real compensation bugs: Update-rollback failed the optimistic etag check (now
+           adopts the current etag) and Delete-rollback re-inserted with a filled etag (now
+           cleared before Insert/Upload). Fixes cover doc + row + blob variants.
 
 == P1 — high ==
 [ ] PP-05  No PostgreSQL (Relational) implementation.
