@@ -44,7 +44,7 @@ namespace PolyPersist.Net.BlobStore.GoogleCloudStorage
 
             content.Seek(0, SeekOrigin.Begin);
 
-            string meta_json = JsonSerializer.Serialize(blob);
+            string meta_json = BlobMetadata.Serialize(blob);
             var insertRequest = _storageService.Objects.Insert(
                 new Google.Apis.Storage.v1.Data.Object
                 {
@@ -53,7 +53,7 @@ namespace PolyPersist.Net.BlobStore.GoogleCloudStorage
                     ContentType = blob.contentType ?? "application/octet-stream",
                     Metadata = new Dictionary<string, string>
                     {
-                        [nameof(meta_json)] = meta_json
+                        [BlobMetadata.Key] = meta_json
                     }
                 },
                 _bucketName,
@@ -115,8 +115,8 @@ namespace PolyPersist.Net.BlobStore.GoogleCloudStorage
                     .ExecuteAsync()
                     .ConfigureAwait(false);
 
-                string meta_json = obj.Metadata[nameof(meta_json)];
-                var blob = JsonSerializer.Deserialize<TBlob>(meta_json);
+                string meta_json = obj.Metadata[BlobMetadata.Key];
+                var blob = BlobMetadata.Deserialize<TBlob>(meta_json);
 
                 return blob;
             }
@@ -144,6 +144,8 @@ namespace PolyPersist.Net.BlobStore.GoogleCloudStorage
         /// <inheritdoc/>
         public async Task UpdateContent(TBlob blob, Stream content)
         {
+            CollectionCommon.CheckBeforeUpdate(blob);
+
             if (content == null || content.CanRead == false)
                 throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} content cannot be read");
 
@@ -160,9 +162,11 @@ namespace PolyPersist.Net.BlobStore.GoogleCloudStorage
                 throw new Exception($"Blob '{blob.id}' does not exist in bucket '{_bucketName}'", ex);
             }
 
+            CollectionCommon.CheckEtagMatch(BlobMetadata.Deserialize<TBlob>(existingObject.Metadata[BlobMetadata.Key]), blob);
+
             blob.etag = Guid.NewGuid().ToString();
             blob.LastUpdate = DateTime.UtcNow;
-            string meta_json = System.Text.Json.JsonSerializer.Serialize(blob);
+            string meta_json = BlobMetadata.Serialize(blob);
 
             // 2. Upload new content (overwrites existing)
             var insertRequest = _storageService.Objects.Insert(
@@ -173,7 +177,7 @@ namespace PolyPersist.Net.BlobStore.GoogleCloudStorage
                     ContentType = blob.contentType ?? "application/octet-stream",
                     Metadata = new Dictionary<string, string>
                     {
-                        [nameof(meta_json)] = meta_json
+                        [BlobMetadata.Key] = meta_json
                     }
                 },
                 _bucketName,
@@ -188,6 +192,8 @@ namespace PolyPersist.Net.BlobStore.GoogleCloudStorage
         /// <inheritdoc/>
         public async Task UpdateMetadata(TBlob blob)
         {
+            CollectionCommon.CheckBeforeUpdate(blob);
+
             Google.Apis.Storage.v1.Data.Object existingObject;
 
             try
@@ -199,14 +205,16 @@ namespace PolyPersist.Net.BlobStore.GoogleCloudStorage
                 throw new Exception($"Cannot update metadata because the object '{blob.id}' does not exist in bucket '{_bucketName}'", ex);
             }
 
+            CollectionCommon.CheckEtagMatch(BlobMetadata.Deserialize<TBlob>(existingObject.Metadata[BlobMetadata.Key]), blob);
+
             blob.etag = Guid.NewGuid().ToString();
             blob.LastUpdate = DateTime.UtcNow;
 
             // Patch metadata
-            string meta_json = System.Text.Json.JsonSerializer.Serialize(blob);
+            string meta_json = BlobMetadata.Serialize(blob);
             existingObject.Metadata = new Dictionary<string, string>
             {
-                [nameof(meta_json)] = meta_json,
+                [BlobMetadata.Key] = meta_json,
             };
 
             var patchRequest = _storageService.Objects.Patch(existingObject, _bucketName, blob.id);

@@ -167,6 +167,57 @@ namespace PolyPersist.Net.BlobStore.Tests
             Assert.AreEqual("Updated content", updatedText);
         }
 
+        // PP-19: UpdateContent must reject a stale etag (optimistic concurrency) on every store.
+        [DataTestMethod]
+        [DynamicData(nameof(TestMain.StoreInstances), typeof(TestMain), DynamicDataSourceType.Property)]
+        public async Task BlobStore_UpdateContent_StaleEtag_Throws(Func<Task<IBlobStore>> factory)
+        {
+            var testName = MethodBase.GetCurrentMethod().GetAsyncMethodName().MakeStorageConformName();
+            var store = await factory();
+            var container = await store.CreateContainer<SampleBlob>(testName);
+
+            var sample = new SampleBlob { fileName = "conc.txt", PartitionKey = "pk_conc" };
+            using (var s = new MemoryStream(Encoding.UTF8.GetBytes("v1")))
+                await container.Upload(sample, s);
+
+            // a second holder still carrying the original etag (a concurrent editor)
+            var stale = new SampleBlob { id = sample.id, PartitionKey = sample.PartitionKey, etag = sample.etag, fileName = "conc.txt" };
+
+            // first writer wins, bumping the stored etag
+            using (var s = new MemoryStream(Encoding.UTF8.GetBytes("v2")))
+                await container.UpdateContent(sample, s);
+
+            // the stale writer must be rejected
+            using (var s = new MemoryStream(Encoding.UTF8.GetBytes("v3")))
+                await Assert.ThrowsExceptionAsync<Exception>(async () => await container.UpdateContent(stale, s));
+        }
+
+        // CheckBeforeUpdate must run on every store: updating with no etag is rejected (you can
+        // only update something you loaded). This is the gap that hid the pre-refactor
+        // inconsistency (the cloud stores did not call CheckBeforeUpdate).
+        [DataTestMethod]
+        [DynamicData(nameof(TestMain.StoreInstances), typeof(TestMain), DynamicDataSourceType.Property)]
+        public async Task BlobStore_Update_WithoutEtag_Throws(Func<Task<IBlobStore>> factory)
+        {
+            var testName = MethodBase.GetCurrentMethod().GetAsyncMethodName().MakeStorageConformName();
+            var store = await factory();
+            var container = await store.CreateContainer<SampleBlob>(testName);
+
+            var sample = new SampleBlob { PartitionKey = "pk_noetag", fileName = "x.txt" };
+            using (var s = new MemoryStream(Encoding.UTF8.GetBytes("v1")))
+                await container.Upload(sample, s);
+
+            var noEtag = new SampleBlob { id = sample.id, PartitionKey = sample.PartitionKey, fileName = "x.txt" }; // etag empty
+
+            using (var s = new MemoryStream(Encoding.UTF8.GetBytes("v2")))
+            {
+                var ex = await Assert.ThrowsExceptionAsync<Exception>(async () => await container.UpdateContent(noEtag, s));
+                Assert.IsTrue(ex.Message.Contains("ETag"));
+            }
+            var ex2 = await Assert.ThrowsExceptionAsync<Exception>(async () => await container.UpdateMetadata(noEtag));
+            Assert.IsTrue(ex2.Message.Contains("ETag"));
+        }
+
         [DataTestMethod]
         [DynamicData(nameof(TestMain.StoreInstances), typeof(TestMain), DynamicDataSourceType.Property)]
         public async Task BlobStore_UpdateMetadata_OK(Func<Task<IBlobStore>> factory)
@@ -296,6 +347,7 @@ namespace PolyPersist.Net.BlobStore.Tests
             var fake = new SampleBlob
             {
                 id = "ghost-id",
+                etag = "ghost-etag",
                 PartitionKey = "ghost-pk",
                 fileName = "nonexistent.txt"
             };

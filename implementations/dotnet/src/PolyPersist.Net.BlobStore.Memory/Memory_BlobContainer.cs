@@ -43,7 +43,7 @@ namespace PolyPersist.Net.BlobStore.Memory
                 id = blob.id,
                 partitionKey = blob.PartitionKey,
                 etag = blob.etag,
-                MetadataJSON = JsonSerializer.Serialize(blob, typeof(TBlob), JsonOptionsProvider.Options()),
+                MetadataJSON = BlobMetadata.Serialize(blob),
                 Content = _streamToByteArray(content)
             };
             _collectionData.MapOfBlobs.Add(blob.id, blobData);
@@ -82,7 +82,7 @@ namespace PolyPersist.Net.BlobStore.Memory
         {
             if (_collectionData.MapOfBlobs.TryGetValue(id, out _BlobData blobData) == true && blobData.partitionKey == partitionKey)
             {
-                TBlob blob = JsonSerializer.Deserialize<TBlob>(blobData.MetadataJSON, JsonOptionsProvider.Options());
+                TBlob blob = BlobMetadata.Deserialize<TBlob>(blobData.MetadataJSON);
                 return Task.FromResult(blob);
             }
 
@@ -95,12 +95,17 @@ namespace PolyPersist.Net.BlobStore.Memory
             if (content == null || content.CanRead == false)
                 throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} content cannot be read");
 
+            CollectionCommon.CheckBeforeUpdate(blob);
+
             if (_collectionData.MapOfBlobs.TryGetValue(blob.id, out _BlobData blobData) == false || blobData.partitionKey != blob.PartitionKey)
                 throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not upload, because it is does not exist");
 
+            CollectionCommon.CheckEtagMatch(blobData.etag, blob);
+
             blob.etag = Guid.NewGuid().ToString();
             blob.LastUpdate = DateTime.UtcNow;
-            blobData.MetadataJSON = JsonSerializer.Serialize(blob, typeof(TBlob), JsonOptionsProvider.Options());
+            blobData.etag = blob.etag;
+            blobData.MetadataJSON = BlobMetadata.Serialize(blob);
 
             blobData.Content = _streamToByteArray(content);
             return Task.CompletedTask;
@@ -114,14 +119,13 @@ namespace PolyPersist.Net.BlobStore.Memory
             if (_collectionData.MapOfBlobs.TryGetValue(blob.id, out _BlobData blobData) == false || blobData.partitionKey != blob.PartitionKey)
                 throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not be updated because it is does not exist");
 
-            if (blobData.etag != blob.etag)
-                throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not be updated because it is already changed");
+            CollectionCommon.CheckEtagMatch(blobData.etag, blob);
 
             blob.etag = Guid.NewGuid().ToString();
             blob.LastUpdate = DateTime.UtcNow;
 
             blobData.etag = blob.etag;
-            blobData.MetadataJSON = JsonSerializer.Serialize(blob, typeof(TBlob), JsonOptionsProvider.Options());
+            blobData.MetadataJSON = BlobMetadata.Serialize(blob);
 
             return Task.CompletedTask;
         }

@@ -48,8 +48,8 @@ namespace PolyPersist.Net.BlobStore.AmazonS3
                 ContentType = blob.contentType ?? "application/octet-stream"
             };
 
-            string meta_json = System.Text.Json.JsonSerializer.Serialize(blob);
-            request.Metadata[nameof(meta_json)] = meta_json;
+            string meta_json = BlobMetadata.Serialize(blob);
+            request.Metadata[BlobMetadata.Key] = meta_json;
 
             await _amazonS3Client.PutObjectAsync(request).ConfigureAwait(false);
         }
@@ -92,8 +92,8 @@ namespace PolyPersist.Net.BlobStore.AmazonS3
             try
             {
                 var @object = await _amazonS3Client.GetObjectMetadataAsync(_bucketName, id).ConfigureAwait(false);
-                string meta_json = @object.Metadata[nameof(meta_json)];
-                var blob = JsonSerializer.Deserialize<TBlob>(meta_json);
+                string meta_json = @object.Metadata[BlobMetadata.Key];
+                var blob = BlobMetadata.Deserialize<TBlob>(meta_json);
 
                 return blob;
             }
@@ -119,6 +119,8 @@ namespace PolyPersist.Net.BlobStore.AmazonS3
 
         async Task IBlobContainer<TBlob>.UpdateContent(TBlob blob, Stream content)
         {
+            CollectionCommon.CheckBeforeUpdate(blob);
+
             if (content == null || content.CanRead == false)
                 throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} content cannot be read");
 
@@ -132,6 +134,8 @@ namespace PolyPersist.Net.BlobStore.AmazonS3
                 throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not upload, because it is does not exist");
             }
 
+            CollectionCommon.CheckEtagMatch(BlobMetadata.Deserialize<TBlob>(response.Metadata[BlobMetadata.Key]), blob);
+
             var request = new PutObjectRequest
             {
                 BucketName = _bucketName,
@@ -142,14 +146,16 @@ namespace PolyPersist.Net.BlobStore.AmazonS3
 
             blob.etag = Guid.NewGuid().ToString();
             blob.LastUpdate = DateTime.UtcNow;
-            string meta_json = System.Text.Json.JsonSerializer.Serialize(blob);
-            request.Metadata[nameof(meta_json)] = meta_json;
+            string meta_json = BlobMetadata.Serialize(blob);
+            request.Metadata[BlobMetadata.Key] = meta_json;
 
             await _amazonS3Client.PutObjectAsync(request).ConfigureAwait(false);
         }
 
         async Task IBlobContainer<TBlob>.UpdateMetadata(TBlob blob)
         {
+            CollectionCommon.CheckBeforeUpdate(blob);
+
             // 1. Ensure the object exists in S3
             GetObjectMetadataResponse metadata;
             try
@@ -160,6 +166,8 @@ namespace PolyPersist.Net.BlobStore.AmazonS3
             {
                 throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not upload, because it is does not exist");
             }
+
+            CollectionCommon.CheckEtagMatch(BlobMetadata.Deserialize<TBlob>(metadata.Metadata[BlobMetadata.Key]), blob);
 
             // 2. Download the existing object content
             var originalStream = new MemoryStream();
@@ -188,8 +196,8 @@ namespace PolyPersist.Net.BlobStore.AmazonS3
             blob.LastUpdate = DateTime.UtcNow;
 
             // 4. Apply the new user-defined metadata from the blob
-            string meta_json = System.Text.Json.JsonSerializer.Serialize(blob);
-            request.Metadata[nameof(meta_json)] = meta_json;
+            string meta_json = BlobMetadata.Serialize(blob);
+            request.Metadata[BlobMetadata.Key] = meta_json;
 
             // 5. Upload the updated object back to S3
             await _amazonS3Client.PutObjectAsync(request).ConfigureAwait(false);

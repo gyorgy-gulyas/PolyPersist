@@ -28,5 +28,27 @@
             if (string.IsNullOrEmpty(entity.etag) == true)
                 throw new Exception($"ETag must be filled at Update operation in entity '{typeof(TEntity).Name}' id: {entity.id}");
         }
+
+        /// <summary>
+        /// Optimistic-concurrency guard: the currently stored entity must still exist and carry
+        /// the same etag the caller last read. One place for the "does not exist" / "already
+        /// changed" semantics so every store behaves identically.
+        /// </summary>
+        public static void CheckEtagMatch<TEntity>(TEntity stored, TEntity incoming)
+            where TEntity : IEntity
+        {
+            if (stored is null)
+                throw new Exception($"Entity '{typeof(TEntity).Name}' {incoming.id} can not be updated because it does not exist");
+
+            CheckEtagMatch(stored.etag, incoming);
+        }
+
+        /// <summary>Overload for stores that already hold the stored etag (not the whole entity).</summary>
+        public static void CheckEtagMatch<TEntity>(string storedEtag, TEntity incoming)
+            where TEntity : IEntity
+        {
+            if (storedEtag != incoming.etag)
+                throw new Exception($"Entity '{typeof(TEntity).Name}' {incoming.id} can not be updated because it is already changed");
+        }
     }
 }
