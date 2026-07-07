@@ -59,15 +59,15 @@ namespace PolyPersist.Net.BlobStore.FileSystem
         Task<TBlob> IBlobContainer<TBlob>.Find(string partitionKey, string id)
         {
             var path = _makeFilePath(id);
-            if (File.Exists(path) == false)
-                return Task.FromResult<TBlob>(default);
-
             var metadataPath = path + ".meta.json";
-            if (File.Exists(metadataPath) == false)
+            if (File.Exists(path) == false || File.Exists(metadataPath) == false)
                 return Task.FromResult<TBlob>(default);
 
-            var json = File.ReadAllText(metadataPath);
-            var blob = JsonSerializer.Deserialize<TBlob>(json);
+            var blob = JsonSerializer.Deserialize<TBlob>(File.ReadAllText(metadataPath));
+            // the blob is identified by (partitionKey, id): a different partition is not it
+            if (blob.PartitionKey != partitionKey)
+                return Task.FromResult<TBlob>(default);
+
             return Task.FromResult(blob);
         }
 
@@ -75,13 +75,13 @@ namespace PolyPersist.Net.BlobStore.FileSystem
         Task IBlobContainer<TBlob>.Delete(string partitionKey, string id)
         {
             var path = _makeFilePath(id);
-            if (File.Exists(path) == false)
+            var metaPath = path + ".meta.json";
+            if (File.Exists(path) == false || File.Exists(metaPath) == false
+                || JsonSerializer.Deserialize<TBlob>(File.ReadAllText(metaPath)).PartitionKey != partitionKey)
                 throw new Exception($"Blob '{typeof(TBlob).Name}' {id} can not be removed because it is does not exist");
 
             File.Delete(path);
-            var metaPath = path + ".meta.json";
-            if (File.Exists(metaPath) == true)
-                File.Delete(metaPath);
+            File.Delete(metaPath);
 
             return Task.CompletedTask;
         }
@@ -93,16 +93,25 @@ namespace PolyPersist.Net.BlobStore.FileSystem
                 throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} content cannot be read");
 
             var path = _makeFilePath(blob.id);
-            if (File.Exists(path) == false)
+            var metaPath = path + ".meta.json";
+            if (File.Exists(path) == false || File.Exists(metaPath) == false)
                 throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not upload, because it is does not exist");
 
-            using var fs = File.Create(path);
-            content.CopyTo(fs);
+            // optimistic concurrency: the stored etag must still match
+            var stored = JsonSerializer.Deserialize<TBlob>(File.ReadAllText(metaPath));
+            if (stored.etag != blob.etag)
+                throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not be updated because it is already changed");
+
+            // write to a temp file then replace atomically, so a failed write does not truncate
+            // (lose) the existing content
+            var tempPath = path + ".tmp";
+            using (var fs = File.Create(tempPath))
+                content.CopyTo(fs);
+            File.Move(tempPath, path, overwrite: true);
 
             blob.etag = Guid.NewGuid().ToString();
             blob.LastUpdate = DateTime.UtcNow;
-            File.WriteAllText(path + ".meta.json", JsonSerializer.Serialize(blob));
-
+            File.WriteAllText(metaPath, JsonSerializer.Serialize(blob));
 
             return Task.CompletedTask;
         }
@@ -111,12 +120,17 @@ namespace PolyPersist.Net.BlobStore.FileSystem
         Task IBlobContainer<TBlob>.UpdateMetadata(TBlob blob)
         {
             var path = _makeFilePath(blob.id);
-            if (File.Exists(path) == false)
+            var metaPath = path + ".meta.json";
+            if (File.Exists(path) == false || File.Exists(metaPath) == false)
                 throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not upload, because it is does not exist");
+
+            var stored = JsonSerializer.Deserialize<TBlob>(File.ReadAllText(metaPath));
+            if (stored.etag != blob.etag)
+                throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not be updated because it is already changed");
 
             blob.etag = Guid.NewGuid().ToString();
             blob.LastUpdate = DateTime.UtcNow;
-            File.WriteAllText(path + ".meta.json", JsonSerializer.Serialize(blob));
+            File.WriteAllText(metaPath, JsonSerializer.Serialize(blob));
 
             return Task.CompletedTask;
         }
