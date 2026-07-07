@@ -72,7 +72,9 @@ namespace PolyPersist.Net.DocumentStore.Memory
         /// <inheritdoc/>
         Task IDocumentCollection<TDocument>.Delete(string partitionKey, string id)
         {
-            if (_collectionData.MapOfDocments.TryGetValue(id, out _RowData row) == false )
+            // only delete when the document exists in the requested partition (Find already
+            // checks this; Delete used to match on id alone)
+            if (_collectionData.MapOfDocments.TryGetValue(id, out _RowData row) == false || row.partitionKey != partitionKey)
                 throw new Exception($"Document '{typeof(TDocument).Name}' {id} can not be removed because it is already removed");
 
             _collectionData.MapOfDocments.Remove(id);

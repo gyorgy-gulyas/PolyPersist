@@ -55,7 +55,8 @@ errors. We go through these ONE BY ONE.
 [ ] PP-09  No Redis / KeyValue implementation (cache store).
 [ ] PP-12  Entity-tracking key collisions ({TypeName}_{id} ignores partitionKey).
 [ ] PP-13  Dispose sync-over-async deadlock risk (Rollback().GetAwaiter().GetResult()).
-[ ] PP-22  Memory Document Delete ignores partitionKey (id-only).
+[x] PP-22  Memory Document Delete ignored partitionKey — DONE. Find already checked it; Delete
+           now also requires row.partitionKey to match. Docker-free test.
 [ ] PP-23  DateTime.Now vs UtcNow inconsistency (Memory Document/Column Update).
 [ ] PP-24  Debug + copy-paste + wasteful ops (Console.WriteLine in Find hot path, etc.).
 [ ] PP-25  LINQ FROM without keyspace (QueryProvider uses `FROM {table}`).
