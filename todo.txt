@@ -52,9 +52,19 @@ errors. We go through these ONE BY ONE.
            .Any()/.First()/.FirstOrDefault()/.Single()/.SingleOrDefault() (no predicate) in the
            visitor (LIMIT 1) + implemented the branches (bool -> rs.Any(); scalar -> map first
            row). Verified against Scylla. (Partial PP-27 coverage.)
-[ ] PP-18  Blob (?): no partitionKey, no etag, truncation on write.
-[ ] PP-19  Blob object key = blob.id only (no partitionKey in key, no etag).
-[ ] PP-20  GridFS Delete can orphan chunks (deletes metadata doc first).
+[x] PP-18  FileSystem blob — DONE. (1) UpdateContent writes to a temp file + File.Move(overwrite)
+           so a failed write no longer truncates/loses the old content; (2) UpdateContent/
+           UpdateMetadata do optimistic-concurrency etag checks; (3) Find/Delete verify the
+           stored partitionKey (key stays id, per the identity contract). Docker-free tests.
+[ ] PP-19  Cloud object stores (S3/Azure/GCS/MinIO): object key = blob.id only. PLAN:
+           key = $"{partitionKey}/{blob.id}" across all 4 stores in every method
+           (Upload/Find/Delete/Download/Update) -> fixes collision + cross-partition. etag via
+           conditional writes (S3 If-Match, Azure ETag) is a separate follow-up. Big (4 stores).
+           Testcontainers (MinIO/Azurite). (Depends on the partitionKey design below.)
+[ ] PP-20  GridFS Delete orphans chunks (deletes metadata first). PLAN: delete the GridFS
+           content/chunks FIRST, then the metadata doc (a dangling metadata is detectable/
+           retryable; orphan chunks are a silent space leak). Handle null fileInfo. Small.
+           Test via GridFS Mongo container.
 [ ] PP-21  Untyped exceptions everywhere (bare Exception). Refactor to typed exceptions.
 [ ] PP-30  Cassandra/Scylla effectively untested (setup commented out).
 
