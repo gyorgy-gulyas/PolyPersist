@@ -61,10 +61,10 @@ errors. We go through these ONE BY ONE.
            (Upload/Find/Delete/Download/Update) -> fixes collision + cross-partition. etag via
            conditional writes (S3 If-Match, Azure ETag) is a separate follow-up. Big (4 stores).
            Testcontainers (MinIO/Azurite). (Depends on the partitionKey design below.)
-[ ] PP-20  GridFS Delete orphans chunks (deletes metadata first). PLAN: delete the GridFS
-           content/chunks FIRST, then the metadata doc (a dangling metadata is detectable/
-           retryable; orphan chunks are a silent space leak). Handle null fileInfo. Small.
-           Test via GridFS Mongo container.
+[x] PP-20  GridFS Delete orphaned chunks — DONE. Now deletes the GridFS content/chunks FIRST
+           (via _getFileInfo), then the metadata doc, so a failure can't leave orphan chunks
+           (at worst a dangling metadata, which is detectable/retryable). Verified: GridFS
+           delete tests pass against the Mongo container.
 [ ] PP-21  Untyped exceptions everywhere (bare Exception). Refactor to typed exceptions.
 [ ] PP-30  Cassandra/Scylla effectively untested (setup commented out).
 
