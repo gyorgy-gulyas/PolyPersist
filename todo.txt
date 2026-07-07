@@ -76,7 +76,7 @@ errors. We go through these ONE BY ONE.
 [ ] PP-07  No OpenSearch implementation (search/index store).
 [ ] PP-08  No ClickHouse implementation (analytics store).
 [ ] PP-09  No Redis / KeyValue implementation (cache store).
-[ ] PP-12  Entity-tracking key collisions ({TypeName}_{id} ignores partitionKey).
+[moot] PP-12  Entity-tracking key collisions ({TypeName}_{id} ignores partitionKey).
 [x] PP-13  Dispose sync-over-async deadlock risk — DONE. The sync Dispose blocked on
            Rollback().GetAwaiter().GetResult(); if the async rollback captured a caller
            SynchronizationContext it could deadlock. Now offloaded via Task.Run so the
