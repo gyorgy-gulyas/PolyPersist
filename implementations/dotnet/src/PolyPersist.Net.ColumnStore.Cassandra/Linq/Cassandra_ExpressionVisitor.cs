@@ -98,10 +98,13 @@ namespace PolyPersist.Net.ColumnStore.Cassandra.Linq
 
         protected override Expression VisitBinary(BinaryExpression node)
         {
-            if (node.NodeType == ExpressionType.AndAlso || node.NodeType == ExpressionType.OrElse)
+            if (node.NodeType == ExpressionType.OrElse)
+                throw new NotSupportedException("Cassandra CQL does not support 'OR' in a WHERE clause; split the query into separate queries instead.");
+
+            if (node.NodeType == ExpressionType.AndAlso)
             {
                 Visit(node.Left);
-                _conditions.Add(node.NodeType == ExpressionType.AndAlso ? "AND" : "OR");
+                _conditions.Add("AND");
                 Visit(node.Right);
                 return node;
             }
@@ -143,7 +146,7 @@ namespace PolyPersist.Net.ColumnStore.Cassandra.Linq
             string opSymbol = node.NodeType switch
             {
                 ExpressionType.Equal => "=",
-                ExpressionType.NotEqual => "!=",
+                ExpressionType.NotEqual => throw new NotSupportedException("Cassandra CQL does not support '!=' in a WHERE clause."),
                 ExpressionType.GreaterThan => ">",
                 ExpressionType.GreaterThanOrEqual => ">=",
                 ExpressionType.LessThan => "<",
@@ -301,6 +304,25 @@ namespace PolyPersist.Net.ColumnStore.Cassandra.Linq
                 {
                     throw new NotSupportedException("Only member expressions are supported in OrderBy/ThenBy clauses.");
                 }
+                Visit(node.Arguments[0]);
+                return node;
+            }
+
+            // .Any() with no predicate: we only need to know whether a row exists (LIMIT 1).
+            if (node.Method.Name == "Any" && node.Arguments.Count == 1)
+            {
+                _limit = 1;
+                Visit(node.Arguments[0]);
+                return node;
+            }
+
+            // .First()/.FirstOrDefault()/.Single()/.SingleOrDefault() with no predicate:
+            // fetch a single row (LIMIT 1). Use `.Where(...)` for filtering.
+            if ((node.Method.Name == "First" || node.Method.Name == "FirstOrDefault"
+                 || node.Method.Name == "Single" || node.Method.Name == "SingleOrDefault")
+                && node.Arguments.Count == 1)
+            {
+                _limit = 1;
                 Visit(node.Arguments[0]);
                 return node;
             }

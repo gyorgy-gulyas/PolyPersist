@@ -368,5 +368,47 @@ namespace PolyPersist.Net.ColumnStore.Tests
             Assert.AreEqual(1, list.Count);
             Assert.AreEqual("s1", list[0].id);
         }
+
+        // PP-17: .Any() (bool branch) and .FirstOrDefault() (scalar branch) must return real
+        // values (they returned null). These are now supported via LIMIT 1.
+        [DataTestMethod]
+        [DynamicData(nameof(TestMain.StoreInstances), typeof(TestMain), DynamicDataSourceType.Property)]
+        public async Task ColumnStore_Linq_First_OK(Func<string, Task<IColumnStore>> factory)
+        {
+            var testName = MethodBase.GetCurrentMethod().GetAsyncMethodName().MakeStorageConformName();
+            var store = await factory(testName);
+            var table = await store.CreateTable<SampleRow>("sampletable");
+            await table.Insert(new SampleRow { PartitionKey = "pk", id = "q1", str_value = "A", int_value = 10 });
+
+            Assert.IsTrue(table.AsQueryable().Where(r => r.PartitionKey == "pk").Any());
+            Assert.IsFalse(table.AsQueryable().Where(r => r.PartitionKey == "nope").Any());
+
+            var first = table.AsQueryable().Where(r => r.PartitionKey == "pk").FirstOrDefault();
+            Assert.IsNotNull(first);
+            Assert.AreEqual("q1", first.id);
+            Assert.IsNull(table.AsQueryable().Where(r => r.PartitionKey == "nope").FirstOrDefault());
+        }
+
+        // PP-16: Cassandra CQL can't express != or OR in WHERE -> fail fast (the in-memory
+        // LINQ provider supports both, so only assert the throw for the Cassandra provider).
+        [DataTestMethod]
+        [DynamicData(nameof(TestMain.StoreInstances), typeof(TestMain), DynamicDataSourceType.Property)]
+        public async Task ColumnStore_Linq_CqlUnsupported_Throws(Func<string, Task<IColumnStore>> factory)
+        {
+            var testName = MethodBase.GetCurrentMethod().GetAsyncMethodName().MakeStorageConformName();
+            var store = await factory(testName);
+            var table = await store.CreateTable<SampleRow>("sampletable");
+            await table.Insert(new SampleRow { PartitionKey = "pk", id = "q1", str_value = "A", int_value = 10 });
+
+            if (store.ProviderName == "Cassandra")
+            {
+                Assert.ThrowsException<NotSupportedException>(() => table.AsQueryable().Where(r => r.str_value != "A").ToList());
+                Assert.ThrowsException<NotSupportedException>(() => table.AsQueryable().Where(r => r.str_value == "A" || r.int_value == 10).ToList());
+            }
+            else
+            {
+                table.AsQueryable().Where(r => r.str_value != "A").ToList(); // in-memory LINQ supports it
+            }
+        }
     }
 }

@@ -67,6 +67,10 @@ namespace PolyPersist.Net.ColumnStore.Cassandra.Linq
             }
             else if (expression.Type == typeof(bool))
             {
+                // .Any(): true when the query returns at least one row
+                if (query.resultType == Cassandra_Query.ResultTypes.Count)
+                    return rs.First().GetValue<long>("count") > 0;
+                return rs.Any();
             }
             else if (typeof(IEnumerable).IsAssignableFrom(expression.Type))
             {
@@ -240,10 +244,39 @@ namespace PolyPersist.Net.ColumnStore.Cassandra.Linq
             }
             else
             {
-            }
+                // single-item result: .First()/.FirstOrDefault()/.Single()/.SingleOrDefault()
+                if (query.resultType == Cassandra_Query.ResultTypes.SelectRow)
+                    return _mapFirstRowToEntity(rs);
 
-            return null;
+                throw new NotSupportedException("Only a full-row single result (SELECT *) is supported here.");
+            }
         }
+
+        // maps the first row of the result set into a TRow (null when there is no row)
+        private TRow _mapFirstRowToEntity(RowSet rs)
+        {
+            var row = rs.FirstOrDefault();
+            if (row == null)
+                return default;
+
+            var accessors = MetadataHelper.GetAccessors<TRow>().ToDictionary(kvp => kvp.Key.ToLower(), kvp => kvp.Value);
+            var columns = rs.Columns;
+            var fieldIndexMap = new Dictionary<string, int>();
+            for (int i = 0; i < columns.Length; i++)
+                fieldIndexMap[columns[i].Name.ToLower()] = i;
+
+            var item = new TRow();
+            foreach (var accessor in accessors)
+            {
+                if (accessor.Value.Setter != null && fieldIndexMap.TryGetValue(accessor.Key, out int fieldIndex))
+                {
+                    var getter = Cassandra_Mapper.BuildTypedGetter(accessor.Value.Type);
+                    accessor.Value.Setter(item, getter(row, fieldIndex));
+                }
+            }
+            return item;
+        }
+
         public TResult Execute<TResult>(Expression expression) => (TResult)Execute(expression);
 
         //public async IAsyncEnumerable ExecuteAsync(Expression expression)
