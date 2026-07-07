@@ -99,5 +99,35 @@ namespace PolyPersist.Net.Transactions.Tests
 
             Assert.IsNotNull(await col.Find("pk", "a"));
         }
+
+        // PP-10: rollback must run the compensations sequentially in REVERSE order (LIFO),
+        // so a later operation is undone before the earlier one it may depend on.
+        [TestMethod]
+        public async Task Rollback_RunsCompensationsInReverseOrder()
+        {
+            var spy = new RecordingCollection<TxDoc>();
+            var tx = new Transaction();
+            await tx.Insert(spy, new TxDoc { PartitionKey = "pk", id = "A" });
+            await tx.Insert(spy, new TxDoc { PartitionKey = "pk", id = "B" });
+            await tx.Insert(spy, new TxDoc { PartitionKey = "pk", id = "C" });
+
+            await tx.Rollback();
+
+            CollectionAssert.AreEqual(new[] { "C", "B", "A" }, spy.DeleteOrder);
+        }
+
+        // records the order of Delete calls (the Insert compensation); other members are no-ops
+        private sealed class RecordingCollection<TDoc> : IDocumentCollection<TDoc> where TDoc : IDocument, new()
+        {
+            public readonly List<string> DeleteOrder = new();
+            public IStore ParentStore => null;
+            public string Name => "spy";
+            public Task Insert(TDoc document) => Task.CompletedTask;
+            public Task Update(TDoc document) => Task.CompletedTask;
+            public Task Delete(string partitionKey, string id) { DeleteOrder.Add(id); return Task.CompletedTask; }
+            public Task<TDoc> Find(string partitionKey, string id) => Task.FromResult(default(TDoc));
+            public object Query<T>() where T : TDoc, new() => null;
+            public object GetUnderlyingImplementation() => null;
+        }
     }
 }
