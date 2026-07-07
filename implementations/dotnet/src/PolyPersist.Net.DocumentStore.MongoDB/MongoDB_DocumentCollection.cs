@@ -47,12 +47,19 @@ namespace PolyPersist.Net.DocumentStore.MongoDB
             CollectionCommon.CheckBeforeUpdate(document);
 
             string oldETag = document.etag;
+            DateTime oldLastUpdate = document.LastUpdate;
             document.etag = Guid.NewGuid().ToString();
             document.LastUpdate = DateTime.UtcNow;
 
             var result = await _mongoCollection.ReplaceOneAsync(e => e.id == document.id && e.PartitionKey == document.PartitionKey && e.etag == oldETag, document).ConfigureAwait(false);
             if (result.IsAcknowledged == false || result.ModifiedCount != 1)
+            {
+                // the write did not happen (optimistic-concurrency miss / not found): restore the
+                // caller's entity so it is not left with a new etag that was never persisted.
+                document.etag = oldETag;
+                document.LastUpdate = oldLastUpdate;
                 throw new Exception($"Document '{typeof(TDocument).Name}' {document.id} can not be updated because does not exist.");
+            }
         }
 
         /// <inheritdoc/>
