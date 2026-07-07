@@ -116,6 +116,22 @@ namespace PolyPersist.Net.Transactions.Tests
             CollectionAssert.AreEqual(new[] { "C", "B", "A" }, spy.DeleteOrder);
         }
 
+        // PP-11: a failing commit action must NOT mark the transaction committed, so the
+        // already-executed operations can still be rolled back (compensation not blocked).
+        [TestMethod]
+        public async Task Commit_WhenCommitActionFails_StillAllowsRollback()
+        {
+            var col = await NewCollectionAsync();
+            var tx = new Transaction();
+            await tx.Insert(col, new TxDoc { PartitionKey = "pk", id = "a", str_value = "x" });
+            tx.AddCommitAction(() => throw new InvalidOperationException("commit boom"));
+
+            await Assert.ThrowsExceptionAsync<AggregateException>(() => tx.Commit());
+
+            await tx.Rollback(); // must still compensate the insert
+            Assert.IsNull(await col.Find("pk", "a"));
+        }
+
         // records the order of Delete calls (the Insert compensation); other members are no-ops
         private sealed class RecordingCollection<TDoc> : IDocumentCollection<TDoc> where TDoc : IDocument, new()
         {

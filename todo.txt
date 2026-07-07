@@ -29,7 +29,12 @@ errors. We go through these ONE BY ONE.
            Now a ConcurrentQueue (order-preserving, still thread-safe) executed SEQUENTIALLY
            in reverse (LIFO), so a later op is compensated before the earlier one it depends
            on. Added a spy-collection test asserting reverse Delete order (A,B,C -> C,B,A).
-[ ] PP-11  Pre-commit flag blocks compensation (Commit sets _committed=1 before the ops).
+[x] PP-11  Pre-commit flag blocks compensation — DONE. Commit set _committed=1 BEFORE running
+           the commit actions, so a failing commit action left the tx marked committed and
+           Rollback()/Dispose() no-opped (compensation blocked). Now a separate _commitStarted
+           guards double-commit and _committed is set only AFTER the commit actions succeed, so
+           a failed commit still allows rollback. Test: Insert + failing AddCommitAction ->
+           Commit throws -> Rollback still removes the insert.
 [ ] PP-14  Mongo Update mutates etag/LastUpdate BEFORE the write (not after success).
 [ ] PP-15  Memory column Find ignores partitionKey (matches on id only).
 [ ] PP-16  CQL WHERE: bare AND/OR, no `!=`, no parentheses.
