@@ -67,18 +67,22 @@ namespace PolyPersist.Net.BlobStore.GridFS
         /// <inheritdoc/>
         async Task IBlobContainer<TBlob>.Delete(string partitionKey, string id)
         {
+            // Delete the GridFS content (chunks) BEFORE the metadata document. If the metadata
+            // were deleted first and the chunk delete then failed (or the file was missing), the
+            // chunks would be orphaned (a silent space leak; no cross-collection transaction).
+            // This order leaves at worst a dangling metadata row, which is detectable/retryable.
+            GridFSFileInfo fileInfo = await _getFileInfo(partitionKey, id).ConfigureAwait(false);
+            if (fileInfo == null)
+                throw new Exception($"Blob '{typeof(TBlob).Name}' {id} can not be removed because it is does not exist");
+
+            await _gridFSBucket.DeleteAsync(fileInfo.Id).ConfigureAwait(false);
+
             DeleteResult result = await _metadataCollection.DeleteOneAsync(e => e.id == id && e.PartitionKey == partitionKey).ConfigureAwait(false);
             if (result.IsAcknowledged == false)
                 throw new Exception($"Blob '{typeof(TBlob).Name}' {id} can not be removed. Database refused to acknowledge the operation.");
 
             if (result.DeletedCount != 1)
                 throw new Exception($"Blob '{typeof(TBlob).Name}' {id} can not be removed because it is does not exist");
-
-            GridFSFileInfo fileInfo = await _getFileInfo(partitionKey, id).ConfigureAwait(false);
-            if (fileInfo == null)
-                throw new Exception($"Blob '{typeof(TBlob).Name}' {id} cannot be deleted: it does not exist.");
-
-            await _gridFSBucket.DeleteAsync(fileInfo.Id).ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
