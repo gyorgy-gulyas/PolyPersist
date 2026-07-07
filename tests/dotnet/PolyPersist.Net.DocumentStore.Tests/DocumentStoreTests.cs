@@ -81,5 +81,22 @@ namespace PolyPersist.Net.DocumentStore.Tests
             var exception = await Assert.ThrowsExceptionAsync<Exception>(async () => await store.DropCollection("notexist"));
             Assert.IsTrue(exception.Message.Contains("does not exist"));
         }
+
+        // PP-14: a failed Update must not leave the caller's entity with a new etag that was
+        // never persisted (it mutated etag/LastUpdate before the write).
+        [DataTestMethod]
+        [DynamicData(nameof(TestMain.StoreInstances), typeof(TestMain), DynamicDataSourceType.Property)]
+        public async Task DocumentStore_FailedUpdate_KeepsEtag(Func<string, Task<IDocumentStore>> factory)
+        {
+            var store = await factory(MethodBase.GetCurrentMethod().GetAsyncMethodName());
+            var col = await store.CreateCollection<SampleDocument>("etagcol");
+            var doc = new SampleDocument { PartitionKey = "pk", id = "a", str_value = "x" };
+            await col.Insert(doc);
+
+            doc.etag = "stale-etag"; // not the persisted etag -> the update must fail
+            await Assert.ThrowsExceptionAsync<Exception>(async () => await col.Update(doc));
+
+            Assert.AreEqual("stale-etag", doc.etag);
+        }
     }
 }

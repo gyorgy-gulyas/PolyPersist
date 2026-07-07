@@ -35,7 +35,10 @@ errors. We go through these ONE BY ONE.
            guards double-commit and _committed is set only AFTER the commit actions succeed, so
            a failed commit still allows rollback. Test: Insert + failing AddCommitAction ->
            Commit throws -> Rollback still removes the insert.
-[ ] PP-14  Mongo Update mutates etag/LastUpdate BEFORE the write (not after success).
+[x] PP-14  Mongo Update mutated etag/LastUpdate BEFORE the write — DONE. If the write misses
+           (optimistic-concurrency / not found), the caller's entity was left with a new etag
+           that was never persisted. Now etag/LastUpdate are restored before throwing. Test
+           (Memory + real Mongo container): a failed Update keeps the original etag.
 [x] PP-15  Memory column Find/Delete ignored partitionKey — DONE. MapOfDocments is keyed by
            id alone; Find/Delete now also check the stored row.partitionKey matches the
            requested one (a matching id in another partition is not the row). Docker-free
