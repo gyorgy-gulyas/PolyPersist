@@ -73,7 +73,8 @@ namespace PolyPersist.Net.ColumnStore.Memory
         /// <inheritdoc/>
         Task IColumnTable<TRow>.Delete(string partitionKey, string id)
         {
-            if (_tableData.MapOfDocments.TryGetValue(id, out _RowData row) == false)
+            // only delete when the row exists in the requested partition
+            if (_tableData.MapOfDocments.TryGetValue(id, out _RowData row) == false || row.partitionKey != partitionKey)
                 throw new Exception($"Row '{typeof(TRow).Name}' {id} can not be removed because it is already removed");
 
             _tableData.MapOfDocments.Remove(id);
@@ -85,7 +86,9 @@ namespace PolyPersist.Net.ColumnStore.Memory
         /// <inheritdoc/>
         Task<TRow> IColumnTable<TRow>.Find(string partitionKey, string id)
         {
-            if (_tableData.MapOfDocments.TryGetValue(id, out _RowData row) == true)
+            // the row is identified by (partitionKey, id): a matching id in a different
+            // partition is not the requested row.
+            if (_tableData.MapOfDocments.TryGetValue(id, out _RowData row) == true && row.partitionKey == partitionKey)
                 return Task.FromResult(JsonSerializer.Deserialize<TRow>(row.Value, JsonOptionsProvider.Options()));
 
             return Task.FromResult<TRow>((TRow)default(TRow));
