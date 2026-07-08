@@ -7,6 +7,7 @@
 import Document
 import Blob
 import ColumnStore
+import RelationalStore
 
 namespace PolyPersist {
 
@@ -23,6 +24,8 @@ namespace PolyPersist {
         method AddOriginal<TDocument constraint IDocument instantiable>(collection:IDocumentCollection<TDocument>, document:TDocument )
         # Adds an existing row to the transaction for change tracking.
         method AddOriginal<TRow constraint IRow instantiable>(table:IColumnTable<TRow>, row:TRow )
+        # Adds an existing relational row to the transaction for change tracking.
+        method AddOriginal<TRecord constraint IRecord instantiable>(table:ITable<TRecord>, record:TRecord )
         # Adds an existing blob to the transaction for change tracking, including its content snapshot.
         async method AddOriginal<TBlob constraint IBlob instantiable>(container:IBlobContainer<TBlob>, blob:TBlob )
 
@@ -30,6 +33,8 @@ namespace PolyPersist {
         async method Insert<TDocument constraint IDocument instantiable>(collection:IDocumentCollection<TDocument>, document:TDocument)
         # Inserts a new row and registers a rollback action to delete it if needed.
         async method Insert<TRow constraint IRow instantiable>(table:IColumnTable<TRow>, row:TRow)
+        # Inserts a new relational row and registers a rollback action to delete it if needed.
+        async method Insert<TRecord constraint IRecord instantiable>(table:ITable<TRecord>, record:TRecord)
         # Uploads a new blob and registers a rollback action to delete it if needed.
         async method Upload<TBlob constraint IBlob instantiable>(container:IBlobContainer<TBlob>, blob:TBlob, content:stream)
 
@@ -37,6 +42,8 @@ namespace PolyPersist {
         async method Update<TDocument constraint IDocument instantiable>(collection:IDocumentCollection<TDocument>, document:TDocument)
         # Updates an existing row and registers a rollback action to restore its original state if needed.
         async method Update<TRow constraint IRow instantiable>(table:IColumnTable<TRow>, row:TRow)
+        # Updates an existing relational row and registers a rollback action to restore its original state if needed.
+        async method Update<TRecord constraint IRecord instantiable>(table:ITable<TRecord>, record:TRecord)
         # Updates the content of an existing blob and registers a rollback action to restore its original content if needed.
         async method UpdateContent<TBlob constraint IBlob instantiable>(container:IBlobContainer<TBlob>, blob:TBlob, content:stream)
         # Updates the metadata of an existing blob and registers a rollback action to restore its original metadata if needed.
@@ -46,6 +53,8 @@ namespace PolyPersist {
         async method Delete<TDocument constraint IDocument instantiable>(collection:IDocumentCollection<TDocument>, document:TDocument)
         # Deletes an existing row and registers a rollback action to re-insert its original state if needed.
         async method Delete<TRow constraint IRow instantiable>(table:IColumnTable<TRow>, row:TRow)
+        # Deletes an existing relational row and registers a rollback action to re-insert its original state if needed.
+        async method Delete<TRecord constraint IRecord instantiable>(table:ITable<TRecord>, record:TRecord)
         # Deletes an existing blob and registers a rollback action to re-upload its original state if needed.
         async method Delete<TBlob constraint IBlob instantiable>(container:IBlobContainer<TBlob>, blob:TBlob)
 

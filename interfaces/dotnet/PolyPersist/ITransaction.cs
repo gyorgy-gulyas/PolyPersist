@@ -26,18 +26,24 @@ namespace PolyPersist
 		public void AddOriginal<TDocument>( IDocumentCollection<TDocument> collection, TDocument document ) where TDocument: IDocument, new();
 		/// Adds an existing row to the transaction for change tracking.
 		public void AddOriginal<TRow>( IColumnTable<TRow> table, TRow row ) where TRow: IRow, new();
+		/// Adds an existing relational row to the transaction for change tracking.
+		public void AddOriginal<TRecord>( ITable<TRecord> table, TRecord record ) where TRecord: IRecord, new();
 		/// Adds an existing blob to the transaction for change tracking, including its content snapshot.
 		public Task AddOriginal<TBlob>( IBlobContainer<TBlob> container, TBlob blob ) where TBlob: IBlob, new();
 		/// Inserts a new document and registers a rollback action to delete it if needed.
 		public Task Insert<TDocument>( IDocumentCollection<TDocument> collection, TDocument document ) where TDocument: IDocument, new();
 		/// Inserts a new row and registers a rollback action to delete it if needed.
 		public Task Insert<TRow>( IColumnTable<TRow> table, TRow row ) where TRow: IRow, new();
+		/// Inserts a new relational row and registers a rollback action to delete it if needed.
+		public Task Insert<TRecord>( ITable<TRecord> table, TRecord record ) where TRecord: IRecord, new();
 		/// Uploads a new blob and registers a rollback action to delete it if needed.
 		public Task Upload<TBlob>( IBlobContainer<TBlob> container, TBlob blob, Stream content ) where TBlob: IBlob, new();
 		/// Updates an existing document and registers a rollback action to restore its original state if needed.
 		public Task Update<TDocument>( IDocumentCollection<TDocument> collection, TDocument document ) where TDocument: IDocument, new();
 		/// Updates an existing row and registers a rollback action to restore its original state if needed.
 		public Task Update<TRow>( IColumnTable<TRow> table, TRow row ) where TRow: IRow, new();
+		/// Updates an existing relational row and registers a rollback action to restore its original state if needed.
+		public Task Update<TRecord>( ITable<TRecord> table, TRecord record ) where TRecord: IRecord, new();
 		/// Updates the content of an existing blob and registers a rollback action to restore its original content if needed.
 		public Task UpdateContent<TBlob>( IBlobContainer<TBlob> container, TBlob blob, Stream content ) where TBlob: IBlob, new();
 		/// Updates the metadata of an existing blob and registers a rollback action to restore its original metadata if needed.
@@ -46,6 +52,8 @@ namespace PolyPersist
 		public Task Delete<TDocument>( IDocumentCollection<TDocument> collection, TDocument document ) where TDocument: IDocument, new();
 		/// Deletes an existing row and registers a rollback action to re-insert its original state if needed.
 		public Task Delete<TRow>( IColumnTable<TRow> table, TRow row ) where TRow: IRow, new();
+		/// Deletes an existing relational row and registers a rollback action to re-insert its original state if needed.
+		public Task Delete<TRecord>( ITable<TRecord> table, TRecord record ) where TRecord: IRecord, new();
 		/// Deletes an existing blob and registers a rollback action to re-upload its original state if needed.
 		public Task Delete<TBlob>( IBlobContainer<TBlob> container, TBlob blob ) where TBlob: IBlob, new();
 		/// Commits the transaction by executing all registered commit actions in parallel.

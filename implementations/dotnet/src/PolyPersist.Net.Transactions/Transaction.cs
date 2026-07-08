@@ -365,6 +365,84 @@ namespace PolyPersist.Net.Transactions
             });
         }
 
+        // ------------------------------------------------------------------
+        // Relational table (ITable<TRecord>) overloads.
+        // The relational store also offers native ACID transactions; these overloads let a
+        // relational table participate in the same cross-store compensation unit of work as the
+        // document / column / blob stores (mirrors the IColumnTable behaviour).
+        // ------------------------------------------------------------------
+
+        /// <summary>
+        /// Adds an existing relational row to the transaction for change tracking.
+        /// </summary>
+        public void AddOriginal<TRecord>(ITable<TRecord> table, TRecord record)
+            where TRecord : IRecord, new()
+        {
+            if (string.IsNullOrWhiteSpace(record.etag))
+                throw new InvalidOperationException($"Record: '{record.GetType().FullName}' is a new entity, cannot be added as Original. Id: '{record.id}'");
+
+            string key = _getEntityKey(record);
+            if (_deepCloneOfEntities.TryAdd(key, new _EntityData(JsonSerializer.Serialize(record), ReadOnlyMemory<byte>.Empty)) == false)
+                throw new InvalidOperationException($"Record: '{record.GetType().FullName}' already added. Id: '{record.id}'");
+        }
+
+        /// <summary>
+        /// Inserts a new relational row and registers a rollback action to delete it if needed.
+        /// </summary>
+        public async Task Insert<TRecord>(ITable<TRecord> table, TRecord record)
+            where TRecord : IRecord, new()
+        {
+            await table.Insert(record).ConfigureAwait(false);
+            _executedOperations.Add((ITransaction.Operations.Insert, record));
+
+            _rollBackActions.Enqueue(async () =>
+            {
+                await table.Delete(record.PartitionKey, record.id).ConfigureAwait(false);
+            });
+        }
+
+        /// <summary>
+        /// Updates an existing relational row and registers a rollback action to restore its original state if needed.
+        /// </summary>
+        public async Task Update<TRecord>(ITable<TRecord> table, TRecord record)
+            where TRecord : IRecord, new()
+        {
+            string key = _getEntityKey(record);
+            if (!_deepCloneOfEntities.ContainsKey(key))
+                throw new InvalidOperationException($"Record: '{record.GetType().FullName}' not added as Original. Id: '{record.id}'");
+
+            await table.Update(record).ConfigureAwait(false);
+            _executedOperations.Add((ITransaction.Operations.Update, record));
+
+            _rollBackActions.Enqueue(async () =>
+            {
+                TRecord original = JsonSerializer.Deserialize<TRecord>(_deepCloneOfEntities[key].Json);
+                original.etag = record.etag;   // adopt the current etag so the optimistic-concurrency check passes
+                await table.Update(original).ConfigureAwait(false);
+            });
+        }
+
+        /// <summary>
+        /// Deletes an existing relational row and registers a rollback action to re-insert its original state if needed.
+        /// </summary>
+        public async Task Delete<TRecord>(ITable<TRecord> table, TRecord record)
+            where TRecord : IRecord, new()
+        {
+            string key = _getEntityKey(record);
+            if (!_deepCloneOfEntities.ContainsKey(key))
+                throw new InvalidOperationException($"Record: '{record.GetType().FullName}' not added as Original. Id: '{record.id}'");
+
+            await table.Delete(record.PartitionKey, record.id).ConfigureAwait(false);
+            _executedOperations.Add((ITransaction.Operations.Delete, record));
+
+            _rollBackActions.Enqueue(async () =>
+            {
+                TRecord original = JsonSerializer.Deserialize<TRecord>(_deepCloneOfEntities[key].Json);
+                original.etag = null;   // Insert requires an empty etag; it assigns a fresh one
+                await table.Insert(original).ConfigureAwait(false);
+            });
+        }
+
         /// <summary>
         /// Adds a custom commit action to the transaction.
         /// </summary>
