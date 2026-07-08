@@ -14,11 +14,13 @@
     <PackageReference Include="MSTest.TestFramework" Version="3.1.1" />
     <PackageReference Include="Testcontainers.PostgreSql" Version="4.4.0" />
     <PackageReference Include="Testcontainers.ClickHouse" Version="4.4.0" />
+    <PackageReference Include="Google.Cloud.BigQuery.V2" Version="3.9.0" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\..\implementations\dotnet\src\PolyPersist.Net.AnalyticalStore.Postgres\PolyPersist.Net.AnalyticalStore.Postgres.csproj" />
     <ProjectReference Include="..\..\..\implementations\dotnet\src\PolyPersist.Net.AnalyticalStore.ClickHouse\PolyPersist.Net.AnalyticalStore.ClickHouse.csproj" />
+    <ProjectReference Include="..\..\..\implementations\dotnet\src\PolyPersist.Net.AnalyticalStore.BigQuery\PolyPersist.Net.AnalyticalStore.BigQuery.csproj" />
     <ProjectReference Include="..\..\..\interfaces\dotnet\PolyPersist\PolyPersist.Net.csproj" />
   </ItemGroup>
 

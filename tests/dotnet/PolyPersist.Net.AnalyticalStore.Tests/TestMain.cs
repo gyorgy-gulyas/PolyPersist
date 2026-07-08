@@ -1,3 +1,8 @@
+using DotNet.Testcontainers.Builders;
+using DotNet.Testcontainers.Containers;
+using Google.Apis.Auth.OAuth2;
+using Google.Cloud.BigQuery.V2;
+using PolyPersist.Net.AnalyticalStore.BigQuery;
 using PolyPersist.Net.AnalyticalStore.ClickHouse;
 using PolyPersist.Net.AnalyticalStore.Postgres;
 using Testcontainers.ClickHouse;
@@ -37,6 +42,7 @@ namespace PolyPersist.Net.AnalyticalStore.Tests
         {
             _Setup_Postgres();
             _Setup_ClickHouse();
+            _Setup_BigQuery();
         }
 
         // Globally-unique, storage-conform fact-table name (lower-case hex, starts with a letter).
@@ -114,6 +120,55 @@ namespace PolyPersist.Net.AnalyticalStore.Tests
             }
         }
 
+        private static IContainer _bq;
+        private static BigQueryClient _bqClient;
+        private static readonly SemaphoreSlim _bqLock = new(1, 1);
+        private const string _bqDataset = "ds";
+
+        private static void _Setup_BigQuery()
+        {
+            Func<string, Task<IAnalyticalStore>> factory = async _ =>
+            {
+                await _EnsureBigQuery().ConfigureAwait(false);
+                return new BigQuery_AnalyticalStore(_bqClient, _bqDataset);
+            };
+            StoreInstances.Add([factory]);
+        }
+
+        private static async Task _EnsureBigQuery()
+        {
+            if (_bqClient != null)
+                return;
+
+            await _bqLock.WaitAsync().ConfigureAwait(false);
+            try
+            {
+                if (_bqClient != null)
+                    return;
+
+                var container = new ContainerBuilder()
+                    .WithImage("ghcr.io/goccy/bigquery-emulator:latest")
+                    .WithCommand("--project=test", $"--dataset={_bqDataset}")
+                    .WithPortBinding(9050, assignRandomHostPort: true)
+                    .WithWaitStrategy(Wait.ForUnixContainer().UntilPortIsAvailable(9050))
+                    .Build();
+
+                await container.StartAsync().ConfigureAwait(false);
+                _bq = container;
+
+                _bqClient = new BigQueryClientBuilder
+                {
+                    ProjectId = "test",
+                    BaseUri = $"http://{_bq.Hostname}:{_bq.GetMappedPublicPort(9050)}",
+                    Credential = GoogleCredential.FromAccessToken("dummy-token"),
+                }.Build();
+            }
+            finally
+            {
+                _bqLock.Release();
+            }
+        }
+
         [AssemblyInitialize]
         public static Task AssemblyInit(TestContext _) => Task.CompletedTask;
 
@@ -124,6 +179,8 @@ namespace PolyPersist.Net.AnalyticalStore.Tests
                 await _pg.DisposeAsync().ConfigureAwait(false);
             if (_ch != null)
                 await _ch.DisposeAsync().ConfigureAwait(false);
+            if (_bq != null)
+                await _bq.DisposeAsync().ConfigureAwait(false);
         }
     }
 }
