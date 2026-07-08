@@ -25,10 +25,9 @@ namespace PolyPersist
 		/// Bulk-appends a batch of fact rows. This is the only write path: OLAP engines are optimized
 		/// for batched ingestion, so callers should accumulate rows and append them together.
 		public Task InsertBatch( IList<TRecord> records );
-		/// Single-table analytical query (aggregation / GROUP BY / scan).
-		/// The return value is generic: in .NET an IQueryable<T> (linq2db -> dialect SQL). For raw SQL
-		/// use GetUnderlyingImplementation.
-		public object Query<T>() where T: TRecord, new();
+		/// Single-table analytical query (aggregation / GROUP BY / scan). Language-mapped:
+		/// .NET IQueryable<TRecord>, Java Stream<TRecord>, ...
+		public System.Linq.IQueryable<TRecord> Query();
 		/// Getting the underlying implementation.
 		/// Please use this method carefully, because the returned value is different in every
 		/// implementation (e.g. the linq2db DataConnection, or the raw DbConnection).

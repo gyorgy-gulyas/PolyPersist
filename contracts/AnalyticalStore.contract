@@ -34,11 +34,6 @@ namespace PolyPersist {
 
         # Drops an existing fact table.
         async method DropTable(tableName: string)
-
-        # ANALYTICAL query root spanning multiple tables (star-schema joins, cross-fact aggregation).
-        # Deliberately NOT portable to non-relational stores; the return value is generic - in .NET
-        # the linq2db DataConnection over which LINQ (and raw SQL) queries are written.
-        method Query() => any
     }
 
     # IAnalyticalTable represents a single fact table. Writing is BATCH-first (bulk append); there is
@@ -56,10 +51,9 @@ namespace PolyPersist {
         # for batched ingestion, so callers should accumulate rows and append them together.
         async method InsertBatch(records: list[TRecord])
 
-        # Single-table analytical query (aggregation / GROUP BY / scan).
-        # The return value is generic: in .NET an IQueryable<T> (linq2db -> dialect SQL). For raw SQL
-        # use GetUnderlyingImplementation.
-        method Query<T constraint TRecord instantiable>() => any
+        # Single-table analytical query (aggregation / GROUP BY / scan). Language-mapped:
+        # .NET IQueryable<TRecord>, Java Stream<TRecord>, ...
+        method Query() => query<TRecord>
 
         # Getting the underlying implementation.
         # Please use this method carefully, because the returned value is different in every

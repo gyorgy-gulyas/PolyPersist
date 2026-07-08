@@ -45,17 +45,12 @@ namespace PolyPersist {
         #
         # @param tableName - The name of the table to be dropped.
         async method DropTable(tableName: string)
-
-        # RELATIONAL-ONLY query root for joins / multi-table / set-based SELECTs.
-        # This is deliberately NOT portable to document/column stores, therefore it lives on the
-        # relational store only. The return value is generic (in .NET the linq2db DataConnection,
-        # over which LINQ joins are written; the same handle also serves raw SQL via Dapper).
-        method Query() => any
     }
 
     # ITable defines CRUD and single-table query operations on a relational table.
     # This surface IS portable: it mirrors IDocumentCollection / IColumnTable, so cross-store code
-    # keeps working. Joins are NOT here (they are not portable) - use IRelationalStore.Query().
+    # keeps working. Query() returns the language-native queryable (LINQ in .NET); joins are written
+    # in the host language over these queryables (advanced multi-table access via GetUnderlyingImplementation).
     interface ITable<TRecord constraint IRecord instantiable> {
 
         # Read-only property for parent Store.
@@ -79,10 +74,8 @@ namespace PolyPersist {
         # Returns the row if found, or null if not found.
         async method Find(partitionKey: string, id: string) => TRecord
 
-        # Portable, SINGLE-TABLE query interface (filter / project / order).
-        # The return value is generic, so the implementation can define the real type:
-        # in .NET an IQueryable<T>, in Java a Stream / Querydsl, etc.
-        method Query<T constraint TRecord instantiable>() => any
+        # Portable, single-table query. Language-mapped: .NET IQueryable<TRecord>, Java Stream<TRecord>, ...
+        method Query() => query<TRecord>
 
         # Getting the underlying implementation.
         # Please use this method carefully, because the returned value is different in every

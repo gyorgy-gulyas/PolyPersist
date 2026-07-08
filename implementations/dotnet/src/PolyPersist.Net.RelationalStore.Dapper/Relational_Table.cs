@@ -120,23 +120,13 @@ namespace PolyPersist.Net.RelationalStore.Dapper
         }
 
         /// <inheritdoc/>
-        object ITable<TRecord>.Query<T>()
-        {
-            // T is only known as `T : TRecord, new()`; linq2db needs `class`. The compiler does not
-            // infer `class` transitively, so bridge via reflection (T is always a class at runtime).
-            var mi = typeof(Relational_Table<TRecord>)
-                .GetMethod(nameof(_QueryImpl), BindingFlags.NonPublic | BindingFlags.Instance)!
-                .MakeGenericMethod(typeof(T));
-            return mi.Invoke(this, null)!;
-        }
-
-        private object _QueryImpl<T>() where T : class, IRecord, new()
+        System.Linq.IQueryable<TRecord> ITable<TRecord>.Query()
         {
             // A DataContext (not DataConnection) backs the returned IQueryable: it opens/closes the
             // ADO connection per query, so the queryable can be composed and enumerated after this
             // method returns without holding a connection open.
             var ctx = new DataContext(_store.Options());
-            return ctx.GetTable<T>().TableName(_name);
+            return ctx.GetTable<TRecord>().TableName(_name);
         }
 
         /// <inheritdoc/>
