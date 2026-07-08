@@ -241,8 +241,8 @@ namespace PolyPersist.Net.AnalyticalStore.Tests
             var (_, table, _) = await NewTable(factory);
             var underlying = table.GetUnderlyingImplementation();
             Assert.IsNotNull(underlying);
-            if (underlying is IDisposable d)
-                d.Dispose();
+            // Do not dispose: the escape-hatch return's ownership is implementation-specific (e.g.
+            // BigQuery hands back the store's shared client, which must outlive this call).
         }
     }
 }

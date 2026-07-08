@@ -230,7 +230,7 @@ namespace PolyPersist.Net.AnalyticalStore.BigQuery
             e = Unwrap(e);
 
             if (e is MemberExpression me && me.Expression is ParameterExpression)
-                return me.Member.Name;
+                return "`" + me.Member.Name + "`";
 
             if (e is BinaryExpression be)
             {
@@ -249,11 +249,20 @@ namespace PolyPersist.Net.AnalyticalStore.BigQuery
                 return $"({Expr(be.Left, m)} {op} {Expr(be.Right, m)})";
             }
 
-            // Anything else is a value expression (constant or captured variable) -> parameter.
-            object? val = Evaluate(e);
-            string p = $"w{m.PIdx++}";
-            m.Params.Add(MakeParam(p, val));
-            return $"@{p}";
+            // Anything else must be a closed value expression (constant or captured variable),
+            // rendered as a typed GoogleSQL literal. If it references the row (e.g. a member function
+            // like Region.StartsWith), it cannot be evaluated here and is not translatable. Literals
+            // (not query parameters) also sidestep the emulator's mishandling of typed NUMERIC params.
+            object? val;
+            try
+            {
+                val = Evaluate(e);
+            }
+            catch
+            {
+                throw new NotSupportedException($"Expression '{e}' is not supported in a BigQuery predicate");
+            }
+            return Literal(val);
         }
 
         // g.Key -> group key column; g.Sum(x=>x.Col) -> SUM(Col); g.Count() -> COUNT(*).
@@ -324,7 +333,7 @@ namespace PolyPersist.Net.AnalyticalStore.BigQuery
         {
             e = Unwrap(e);
             if (e is MemberExpression me)
-                return me.Member.Name;
+                return "`" + me.Member.Name + "`";  // backtick-quoted: may be a GoogleSQL reserved word
             throw new NotSupportedException($"Expected a column reference but got '{e}'");
         }
 
@@ -360,22 +369,26 @@ namespace PolyPersist.Net.AnalyticalStore.BigQuery
             raw = Normalize(raw);
 
             if (t.IsInstanceOfType(raw)) return raw;
+            if (t == typeof(Guid)) return raw is Guid g ? g : Guid.Parse(raw.ToString()!);
             if (t.IsEnum) return Enum.ToObject(t, raw);
             return Convert.ChangeType(raw, t, CultureInfo.InvariantCulture);
         }
 
-        private static BigQueryParameter MakeParam(string name, object? value)
+        // Renders a .NET value as a typed GoogleSQL literal for inlining into predicates.
+        private static string Literal(object? value)
         {
+            var inv = CultureInfo.InvariantCulture;
             switch (value)
             {
-                case null: return new BigQueryParameter(name, BigQueryDbType.String, null);
-                case string s: return new BigQueryParameter(name, BigQueryDbType.String, s);
-                case bool b: return new BigQueryParameter(name, BigQueryDbType.Bool, b);
-                case int or long or short or byte: return new BigQueryParameter(name, BigQueryDbType.Int64, Convert.ToInt64(value));
-                case decimal d: return new BigQueryParameter(name, BigQueryDbType.Numeric, BigQueryNumeric.FromDecimal(d, LossOfPrecisionHandling.Truncate));
-                case double or float: return new BigQueryParameter(name, BigQueryDbType.Float64, Convert.ToDouble(value));
-                case DateTime dt: return new BigQueryParameter(name, BigQueryDbType.DateTime, dt);
-                default: return new BigQueryParameter(name, BigQueryDbType.String, value.ToString());
+                case null: return "NULL";
+                case string s: return "'" + s.Replace("\\", "\\\\").Replace("'", "\\'") + "'";
+                case bool b: return b ? "true" : "false";
+                case decimal d: return "NUMERIC '" + d.ToString(inv) + "'";
+                case int or long or short or byte: return Convert.ToInt64(value).ToString(inv);
+                case double or float: return Convert.ToDouble(value).ToString("R", inv);
+                case DateTime dt: return "DATETIME '" + dt.ToString("yyyy-MM-dd HH:mm:ss.ffffff", inv) + "'";
+                case Guid g: return "'" + g + "'";
+                default: return "'" + value.ToString()!.Replace("\\", "\\\\").Replace("'", "\\'") + "'";
             }
         }
     }
