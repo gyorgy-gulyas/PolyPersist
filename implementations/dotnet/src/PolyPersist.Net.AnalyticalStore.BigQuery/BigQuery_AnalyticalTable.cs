@@ -32,7 +32,8 @@ namespace PolyPersist.Net.AnalyticalStore.BigQuery
 
         private async Task _CreateSchemaAsync()
         {
-            string columns = string.Join(", ", _props.Select(p => $"{p.Name} {_GoogleSqlType(p.PropertyType)}"));
+            // Backtick-quote column names: a property may collide with a GoogleSQL reserved word (e.g. "At").
+            string columns = string.Join(", ", _props.Select(p => $"`{p.Name}` {_GoogleSqlType(p.PropertyType)}"));
             string sql = $"CREATE TABLE {_store.TableRef(_name)} ({columns})";
             await _store.Client.ExecuteQueryAsync(sql, parameters: null).ConfigureAwait(false);
         }
@@ -51,7 +52,7 @@ namespace PolyPersist.Net.AnalyticalStore.BigQuery
             // Values are emitted as typed GoogleSQL literals (not query parameters): the BigQuery
             // emulator mishandles typed parameters (e.g. NUMERIC arrives as STRING), while literals
             // are unambiguous and match real BigQuery. All values here are our own fact columns.
-            string cols = string.Join(", ", _props.Select(p => p.Name));
+            string cols = string.Join(", ", _props.Select(p => $"`{p.Name}`"));
 
             for (int start = 0; start < records.Count; start += _InsertChunk)
             {

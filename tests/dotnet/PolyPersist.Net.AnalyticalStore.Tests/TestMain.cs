@@ -22,6 +22,18 @@ namespace PolyPersist.Net.AnalyticalStore.Tests
         public DateTime SoldAt { get; set; }
     }
 
+    /// <summary>A fact row exercising the remaining column types (bool, double, long, nullable, Guid).</summary>
+    public class Metric : IAnalyticalRecord
+    {
+        public string Name { get; set; }
+        public bool Flag { get; set; }
+        public double Ratio { get; set; }
+        public long Big { get; set; }
+        public int? Score { get; set; }
+        public Guid Ref { get; set; }
+        public DateTime At { get; set; }
+    }
+
     /// <summary>
     /// Registers the analytical (OLAP) backends the tests run against. The factory ignores its
     /// argument and returns a fresh store; each test creates its own uniquely-named fact table so
@@ -125,6 +137,9 @@ namespace PolyPersist.Net.AnalyticalStore.Tests
         private static readonly SemaphoreSlim _bqLock = new(1, 1);
         private const string _bqDataset = "ds";
 
+        // Exposed so BigQuery-provider-specific tests (e.g. unsupported operators) can target it directly.
+        public static Func<string, Task<IAnalyticalStore>> BigQueryFactory { get; private set; }
+
         private static void _Setup_BigQuery()
         {
             Func<string, Task<IAnalyticalStore>> factory = async _ =>
@@ -132,6 +147,7 @@ namespace PolyPersist.Net.AnalyticalStore.Tests
                 await _EnsureBigQuery().ConfigureAwait(false);
                 return new BigQuery_AnalyticalStore(_bqClient, _bqDataset);
             };
+            BigQueryFactory = factory;
             StoreInstances.Add([factory]);
         }
 

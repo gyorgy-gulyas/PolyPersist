@@ -22,6 +22,12 @@ namespace PolyPersist.Net.AnalyticalStore.ClickHouse
         public ClickHouse_AnalyticalStore(string connectionString)
         {
             _connectionString = connectionString;
+
+            // linq2db's ClickHouse provider cannot render a bare decimal literal (it needs a
+            // precision), so a decimal constant in a WHERE (e.g. Amount > 30m) throws. Emit decimals
+            // as plain invariant numbers; ClickHouse coerces them to the column's Decimal type.
+            MappingSchema.SetValueToSqlConverter(typeof(decimal),
+                (sb, _, _, v) => sb.Append(((decimal)v).ToString(System.Globalization.CultureInfo.InvariantCulture)));
         }
 
         /// <inheritdoc/>
