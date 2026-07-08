@@ -3,8 +3,10 @@ using DotNet.Testcontainers.Builders;
 using DotNet.Testcontainers.Containers;
 using PolyPersist.Net.EventStore.Cassandra;
 using PolyPersist.Net.EventStore.Dapper;
+using PolyPersist.Net.EventStore.EventStoreDB;
 using PolyPersist.Net.EventStore.Memory;
 using PolyPersist.Net.Test;
+using Testcontainers.EventStoreDb;
 using Testcontainers.PostgreSql;
 
 namespace PolyPersist.Net.EventStore.Tests
@@ -30,6 +32,41 @@ namespace PolyPersist.Net.EventStore.Tests
             _Setup_Sqlite();
             _Setup_Postgres();
             _Setup_Scylla();
+            _Setup_EventStoreDB();
+        }
+
+        private static EventStoreDbContainer _esdb;
+        private static readonly SemaphoreSlim _esdbLock = new(1, 1);
+
+        private static void _Setup_EventStoreDB()
+        {
+            Func<string, Task<IEventStore>> factory = async _ =>
+            {
+                await _EnsureEsdb().ConfigureAwait(false);
+                return new EventStoreDB_EventStore(_esdb.GetConnectionString());
+            };
+            StoreInstances.Add([factory]);
+        }
+
+        private static async Task _EnsureEsdb()
+        {
+            if (_esdb != null)
+                return;
+
+            await _esdbLock.WaitAsync().ConfigureAwait(false);
+            try
+            {
+                if (_esdb != null)
+                    return;
+
+                var container = new EventStoreDbBuilder().WithCleanUp(true).Build();
+                await container.StartAsync().ConfigureAwait(false);
+                _esdb = container;
+            }
+            finally
+            {
+                _esdbLock.Release();
+            }
         }
 
         private static void _Setup_Memory()
@@ -150,6 +187,8 @@ namespace PolyPersist.Net.EventStore.Tests
                 await _pg.DisposeAsync().ConfigureAwait(false);
             if (_scylla != null)
                 await _scylla.DisposeAsync().ConfigureAwait(false);
+            if (_esdb != null)
+                await _esdb.DisposeAsync().ConfigureAwait(false);
 
             lock (_sqliteFiles)
             {

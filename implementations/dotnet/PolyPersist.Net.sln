@@ -76,6 +76,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PolyPersist.Net.EventStore.
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PolyPersist.Net.EventStore.Cassandra", "src\PolyPersist.Net.EventStore.Cassandra\PolyPersist.Net.EventStore.Cassandra.csproj", "{FF97720C-D08D-4AA7-BF71-C9B6B85007CA}"
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PolyPersist.Net.EventStore.EventStoreDB", "src\PolyPersist.Net.EventStore.EventStoreDB\PolyPersist.Net.EventStore.EventStoreDB.csproj", "{F83677C5-E960-4B2D-9E8E-94483E81074D}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -86,6 +88,18 @@ Global
 		Release|x86 = Release|x86
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{F83677C5-E960-4B2D-9E8E-94483E81074D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F83677C5-E960-4B2D-9E8E-94483E81074D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F83677C5-E960-4B2D-9E8E-94483E81074D}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{F83677C5-E960-4B2D-9E8E-94483E81074D}.Debug|x64.Build.0 = Debug|Any CPU
+		{F83677C5-E960-4B2D-9E8E-94483E81074D}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{F83677C5-E960-4B2D-9E8E-94483E81074D}.Debug|x86.Build.0 = Debug|Any CPU
+		{F83677C5-E960-4B2D-9E8E-94483E81074D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F83677C5-E960-4B2D-9E8E-94483E81074D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F83677C5-E960-4B2D-9E8E-94483E81074D}.Release|x64.ActiveCfg = Release|Any CPU
+		{F83677C5-E960-4B2D-9E8E-94483E81074D}.Release|x64.Build.0 = Release|Any CPU
+		{F83677C5-E960-4B2D-9E8E-94483E81074D}.Release|x86.ActiveCfg = Release|Any CPU
+		{F83677C5-E960-4B2D-9E8E-94483E81074D}.Release|x86.Build.0 = Release|Any CPU
 		{FF97720C-D08D-4AA7-BF71-C9B6B85007CA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{FF97720C-D08D-4AA7-BF71-C9B6B85007CA}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{FF97720C-D08D-4AA7-BF71-C9B6B85007CA}.Debug|x64.ActiveCfg = Debug|Any CPU
