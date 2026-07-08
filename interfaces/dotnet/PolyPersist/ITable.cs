@@ -13,7 +13,8 @@ namespace PolyPersist
 {
 	/// ITable defines CRUD and single-table query operations on a relational table.
 	/// This surface IS portable: it mirrors IDocumentCollection / IColumnTable, so cross-store code
-	/// keeps working. Joins are NOT here (they are not portable) - use IRelationalStore.Query().
+	/// keeps working. Query() returns the language-native queryable (LINQ in .NET); joins are written
+	/// in the host language over these queryables (advanced multi-table access via GetUnderlyingImplementation).
 	public interface ITable<TRecord>
 		where TRecord: IRecord, new()
 	{
@@ -33,10 +34,8 @@ namespace PolyPersist
 		/// Asynchronous method to find a row by its PartitionKey and id.
 		/// Returns the row if found, or null if not found.
 		public Task<TRecord> Find( string partitionKey, string id );
-		/// Portable, SINGLE-TABLE query interface (filter / project / order).
-		/// The return value is generic, so the implementation can define the real type:
-		/// in .NET an IQueryable<T>, in Java a Stream / Querydsl, etc.
-		public object Query<T>() where T: TRecord, new();
+		/// Portable, single-table query. Language-mapped: .NET IQueryable<TRecord>, Java Stream<TRecord>, ...
+		public System.Linq.IQueryable<TRecord> Query();
 		/// Getting the underlying implementation.
 		/// Please use this method carefully, because the returned value is different in every
 		/// implementation (e.g. the linq2db DataConnection, or the raw DbConnection for Dapper).

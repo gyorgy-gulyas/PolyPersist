@@ -162,7 +162,7 @@ namespace PolyPersist.Net.RelationalStore.Tests
             await table.Insert(Sample(pk: "p1", name: "mid", age: 40));
             await table.Insert(Sample(pk: "p1", name: "old", age: 60));
 
-            var query = (IQueryable<SampleRecord>)table.Query<SampleRecord>();
+            var query = table.Query();
             var adults = query.Where(r => r.Age >= 40).OrderBy(r => r.Age).ToList();
 
             Assert.AreEqual(2, adults.Count);
@@ -204,7 +204,7 @@ namespace PolyPersist.Net.RelationalStore.Tests
             await orders.Insert(new Order { PartitionKey = "p1", CustomerId = alice.id, Total = 20m });
 
             // Store-level Query() returns the linq2db DataConnection; write a LINQ join across tables.
-            using var db = (DataConnection)store.Query();
+            using var db = (DataConnection)orders.GetUnderlyingImplementation();
             var joined = await (
                 from o in db.GetTable<Order>().TableName(ordersName)
                 join c in db.GetTable<Customer>().TableName(customersName) on o.CustomerId equals c.id

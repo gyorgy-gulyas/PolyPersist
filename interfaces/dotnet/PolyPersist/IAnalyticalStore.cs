@@ -28,9 +28,5 @@ namespace PolyPersist
 		public Task<IAnalyticalTable<TRecord>> CreateTable<TRecord>( string tableName ) where TRecord: IAnalyticalRecord, new();
 		/// Drops an existing fact table.
 		public Task DropTable( string tableName );
-		/// ANALYTICAL query root spanning multiple tables (star-schema joins, cross-fact aggregation).
-		/// Deliberately NOT portable to non-relational stores; the return value is generic - in .NET
-		/// the linq2db DataConnection over which LINQ (and raw SQL) queries are written.
-		public object Query();
 	}
 }

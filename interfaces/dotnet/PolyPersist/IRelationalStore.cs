@@ -39,10 +39,5 @@ namespace PolyPersist
 		///
 		/// @param tableName - The name of the table to be dropped.
 		public Task DropTable( string tableName );
-		/// RELATIONAL-ONLY query root for joins / multi-table / set-based SELECTs.
-		/// This is deliberately NOT portable to document/column stores, therefore it lives on the
-		/// relational store only. The return value is generic (in .NET the linq2db DataConnection,
-		/// over which LINQ joins are written; the same handle also serves raw SQL via Dapper).
-		public object Query();
 	}
 }

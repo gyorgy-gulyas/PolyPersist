@@ -102,14 +102,6 @@ namespace PolyPersist.Net.RelationalStore.Dapper
             await db.ExecuteAsync($"DROP TABLE \"{tableName}\"").ConfigureAwait(false);
         }
 
-        /// <inheritdoc/>
-        object IRelationalStore.Query()
-        {
-            // Relational-only join / multi-table root. The caller owns the returned DataConnection
-            // (write LINQ joins on it, or BeginTransaction for a native ACID unit of work) and
-            // disposes it.
-            return CreateConnection();
-        }
     }
 
     // Internal bridge so the (non-class-constrained) store can trigger DDL on a table whose
