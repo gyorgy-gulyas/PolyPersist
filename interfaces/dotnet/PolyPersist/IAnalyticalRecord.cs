@@ -11,9 +11,11 @@ using System.Collections.Generic;
 
 namespace PolyPersist
 {
-	/// Abstract interface for creating stores
-	public interface IStoreProvider
+	/// IAnalyticalRecord is the marker for a denormalized "fact" row in an analytical (OLAP) store.
+	/// It is deliberately NOT an IEntity: analytical rows have no per-row identity, etag or
+	/// concurrency control - they are append-only facts whose columns (dimensions and measures) are
+	/// defined entirely by the concrete record's mapping.
+	public interface IAnalyticalRecord
 	{
-		public IStore getStore( IStore.StorageModels storageModel );
 	}
 }

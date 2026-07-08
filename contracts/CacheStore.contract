@@ -1,0 +1,47 @@
+#---------------------------------------------------------------------------------------------------
+# These files are part of the PolyPersist project and are intended to be processed by the unicontract tool.
+# After modifying these files, running unicontract is required to propagate the changes to the interface files in every supported programming language.
+# unicontract will generate the necessary interface files in .NET, Java, and Python, reflecting the modifications made in this file.
+#---------------------------------------------------------------------------------------------------
+import Store
+
+namespace PolyPersist {
+
+    # ICacheStore is a thin key-value cache with time-to-live. It is NOT a source of truth: values
+    # are transient and may be evicted or expire at any time. It is a storage MODEL (key-value + TTL);
+    # the caching STRATEGY (cache-aside, write-through, invalidation, repository decoration) is a
+    # cross-cutting service concern that belongs to SrvKit, which builds on top of this surface.
+    #
+    # Values are arbitrary (a DTO, a string, a list, ...): the generic type is intentionally
+    # unconstrained, and the implementation serializes/deserializes it. Backends are key-value
+    # caches: Redis / Valkey (distributed, default), Memcached, an in-process memory cache (L1 /
+    # testing) or a managed equivalent.
+    interface ICacheStore inherits IStore {
+
+        # Stores a value under a key with a time-to-live.
+        #
+        # @param key - the cache key.
+        # @param value - the value to cache; serialized by the implementation.
+        # @param ttlSeconds - the time-to-live in seconds; a value <= 0 means no expiration.
+        async method Set<T>(key: string, value: T, ttlSeconds: integer)
+
+        # Reads a value by key.
+        #
+        # @param key - the cache key.
+        # @returns the cached value, or the type default (null for reference types) if the key is
+        #          absent or has expired.
+        async method Get<T>(key: string) => T
+
+        # Checks whether a (non-expired) value exists for a key.
+        async method Exists(key: string) => boolean
+
+        # Removes a value from the cache by key (a no-op if it is not present).
+        async method Remove(key: string)
+
+        # Getting the underlying implementation.
+        # Please use this method carefully, because the returned value is different in every
+        # implementation. This is where PROVIDER-SPECIFIC capabilities live that the thin cache
+        # surface does not expose (e.g. atomic counters, pub/sub, native data structures in Redis).
+        method GetUnderlyingImplementation() => any
+    }
+}

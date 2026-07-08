@@ -1,0 +1,69 @@
+#---------------------------------------------------------------------------------------------------
+# These files are part of the PolyPersist project and are intended to be processed by the unicontract tool.
+# After modifying these files, running unicontract is required to propagate the changes to the interface files in every supported programming language.
+# unicontract will generate the necessary interface files in .NET, Java, and Python, reflecting the modifications made in this file.
+#---------------------------------------------------------------------------------------------------
+import Store
+
+namespace PolyPersist {
+
+    # IAnalyticalRecord is the marker for a denormalized "fact" row in an analytical (OLAP) store.
+    # It is deliberately NOT an IEntity: analytical rows have no per-row identity, etag or
+    # concurrency control - they are append-only facts whose columns (dimensions and measures) are
+    # defined entirely by the concrete record's mapping.
+    interface IAnalyticalRecord {
+    }
+
+    # IAnalyticalStore is a columnar OLAP / analytical store: batch (bulk) append on the write side,
+    # aggregation-oriented queries on the read side. It is a storage MODEL; reporting and BI are USES
+    # of it. Data typically lands here in PROCESSED form, projected from events or audit events by the
+    # consuming application - that projection pipeline is NOT part of PolyPersist; this store only
+    # provides the surface. Backends must speak SQL so the read side can use the same query engine as
+    # the relational store: ClickHouse (native OLAP), PostgreSQL (at moderate scale), or an in-memory
+    # store for testing. Cassandra is NOT a valid backend here (no SQL, not built for ad-hoc aggregation).
+    interface IAnalyticalStore inherits IStore {
+
+        # Checks whether a fact table exists in the store.
+        async method IsTableExists(tableName: string) => boolean
+
+        # Retrieves a fact table by name. The row schema is derived from TRecord's mapping.
+        async method GetTableByName<TRecord constraint IAnalyticalRecord instantiable>(tableName: string) => IAnalyticalTable<TRecord>
+
+        # Creates a new fact table. The schema is generated from TRecord by the implementation.
+        async method CreateTable<TRecord constraint IAnalyticalRecord instantiable>(tableName: string) => IAnalyticalTable<TRecord>
+
+        # Drops an existing fact table.
+        async method DropTable(tableName: string)
+
+        # ANALYTICAL query root spanning multiple tables (star-schema joins, cross-fact aggregation).
+        # Deliberately NOT portable to non-relational stores; the return value is generic - in .NET
+        # the linq2db DataConnection over which LINQ (and raw SQL) queries are written.
+        method Query() => any
+    }
+
+    # IAnalyticalTable represents a single fact table. Writing is BATCH-first (bulk append); there is
+    # deliberately NO per-row Insert / Update / Delete / Find, because that would misrepresent an OLAP
+    # engine (single-row writes are an anti-pattern; row mutation is a heavy async operation).
+    interface IAnalyticalTable<TRecord constraint IAnalyticalRecord instantiable> {
+
+        # Read-only property for parent Store.
+        readonly property ParentStore: IStore
+
+        # Read-only property representing the name of the table.
+        readonly property Name: string
+
+        # Bulk-appends a batch of fact rows. This is the only write path: OLAP engines are optimized
+        # for batched ingestion, so callers should accumulate rows and append them together.
+        async method InsertBatch(records: list[TRecord])
+
+        # Single-table analytical query (aggregation / GROUP BY / scan).
+        # The return value is generic: in .NET an IQueryable<T> (linq2db -> dialect SQL). For raw SQL
+        # use GetUnderlyingImplementation.
+        method Query<T constraint TRecord instantiable>() => any
+
+        # Getting the underlying implementation.
+        # Please use this method carefully, because the returned value is different in every
+        # implementation (e.g. the linq2db DataConnection, or the raw DbConnection).
+        method GetUnderlyingImplementation() => any
+    }
+}
