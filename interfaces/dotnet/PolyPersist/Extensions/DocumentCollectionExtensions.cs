@@ -12,7 +12,7 @@
             if (collection is null)
                 throw new ArgumentNullException(nameof(collection));
 
-            var query = collection.Query<TDocument>();
+            var query = collection.Query();
 
             if (query is IQueryable<TDocument> typedQuery)
             {
@@ -33,7 +33,7 @@
             if (collection is null)
                 throw new ArgumentNullException(nameof(collection));
 
-            var query = collection.Query<TQueryType>();
+            var query = collection.Query().OfType<TQueryType>();
 
             if (query is IQueryable<TQueryType> typedQuery)
             {

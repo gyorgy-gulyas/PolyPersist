@@ -85,9 +85,9 @@ namespace PolyPersist.Net.DocumentStore.MongoDB
         }
 
         /// <inheritdoc/>
-        object IDocumentCollection<TDocument>.Query<T>()
+        System.Linq.IQueryable<TDocument> IDocumentCollection<TDocument>.Query()
         {
-            return _mongoCollection.OfType<T>().AsQueryable();
+            return _mongoCollection.OfType<TDocument>().AsQueryable();
         }
 
         /// <inheritdoc/>
