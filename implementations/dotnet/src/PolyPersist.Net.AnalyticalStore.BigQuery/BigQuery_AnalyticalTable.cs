@@ -49,9 +49,14 @@ namespace PolyPersist.Net.AnalyticalStore.BigQuery
             if (records == null || records.Count == 0)
                 return;
 
-            // Values are emitted as typed GoogleSQL literals (not query parameters): the BigQuery
-            // emulator mishandles typed parameters (e.g. NUMERIC arrives as STRING), while literals
-            // are unambiguous and match real BigQuery. All values here are our own fact columns.
+            // Ingestion path = chunked INSERT DML with typed GoogleSQL literals (not query
+            // parameters): literals are unambiguous and the BigQuery emulator mishandles typed
+            // parameters (e.g. NUMERIC arrives as STRING). This is correct and immediately queryable
+            // at moderate scale. PERFORMANCE NOTE: for high-volume ingestion, INSERT DML is NOT the
+            // fast path (BigQuery imposes per-table DML quotas) - production should switch to a load
+            // job (BigQueryClient.UploadJson) or the Storage Write API. Those paths cannot be used
+            // here because the goccy emulator does not serve the upload endpoint (returns 0.0.0.0),
+            // so they would be untestable; the switch is a production-only optimization.
             string cols = string.Join(", ", _props.Select(p => $"`{p.Name}`"));
 
             for (int start = 0; start < records.Count; start += _InsertChunk)
