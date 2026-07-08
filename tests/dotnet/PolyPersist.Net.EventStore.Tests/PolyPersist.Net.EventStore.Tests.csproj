@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector" Version="6.0.0" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.8.0" />
+    <PackageReference Include="MSTest.TestAdapter" Version="3.1.1" />
+    <PackageReference Include="MSTest.TestFramework" Version="3.1.1" />
+    <PackageReference Include="Testcontainers.PostgreSql" Version="4.4.0" />
+    <PackageReference Include="Dapper" Version="2.1.35" />
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.10" />
+    <PackageReference Include="CassandraCSharpDriver" Version="3.22.0" />
+    <PackageReference Include="Testcontainers.EventStoreDb" Version="4.4.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\implementations\dotnet\src\PolyPersist.Net.EventStore.Dapper\PolyPersist.Net.EventStore.Dapper.csproj" />
+    <ProjectReference Include="..\..\..\implementations\dotnet\src\PolyPersist.Net.EventStore.Memory\PolyPersist.Net.EventStore.Memory.csproj" />
+    <ProjectReference Include="..\..\..\implementations\dotnet\src\PolyPersist.Net.EventStore.Cassandra\PolyPersist.Net.EventStore.Cassandra.csproj" />
+    <ProjectReference Include="..\..\..\implementations\dotnet\src\PolyPersist.Net.EventStore.EventStoreDB\PolyPersist.Net.EventStore.EventStoreDB.csproj" />
+    <ProjectReference Include="..\..\..\interfaces\dotnet\PolyPersist\PolyPersist.Net.csproj" />
+    <ProjectReference Include="..\PolyPersist.Net.Test\PolyPersist.Net.Test.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Microsoft.VisualStudio.TestTools.UnitTesting" />
+  </ItemGroup>
+
+</Project>
