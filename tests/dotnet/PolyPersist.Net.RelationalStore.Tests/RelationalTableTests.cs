@@ -3,7 +3,7 @@ using Dapper;
 using LinqToDB;
 using LinqToDB.Data;
 
-namespace PolyPersist.Net.RelationalStore.Dapper.Tests
+namespace PolyPersist.Net.RelationalStore.Tests
 {
     [TestClass]
     [DoNotParallelize]

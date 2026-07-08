@@ -66,7 +66,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PolyPersist.Net.Transaction
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PolyPersist.Net.RelationalStore.Dapper", "src\PolyPersist.Net.RelationalStore.Dapper\PolyPersist.Net.RelationalStore.Dapper.csproj", "{2C23F2F2-51F1-4B7B-BC29-BF85C091E00C}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PolyPersist.Net.RelationalStore.Dapper.Tests", "..\..\tests\dotnet\PolyPersist.Net.RelationalStore.Dapper.Tests\PolyPersist.Net.RelationalStore.Dapper.Tests.csproj", "{617A771A-7393-45F3-BC39-8B40E39198A8}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PolyPersist.Net.RelationalStore.Tests", "..\..\tests\dotnet\PolyPersist.Net.RelationalStore.Tests\PolyPersist.Net.RelationalStore.Tests.csproj", "{617A771A-7393-45F3-BC39-8B40E39198A8}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
