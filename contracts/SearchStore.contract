@@ -1,0 +1,81 @@
+#---------------------------------------------------------------------------------------------------
+# These files are part of the PolyPersist project and are intended to be processed by the unicontract tool.
+# After modifying these files, running unicontract is required to propagate the changes to the interface files in every supported programming language.
+# unicontract will generate the necessary interface files in .NET, Java, and Python, reflecting the modifications made in this file.
+#---------------------------------------------------------------------------------------------------
+import Store
+
+namespace PolyPersist {
+
+    # ISearchDocument is the marker for a document held in a search index.
+    # It is deliberately NOT an IEntity: a search document is a denormalized, derived projection of
+    # primary data, so it carries no etag / partition / concurrency - only an 'id' used to address
+    # the document for indexing (upsert) and deletion.
+    interface ISearchDocument {
+
+        # The identifier of the document within the index, used to upsert and delete it.
+        property id: string
+    }
+
+    # ISearchStore is a full-text search / index store (e.g. OpenSearch). It is a storage MODEL;
+    # searching is a USE. It is a SECONDARY, query-only store: documents are indexed here as a
+    # derived projection of primary data (that projection pipeline is app/consumer logic, NOT part
+    # of PolyPersist; this store only provides the surface).
+    #
+    # The read side is NOT SQL/linq2db - search is expressed in the engine's own query model.
+    # Therefore only a thin, portable core is exposed here (index / delete / simple full-text search);
+    # advanced capabilities (relevance tuning, facets/aggregations, highlighting, suggestions) are
+    # reached through GetUnderlyingImplementation with the native client.
+    #
+    # Backends: OpenSearch (native), an in-memory store for testing, and PostgreSQL full-text search
+    # for moderate needs.
+    interface ISearchStore inherits IStore {
+
+        # Checks whether an index exists in the store.
+        async method IsIndexExists(indexName: string) => boolean
+
+        # Retrieves an index by name. The document schema is derived from TDocument's mapping.
+        async method GetIndexByName<TDocument constraint ISearchDocument instantiable>(indexName: string) => ISearchIndex<TDocument>
+
+        # Creates a new index. The mapping is derived from TDocument by the implementation.
+        async method CreateIndex<TDocument constraint ISearchDocument instantiable>(indexName: string) => ISearchIndex<TDocument>
+
+        # Drops an existing index.
+        async method DropIndex(indexName: string)
+    }
+
+    # ISearchIndex represents a single search index. Documents are indexed (upserted) by id and
+    # deleted by id. The Search method covers the common full-text case; anything more advanced goes
+    # through GetUnderlyingImplementation.
+    interface ISearchIndex<TDocument constraint ISearchDocument instantiable> {
+
+        # Read-only property for parent Store.
+        readonly property ParentStore: IStore
+
+        # Read-only property representing the name of the index.
+        readonly property Name: string
+
+        # Indexes (upserts) a single document by its id.
+        async method Index(document: TDocument)
+
+        # Indexes (upserts) a batch of documents in one round-trip.
+        async method IndexBatch(documents: list[TDocument])
+
+        # Removes a document from the index by its id.
+        async method Delete(id: string)
+
+        # Simple full-text search over the index, with paging.
+        #
+        # @param queryText - the free-text query.
+        # @param from - the zero-based offset of the first hit to return.
+        # @param size - the maximum number of hits to return.
+        # @returns the matching documents, most relevant first.
+        async method Search(queryText: string, from: integer, size: integer) => list[TDocument]
+
+        # Getting the underlying implementation.
+        # Please use this method carefully, because the returned value is different in every
+        # implementation. This is where PROVIDER-SPECIFIC search capabilities live (relevance
+        # tuning, facets / aggregations, highlighting, suggesters), which are not portable.
+        method GetUnderlyingImplementation() => any
+    }
+}

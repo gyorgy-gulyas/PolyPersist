@@ -3,4 +3,21 @@
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
+
+  <!--
+    Regenerates the PolyPersist .NET interfaces from ..\..\..\contracts via UniContract.
+    Run on demand (NOT part of a normal build):
+        dotnet msbuild "PolyPersist.Net.csproj" -t:GenerateContracts
+    Prerequisite: UniContract must be installed as a console tool and be on PATH
+        pip install -e <path-to-UniContract-repo>
+    The dotnet emitter writes to ..\PolyPersist\*.cs (this project), overwriting only the
+    generated I*.cs files; the hand-written Core/Common/Context/Extensions folders are left alone.
+  -->
+  <Target Name="GenerateContracts">
+    <Message Importance="high" Text="Regenerating PolyPersist .NET interfaces from contracts via unicontract..." />
+    <Exec WorkingDirectory="$(MSBuildProjectDirectory)"
+          Command="unicontract -i &quot;..\..\..\contracts\PolyPersist.contract&quot; -e dotnet -o &quot;..&quot;" />
+    <Message Importance="high" Text="Done: interfaces regenerated into $(MSBuildProjectDirectory)." />
+  </Target>
+
 </Project>

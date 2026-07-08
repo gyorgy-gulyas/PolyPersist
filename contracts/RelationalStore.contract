@@ -1,0 +1,92 @@
+#---------------------------------------------------------------------------------------------------
+# These files are part of the PolyPersist project and are intended to be processed by the unicontract tool.
+# After modifying these files, running unicontract is required to propagate the changes to the interface files in every supported programming language.
+# unicontract will generate the necessary interface files in .NET, Java, and Python, reflecting the modifications made in this file.
+#---------------------------------------------------------------------------------------------------
+import Entity
+import Store
+
+namespace PolyPersist {
+
+    # IRecord represents a single row of a relational (SQL) table.
+    # It is the relational counterpart of IDocument (document store) and IRow (column store):
+    # a plain entity (id / etag / PartitionKey / LastUpdate) with no extra members.
+    interface IRecord inherits IEntity {
+    }
+
+    # IRelationalStore is the relational (SQL) logical store. It extends the generic IStore and
+    # adds table-level operations. A single implementation (backed by linq2db) covers every SQL
+    # provider (PostgreSQL, Oracle, SQL Server, SQLite): the dialect lives in the provider layer,
+    # not in this contract or in the caller.
+    interface IRelationalStore inherits IStore {
+
+        # Asynchronous method to check whether a table exists in the store.
+        #
+        # @param tableName - The name of the table to check for existence.
+        # @returns A boolean value indicating if the table is present in the store.
+        async method IsTableExists(tableName: string) => boolean
+
+        # Asynchronous method to retrieve a table by its name.
+        # The row schema is derived from TRecord's mapping.
+        #
+        # @param tableName - The name of the table to retrieve.
+        # @returns An ITable representing the table with the specified name.
+        async method GetTableByName<TRecord constraint IRecord instantiable>(tableName: string) => ITable<TRecord>
+
+        # Asynchronous method to create a new table.
+        # The schema (columns, primary key) is generated from TRecord by the implementation
+        # (linq2db CreateTable), so the DDL is dialect-correct without hand-written SQL.
+        #
+        # @param tableName - The name of the new table to be created.
+        # @returns The newly created table, represented as an ITable.
+        async method CreateTable<TRecord constraint IRecord instantiable>(tableName: string) => ITable<TRecord>
+
+        # Asynchronous method to drop (delete) an existing table from the store.
+        #
+        # @param tableName - The name of the table to be dropped.
+        async method DropTable(tableName: string)
+
+        # RELATIONAL-ONLY query root for joins / multi-table / set-based SELECTs.
+        # This is deliberately NOT portable to document/column stores, therefore it lives on the
+        # relational store only. The return value is generic (in .NET the linq2db DataConnection,
+        # over which LINQ joins are written; the same handle also serves raw SQL via Dapper).
+        method Query() => any
+    }
+
+    # ITable defines CRUD and single-table query operations on a relational table.
+    # This surface IS portable: it mirrors IDocumentCollection / IColumnTable, so cross-store code
+    # keeps working. Joins are NOT here (they are not portable) - use IRelationalStore.Query().
+    interface ITable<TRecord constraint IRecord instantiable> {
+
+        # Read-only property for parent Store.
+        readonly property ParentStore: IStore
+
+        # Read-only property representing the name of the table.
+        readonly property Name: string
+
+        # Asynchronous method to insert a row into the table.
+        # The 'record' parameter is the row that will be inserted into the table.
+        async method Insert(record: TRecord)
+
+        # Asynchronous method to update an existing row in the table.
+        # Optimistic concurrency is enforced via the entity's etag.
+        async method Update(record: TRecord)
+
+        # Asynchronous method to delete a row using its PartitionKey and id.
+        async method Delete(partitionKey: string, id: string)
+
+        # Asynchronous method to find a row by its PartitionKey and id.
+        # Returns the row if found, or null if not found.
+        async method Find(partitionKey: string, id: string) => TRecord
+
+        # Portable, SINGLE-TABLE query interface (filter / project / order).
+        # The return value is generic, so the implementation can define the real type:
+        # in .NET an IQueryable<T>, in Java a Stream / Querydsl, etc.
+        method Query<T constraint TRecord instantiable>() => any
+
+        # Getting the underlying implementation.
+        # Please use this method carefully, because the returned value is different in every
+        # implementation (e.g. the linq2db DataConnection, or the raw DbConnection for Dapper).
+        method GetUnderlyingImplementation() => any
+    }
+}

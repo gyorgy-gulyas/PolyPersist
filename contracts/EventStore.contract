@@ -1,0 +1,93 @@
+#---------------------------------------------------------------------------------------------------
+# These files are part of the PolyPersist project and are intended to be processed by the unicontract tool.
+# After modifying these files, running unicontract is required to propagate the changes to the interface files in every supported programming language.
+# unicontract will generate the necessary interface files in .NET, Java, and Python, reflecting the modifications made in this file.
+#---------------------------------------------------------------------------------------------------
+import Store
+
+namespace PolyPersist {
+
+    # IEvent represents a single immutable event appended to a stream.
+    # It is deliberately NOT an IEntity: events are versioned by their STREAM (not by a per-event
+    # etag) and are never updated or deleted individually. An event is an append-only fact.
+    interface IEvent {
+
+        # The unique identifier of this event, primarily used for idempotency and de-duplication.
+        # If left empty on append, the store assigns one.
+        property eventId: string
+
+        # The stream this event belongs to (typically an aggregate instance id, or an audit
+        # category id). Set by the store on append.
+        property streamId: string
+
+        # The zero-based position of the event within its stream. This is the stream's
+        # optimistic-concurrency token. Set by the store on append.
+        property version: integer
+
+        # The logical event type name, used for routing and for deserializing 'data' back into a
+        # concrete event type (e.g. "OrderPlaced", "PasswordChanged").
+        property eventType: string
+
+        # The serialized event payload (JSON).
+        property data: string
+
+        # Optional serialized metadata that travels with the event but is not part of its payload,
+        # such as correlation id, causation id or the acting user (JSON).
+        property metadata: string
+
+        # The moment the event was recorded. Set by the store on append.
+        property timestamp: datetime
+    }
+
+    # IEventStore is an append-only, immutable, ordered stream store. It is a storage MODEL;
+    # event sourcing and audit trails are USES of it - both domain events and audit events are
+    # just events on streams. A single implementation family can be backed by EventStoreDB, by
+    # Cassandra (partition = stream, clustering = version), or by an in-memory store for testing.
+    interface IEventStore inherits IStore {
+
+        # Appends events to the end of a stream with optimistic concurrency.
+        #
+        # @param streamId - the target stream (aggregate/category id).
+        # @param expectedVersion - the caller's last-known version of the stream. Sentinels:
+        #        -2 = Any (no concurrency check); -1 = the stream must not yet exist (empty);
+        #        >= 0 = the stream's current last version must equal this value, otherwise the
+        #        append is rejected as a concurrency conflict.
+        # @param events - the events to append, in order.
+        # @returns the new last version of the stream after the append.
+        async method AppendToStream(streamId: string, expectedVersion: integer, events: list[IEvent]) => integer
+
+        # Reads a slice of a stream forward, in ascending version order.
+        #
+        # @param streamId - the stream to read.
+        # @param fromVersion - the zero-based version to start reading from.
+        # @param maxCount - the maximum number of events to return; -1 means "read to the end".
+        # @returns the events in ascending version order; empty if the stream does not exist.
+        async method ReadStream(streamId: string, fromVersion: integer, maxCount: integer) => list[IEvent]
+
+        # Checks whether a stream exists (has at least one event).
+        #
+        # @param streamId - the stream to check.
+        # @returns true if the stream exists.
+        async method StreamExists(streamId: string) => boolean
+
+        # Returns the current last version of a stream, or -1 if the stream does not exist.
+        #
+        # @param streamId - the stream to inspect.
+        async method GetStreamVersion(streamId: string) => integer
+
+        # Deletes (tombstones) an entire stream. Individual events are never deleted; this removes
+        # the whole stream (e.g. for GDPR erasure). expectedVersion follows the AppendToStream
+        # sentinels.
+        #
+        # @param streamId - the stream to delete.
+        # @param expectedVersion - concurrency guard, see AppendToStream.
+        async method DeleteStream(streamId: string, expectedVersion: integer)
+
+        # Getting the underlying implementation.
+        # Please use this method carefully, because the returned value is different in every
+        # implementation. This is also where PROVIDER-SPECIFIC, non-portable capabilities live -
+        # most notably subscriptions / projections / category ($all) reads, which are native in
+        # EventStoreDB but emulated or limited on other backends.
+        method GetUnderlyingImplementation() => any
+    }
+}

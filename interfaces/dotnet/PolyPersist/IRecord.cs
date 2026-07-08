@@ -11,9 +11,10 @@ using System.Collections.Generic;
 
 namespace PolyPersist
 {
-	/// Abstract interface for creating stores
-	public interface IStoreProvider
+	/// IRecord represents a single row of a relational (SQL) table.
+	/// It is the relational counterpart of IDocument (document store) and IRow (column store):
+	/// a plain entity (id / etag / PartitionKey / LastUpdate) with no extra members.
+	public interface IRecord : IEntity
 	{
-		public IStore getStore( IStore.StorageModels storageModel );
 	}
 }
