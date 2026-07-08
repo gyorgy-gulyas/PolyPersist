@@ -276,10 +276,17 @@ namespace PolyPersist.Net.EventStore.Tests
             var stream = TestMain.NewStreamId();
             await store.AppendToStream(stream, NoStream, Evs(Ev("A", "1"), Ev("B", "2")));
 
-            using var conn = (DbConnection)store.GetUnderlyingImplementation();
-            await conn.OpenAsync();
-            long count = await conn.ExecuteScalarAsync<long>($"SELECT COUNT(*) FROM \"{table}\" WHERE \"streamId\" = @s", new { s = stream });
-            Assert.AreEqual(2L, count);
+            var underlying = store.GetUnderlyingImplementation();
+            Assert.IsNotNull(underlying);
+
+            // The escape hatch is backend-specific: only the SQL backends expose a DbConnection.
+            if (underlying is DbConnection conn)
+            {
+                await conn.OpenAsync();
+                long count = await conn.ExecuteScalarAsync<long>($"SELECT COUNT(*) FROM \"{table}\" WHERE \"streamId\" = @s", new { s = stream });
+                Assert.AreEqual(2L, count);
+                conn.Dispose();
+            }
         }
     }
 }

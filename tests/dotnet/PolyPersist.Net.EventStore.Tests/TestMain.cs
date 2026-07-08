@@ -1,4 +1,9 @@
+using Cassandra;
+using DotNet.Testcontainers.Builders;
+using DotNet.Testcontainers.Containers;
+using PolyPersist.Net.EventStore.Cassandra;
 using PolyPersist.Net.EventStore.Dapper;
+using PolyPersist.Net.EventStore.Memory;
 using PolyPersist.Net.Test;
 using Testcontainers.PostgreSql;
 
@@ -21,8 +26,16 @@ namespace PolyPersist.Net.EventStore.Tests
 
         static TestMain()
         {
+            _Setup_Memory();
             _Setup_Sqlite();
             _Setup_Postgres();
+            _Setup_Scylla();
+        }
+
+        private static void _Setup_Memory()
+        {
+            Func<string, Task<IEventStore>> factory = _ => Task.FromResult<IEventStore>(new Memory_EventStore());
+            StoreInstances.Add([factory]);
         }
 
         public static string NewTableName() => ("t" + Guid.NewGuid().ToString("N")).MakeStorageConformName();
@@ -77,6 +90,56 @@ namespace PolyPersist.Net.EventStore.Tests
             }
         }
 
+        private static IContainer _scylla;
+        private static readonly SemaphoreSlim _scyllaLock = new(1, 1);
+
+        private static void _Setup_Scylla()
+        {
+            Func<string, Task<IEventStore>> factory = async keyspace =>
+            {
+                await _EnsureScylla().ConfigureAwait(false);
+
+                var host = _scylla.Hostname;
+                var port = _scylla.GetMappedPublicPort(9042);
+
+                var cluster = Cluster.Builder().AddContactPoint(host).WithPort(port)
+                    .WithCredentials("cassandra", "cassandra").Build();
+                using (var session = await cluster.ConnectAsync().ConfigureAwait(false))
+                    await session.ExecuteAsync(new SimpleStatement(
+                        $"CREATE KEYSPACE IF NOT EXISTS {keyspace} WITH replication = {{'class':'SimpleStrategy','replication_factor':1}}")).ConfigureAwait(false);
+
+                return new Cassandra_EventStore($"host={host};port={port};username=cassandra;password=cassandra;keyspace={keyspace}");
+            };
+            StoreInstances.Add([factory]);
+        }
+
+        private static async Task _EnsureScylla()
+        {
+            if (_scylla != null)
+                return;
+
+            await _scyllaLock.WaitAsync().ConfigureAwait(false);
+            try
+            {
+                if (_scylla != null)
+                    return;
+
+                var container = new ContainerBuilder()
+                    .WithImage("scylladb/scylla:5.4")
+                    .WithCleanUp(true)
+                    .WithPortBinding(9042, assignRandomHostPort: true)
+                    .WithWaitStrategy(Wait.ForUnixContainer().UntilPortIsAvailable(9042))
+                    .Build();
+
+                await container.StartAsync().ConfigureAwait(false);
+                _scylla = container;
+            }
+            finally
+            {
+                _scyllaLock.Release();
+            }
+        }
+
         [AssemblyInitialize]
         public static Task AssemblyInit(TestContext _) => Task.CompletedTask;
 
@@ -85,6 +148,8 @@ namespace PolyPersist.Net.EventStore.Tests
         {
             if (_pg != null)
                 await _pg.DisposeAsync().ConfigureAwait(false);
+            if (_scylla != null)
+                await _scylla.DisposeAsync().ConfigureAwait(false);
 
             lock (_sqliteFiles)
             {

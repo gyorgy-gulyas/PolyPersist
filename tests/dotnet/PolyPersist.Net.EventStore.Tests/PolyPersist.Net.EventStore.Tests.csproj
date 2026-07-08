@@ -15,10 +15,13 @@
     <PackageReference Include="Testcontainers.PostgreSql" Version="4.4.0" />
     <PackageReference Include="Dapper" Version="2.1.35" />
     <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.10" />
+    <PackageReference Include="CassandraCSharpDriver" Version="3.22.0" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\..\implementations\dotnet\src\PolyPersist.Net.EventStore.Dapper\PolyPersist.Net.EventStore.Dapper.csproj" />
+    <ProjectReference Include="..\..\..\implementations\dotnet\src\PolyPersist.Net.EventStore.Memory\PolyPersist.Net.EventStore.Memory.csproj" />
+    <ProjectReference Include="..\..\..\implementations\dotnet\src\PolyPersist.Net.EventStore.Cassandra\PolyPersist.Net.EventStore.Cassandra.csproj" />
     <ProjectReference Include="..\..\..\interfaces\dotnet\PolyPersist\PolyPersist.Net.csproj" />
     <ProjectReference Include="..\PolyPersist.Net.Test\PolyPersist.Net.Test.csproj" />
   </ItemGroup>
