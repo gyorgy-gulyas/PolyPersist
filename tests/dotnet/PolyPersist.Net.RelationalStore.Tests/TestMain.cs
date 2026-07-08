@@ -3,7 +3,7 @@ using PolyPersist.Net.RelationalStore.Dapper;
 using PolyPersist.Net.Test;
 using Testcontainers.PostgreSql;
 
-namespace PolyPersist.Net.RelationalStore.Dapper.Tests
+namespace PolyPersist.Net.RelationalStore.Tests
 {
     // ---- Test records (flat, scalar columns) ----
 

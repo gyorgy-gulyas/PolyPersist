@@ -1,6 +1,6 @@
 using PolyPersist.Net.Transactions;
 
-namespace PolyPersist.Net.RelationalStore.Dapper.Tests
+namespace PolyPersist.Net.RelationalStore.Tests
 {
     /// <summary>
     /// Exercises the new ITransaction ITable overloads (compensation-based cross-store unit of work)

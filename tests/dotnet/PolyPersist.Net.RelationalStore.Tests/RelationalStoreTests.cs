@@ -1,4 +1,4 @@
-namespace PolyPersist.Net.RelationalStore.Dapper.Tests
+namespace PolyPersist.Net.RelationalStore.Tests
 {
     [TestClass]
     [DoNotParallelize]
