@@ -78,13 +78,13 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PolyPersist.Net.EventStore.
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PolyPersist.Net.EventStore.EventStoreDB", "src\PolyPersist.Net.EventStore.EventStoreDB\PolyPersist.Net.EventStore.EventStoreDB.csproj", "{F83677C5-E960-4B2D-9E8E-94483E81074D}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{827E0CD3-B72D-47B6-A68D-7590B98EB39B}"
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PolyPersist.Net.AnalyticalStore.Postgres", "src\PolyPersist.Net.AnalyticalStore.Postgres\PolyPersist.Net.AnalyticalStore.Postgres.csproj", "{E294988B-8BF4-496C-BA91-05847EC4BB5D}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PolyPersist.Net.AnalyticalStore.Tests", "..\..\tests\dotnet\PolyPersist.Net.AnalyticalStore.Tests\PolyPersist.Net.AnalyticalStore.Tests.csproj", "{1CBB8040-071E-4957-AB8E-09C27D7E7D7C}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PolyPersist.Net.AnalyticalStore.ClickHouse", "src\PolyPersist.Net.AnalyticalStore.ClickHouse\PolyPersist.Net.AnalyticalStore.ClickHouse.csproj", "{D2DB0F61-224F-43F2-9EA3-7E3F077B9366}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PolyPersist.Net.AnalyticalStore.BigQuery", "src\PolyPersist.Net.AnalyticalStore.BigQuery\PolyPersist.Net.AnalyticalStore.BigQuery.csproj", "{97ACBCF0-6CE9-4F4F-9BD9-D315A97B5C82}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -432,14 +432,21 @@ Global
 		{D2DB0F61-224F-43F2-9EA3-7E3F077B9366}.Release|x64.Build.0 = Release|Any CPU
 		{D2DB0F61-224F-43F2-9EA3-7E3F077B9366}.Release|x86.ActiveCfg = Release|Any CPU
 		{D2DB0F61-224F-43F2-9EA3-7E3F077B9366}.Release|x86.Build.0 = Release|Any CPU
+		{97ACBCF0-6CE9-4F4F-9BD9-D315A97B5C82}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{97ACBCF0-6CE9-4F4F-9BD9-D315A97B5C82}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{97ACBCF0-6CE9-4F4F-9BD9-D315A97B5C82}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{97ACBCF0-6CE9-4F4F-9BD9-D315A97B5C82}.Debug|x64.Build.0 = Debug|Any CPU
+		{97ACBCF0-6CE9-4F4F-9BD9-D315A97B5C82}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{97ACBCF0-6CE9-4F4F-9BD9-D315A97B5C82}.Debug|x86.Build.0 = Debug|Any CPU
+		{97ACBCF0-6CE9-4F4F-9BD9-D315A97B5C82}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{97ACBCF0-6CE9-4F4F-9BD9-D315A97B5C82}.Release|Any CPU.Build.0 = Release|Any CPU
+		{97ACBCF0-6CE9-4F4F-9BD9-D315A97B5C82}.Release|x64.ActiveCfg = Release|Any CPU
+		{97ACBCF0-6CE9-4F4F-9BD9-D315A97B5C82}.Release|x64.Build.0 = Release|Any CPU
+		{97ACBCF0-6CE9-4F4F-9BD9-D315A97B5C82}.Release|x86.ActiveCfg = Release|Any CPU
+		{97ACBCF0-6CE9-4F4F-9BD9-D315A97B5C82}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
-	EndGlobalSection
-	GlobalSection(NestedProjects) = preSolution
-		{E294988B-8BF4-496C-BA91-05847EC4BB5D} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
-		{1CBB8040-071E-4957-AB8E-09C27D7E7D7C} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
-		{D2DB0F61-224F-43F2-9EA3-7E3F077B9366} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {F7D5AE71-3A12-4F64-9BD7-1263ABD6D3BF}
