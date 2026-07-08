@@ -226,7 +226,7 @@ namespace PolyPersist.Net.ColumnStore.Cassandra
         }
 
         /// <inheritdoc/>
-        object IColumnTable<TRow>.Query()
+        System.Linq.IQueryable<TRow> IColumnTable<TRow>.Query()
         {
             return new Cassandra_Queryable<TRow,TRow>(this);
         }

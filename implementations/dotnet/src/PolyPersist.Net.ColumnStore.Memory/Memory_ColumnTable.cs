@@ -95,7 +95,7 @@ namespace PolyPersist.Net.ColumnStore.Memory
         }
 
         /// <inheritdoc/>
-        object IColumnTable<TRow>.Query()
+        System.Linq.IQueryable<TRow> IColumnTable<TRow>.Query()
         {
             var queryable = _tableData
                 .ListOfDocments
