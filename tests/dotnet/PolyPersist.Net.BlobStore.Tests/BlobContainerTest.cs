@@ -1,7 +1,8 @@
-﻿using PolyPersist.Net.Test;
+using PolyPersist.Net.Test;
 using System;
 using System.Reflection;
 using System.Text;
+using PolyPersist.Net.Common;
 
 namespace PolyPersist.Net.BlobStore.Tests
 {
@@ -189,7 +190,7 @@ namespace PolyPersist.Net.BlobStore.Tests
 
             // the stale writer must be rejected
             using (var s = new MemoryStream(Encoding.UTF8.GetBytes("v3")))
-                await Assert.ThrowsExceptionAsync<Exception>(async () => await container.UpdateContent(stale, s));
+                await Assert.ThrowsExceptionAsync<ConcurrencyConflictException>(async () => await container.UpdateContent(stale, s));
         }
 
         // CheckBeforeUpdate must run on every store: updating with no etag is rejected (you can
@@ -211,10 +212,10 @@ namespace PolyPersist.Net.BlobStore.Tests
 
             using (var s = new MemoryStream(Encoding.UTF8.GetBytes("v2")))
             {
-                var ex = await Assert.ThrowsExceptionAsync<Exception>(async () => await container.UpdateContent(noEtag, s));
+                var ex = await Assert.ThrowsExceptionAsync<InvalidRequestException>(async () => await container.UpdateContent(noEtag, s));
                 Assert.IsTrue(ex.Message.Contains("ETag"));
             }
-            var ex2 = await Assert.ThrowsExceptionAsync<Exception>(async () => await container.UpdateMetadata(noEtag));
+            var ex2 = await Assert.ThrowsExceptionAsync<InvalidRequestException>(async () => await container.UpdateMetadata(noEtag));
             Assert.IsTrue(ex2.Message.Contains("ETag"));
         }
 
@@ -257,7 +258,7 @@ namespace PolyPersist.Net.BlobStore.Tests
                 PartitionKey = "invalid-pk"
             };
 
-            var exception = await Assert.ThrowsExceptionAsync<Exception>(async () =>
+            var exception = await Assert.ThrowsExceptionAsync<NotFoundException>(async () =>
             {
                 using var stream = await container.Download(nonExistentBlob);
             });
@@ -272,7 +273,7 @@ namespace PolyPersist.Net.BlobStore.Tests
             var store = await factory();
             var container = await store.CreateContainer<SampleBlob>(testName);
 
-            var exception = await Assert.ThrowsExceptionAsync<Exception>(async () =>
+            var exception = await Assert.ThrowsExceptionAsync<NotFoundException>(async () =>
             {
                 await container.Delete("invalid-pk", "nonexistent-id");
             });
@@ -305,7 +306,7 @@ namespace PolyPersist.Net.BlobStore.Tests
                 fileName = "test.txt"
             };
 
-            var exception = await Assert.ThrowsExceptionAsync<Exception>(async () =>
+            var exception = await Assert.ThrowsExceptionAsync<InvalidRequestException>(async () =>
             {
                 await container.Upload(blob, null);
             });
@@ -329,7 +330,7 @@ namespace PolyPersist.Net.BlobStore.Tests
             using var stream = new MemoryStream(Encoding.UTF8.GetBytes("initial content"));
             await container.Upload(blob, stream);
 
-            var exception = await Assert.ThrowsExceptionAsync<Exception>(async () =>
+            var exception = await Assert.ThrowsExceptionAsync<InvalidRequestException>(async () =>
             {
                 await container.UpdateContent(blob, null);
             });
@@ -354,7 +355,7 @@ namespace PolyPersist.Net.BlobStore.Tests
 
             using var stream = new MemoryStream(Encoding.UTF8.GetBytes("new content"));
 
-            var exception = await Assert.ThrowsExceptionAsync<Exception>(async () =>
+            var exception = await Assert.ThrowsExceptionAsync<NotFoundException>(async () =>
             {
                 await container.UpdateContent(fake, stream);
             });
@@ -378,7 +379,7 @@ namespace PolyPersist.Net.BlobStore.Tests
                 str_value = "meta"
             };
 
-            var exception = await Assert.ThrowsExceptionAsync<Exception>(async () =>
+            var exception = await Assert.ThrowsExceptionAsync<NotFoundException>(async () =>
             {
                 await container.UpdateMetadata(fake);
             });
@@ -404,7 +405,7 @@ namespace PolyPersist.Net.BlobStore.Tests
 
             await container.Delete(sample.PartitionKey, sample.id);
 
-            var exception = await Assert.ThrowsExceptionAsync<Exception>(async () =>
+            var exception = await Assert.ThrowsExceptionAsync<NotFoundException>(async () =>
             {
                 using var stream = await container.Download(sample);
             });
@@ -441,7 +442,7 @@ namespace PolyPersist.Net.BlobStore.Tests
 
             using var unreadableStream = new NonReadableStream();
 
-            var ex = await Assert.ThrowsExceptionAsync<Exception>(async () =>
+            var ex = await Assert.ThrowsExceptionAsync<InvalidRequestException>(async () =>
             {
                 await container.Upload(blob, unreadableStream);
             });
@@ -479,7 +480,7 @@ namespace PolyPersist.Net.BlobStore.Tests
             await container.Upload(blob1, stream1);
 
             // A második dobjon kivételt az azonos ID miatt (függetlenül a PartitionKey-től)
-            var ex = await Assert.ThrowsExceptionAsync<Exception>(async () =>
+            var ex = await Assert.ThrowsExceptionAsync<DuplicateKeyException>(async () =>
             {
                 await container.Upload(blob2, stream2);
             });
@@ -502,14 +503,14 @@ namespace PolyPersist.Net.BlobStore.Tests
             using var stream = new MemoryStream(Encoding.UTF8.GetBytes("test content"));
 
             blob.PartitionKey = null!;
-            var ex1 = await Assert.ThrowsExceptionAsync<Exception>(async () =>
+            var ex1 = await Assert.ThrowsExceptionAsync<InvalidRequestException>(async () =>
             {
                 await container.Upload(blob, stream);
             });
             Assert.IsTrue(ex1.Message.Contains("PartitionKey must be filled"));
 
             blob.PartitionKey = "";
-            var ex2 = await Assert.ThrowsExceptionAsync<Exception>(async () =>
+            var ex2 = await Assert.ThrowsExceptionAsync<InvalidRequestException>(async () =>
             {
                 await container.Upload(blob, stream);
             });
@@ -599,7 +600,7 @@ namespace PolyPersist.Net.BlobStore.Tests
                 "Find with a foreign partitionKey must not return another partition's blob");
 
             // 2. Delete under the wrong partition must fail and must NOT remove the blob.
-            var delEx = await Assert.ThrowsExceptionAsync<Exception>(async () =>
+            var delEx = await Assert.ThrowsExceptionAsync<NotFoundException>(async () =>
                 await container.Delete(otherPk, owner.id));
             Assert.IsTrue(delEx.Message.Contains("does not exist"));
             Assert.IsNotNull(await container.Find(owner.PartitionKey, owner.id),
@@ -610,12 +611,12 @@ namespace PolyPersist.Net.BlobStore.Tests
             var forged = new SampleBlob { id = owner.id, PartitionKey = otherPk, etag = owner.etag, fileName = "secret.txt" };
             using (var s = new MemoryStream(Encoding.UTF8.GetBytes("tampered")))
             {
-                var upEx = await Assert.ThrowsExceptionAsync<Exception>(async () =>
+                var upEx = await Assert.ThrowsExceptionAsync<NotFoundException>(async () =>
                     await container.UpdateContent(forged, s));
                 Assert.IsTrue(upEx.Message.Contains("does not exist"));
             }
             forged.str_value = "tampered meta";
-            var metaEx = await Assert.ThrowsExceptionAsync<Exception>(async () =>
+            var metaEx = await Assert.ThrowsExceptionAsync<NotFoundException>(async () =>
                 await container.UpdateMetadata(forged));
             Assert.IsTrue(metaEx.Message.Contains("does not exist"));
 

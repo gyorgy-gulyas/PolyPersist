@@ -1,4 +1,4 @@
-﻿using PolyPersist.Net.Common;
+using PolyPersist.Net.Common;
 using System.Text.Json;
 
 namespace PolyPersist.Net.BlobStore.FileSystem
@@ -23,7 +23,7 @@ namespace PolyPersist.Net.BlobStore.FileSystem
         Task IBlobContainer<TBlob>.Upload(TBlob blob, Stream content)
         {
             if (content == null || content.CanRead == false)
-                throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} content cannot be read");
+                throw new InvalidRequestException($"Blob '{typeof(TBlob).Name}' {blob.id} content cannot be read");
 
             CollectionCommon.CheckBeforeInsert(blob);
 
@@ -34,7 +34,7 @@ namespace PolyPersist.Net.BlobStore.FileSystem
 
             var path = _makeFilePath(blob.id);
             if (File.Exists(path))
-                throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} cannot be uploaded, beacuse of duplicate key");
+                throw new DuplicateKeyException($"Blob '{typeof(TBlob).Name}' {blob.id} cannot be uploaded, beacuse of duplicate key");
 
             Directory.CreateDirectory(Path.GetDirectoryName(path)!);
             using var fs = File.Create(path);
@@ -49,7 +49,7 @@ namespace PolyPersist.Net.BlobStore.FileSystem
         {
             var path = _makeFilePath(blob.id);
             if (File.Exists(path) == false)
-                throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not download, because it is does not exist");
+                throw new NotFoundException($"Blob '{typeof(TBlob).Name}' {blob.id} can not download, because it is does not exist");
 
             var fs = File.OpenRead(path);
             return Task.FromResult<Stream>(fs);
@@ -78,7 +78,7 @@ namespace PolyPersist.Net.BlobStore.FileSystem
             var metaPath = path + ".meta.json";
             if (File.Exists(path) == false || File.Exists(metaPath) == false
                 || BlobMetadata.Deserialize<TBlob>(File.ReadAllText(metaPath)).PartitionKey != partitionKey)
-                throw new Exception($"Blob '{typeof(TBlob).Name}' {id} can not be removed because it is does not exist");
+                throw new NotFoundException($"Blob '{typeof(TBlob).Name}' {id} can not be removed because it is does not exist");
 
             File.Delete(path);
             File.Delete(metaPath);
@@ -92,17 +92,17 @@ namespace PolyPersist.Net.BlobStore.FileSystem
             CollectionCommon.CheckBeforeUpdate(blob);
 
             if (content == null || content.CanRead == false)
-                throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} content cannot be read");
+                throw new InvalidRequestException($"Blob '{typeof(TBlob).Name}' {blob.id} content cannot be read");
 
             var path = _makeFilePath(blob.id);
             var metaPath = path + ".meta.json";
             if (File.Exists(path) == false || File.Exists(metaPath) == false)
-                throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not upload, because it is does not exist");
+                throw new NotFoundException($"Blob '{typeof(TBlob).Name}' {blob.id} can not upload, because it is does not exist");
 
             var stored = BlobMetadata.Deserialize<TBlob>(File.ReadAllText(metaPath));
             // a matching id in another partition is not this blob - refuse to write across it
             if (stored.PartitionKey != blob.PartitionKey)
-                throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not upload, because it is does not exist");
+                throw new NotFoundException($"Blob '{typeof(TBlob).Name}' {blob.id} can not upload, because it is does not exist");
             // optimistic concurrency: the stored etag must still match
             CollectionCommon.CheckEtagMatch(stored, blob);
 
@@ -128,12 +128,12 @@ namespace PolyPersist.Net.BlobStore.FileSystem
             var path = _makeFilePath(blob.id);
             var metaPath = path + ".meta.json";
             if (File.Exists(path) == false || File.Exists(metaPath) == false)
-                throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not upload, because it is does not exist");
+                throw new NotFoundException($"Blob '{typeof(TBlob).Name}' {blob.id} can not upload, because it is does not exist");
 
             var stored = BlobMetadata.Deserialize<TBlob>(File.ReadAllText(metaPath));
             // a matching id in another partition is not this blob - refuse to write across it
             if (stored.PartitionKey != blob.PartitionKey)
-                throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not upload, because it is does not exist");
+                throw new NotFoundException($"Blob '{typeof(TBlob).Name}' {blob.id} can not upload, because it is does not exist");
             CollectionCommon.CheckEtagMatch(stored, blob);
 
             blob.etag = Guid.NewGuid().ToString();

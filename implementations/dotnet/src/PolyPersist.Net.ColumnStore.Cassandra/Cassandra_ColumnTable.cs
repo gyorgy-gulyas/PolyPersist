@@ -1,4 +1,4 @@
-﻿using Cassandra;
+using Cassandra;
 using PolyPersist.Net.ColumnStore.Cassandra.Linq;
 using PolyPersist.Net.Common;
 using System.Collections.Concurrent;
@@ -55,7 +55,7 @@ namespace PolyPersist.Net.ColumnStore.Cassandra
             var applied = rs.FirstOrDefault()?.GetValue<bool>("[applied]") ?? false;
 
             if (applied == false )
-                throw new Exception($"Row '{typeof(TRow).Name}' {row.id} cannot be inserted, because of duplicate key");
+                throw new DuplicateKeyException($"Row '{typeof(TRow).Name}' {row.id} cannot be inserted, because of duplicate key");
         }
 
         private PreparedStatement? _insertStatemant;
@@ -117,7 +117,7 @@ namespace PolyPersist.Net.ColumnStore.Cassandra
             var applied = rs.FirstOrDefault()?.GetValue<bool>("[applied]") ?? false;
 
             if (applied == false)
-                throw new Exception($"Row '{typeof(TRow).Name}' {row.id} can not be updated, because it does not exist or was already changed");
+                throw new ConcurrencyConflictException($"Row '{typeof(TRow).Name}' {row.id} can not be updated, because it does not exist or was already changed");
         }
 
         private PreparedStatement? _updateStatemant;
@@ -160,7 +160,7 @@ namespace PolyPersist.Net.ColumnStore.Cassandra
             var rs = await _session.ExecuteAsync(ps.Bind(partitionKey, id)).ConfigureAwait(false);
             var applied = rs.FirstOrDefault()?.GetValue<bool>("[applied]") ?? false;
             if (applied == false)
-                throw new Exception($"Row '{typeof(TRow).Name}' {id} can not be deleted because it is already removed.");
+                throw new NotFoundException($"Row '{typeof(TRow).Name}' {id} can not be deleted because it is already removed.");
         }
 
         async Task<TRow> IColumnTable<TRow>.Find(string partitionKey, string id)

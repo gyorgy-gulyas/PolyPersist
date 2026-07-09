@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using PolyPersist.Net.Common;
 
 namespace PolyPersist.Net.SearchStore.Memory
 {
@@ -29,7 +30,7 @@ namespace PolyPersist.Net.SearchStore.Memory
         Task<ISearchIndex<TDocument>> ISearchStore.GetIndexByName<TDocument>(string indexName)
         {
             if (_indexes.TryGetValue(indexName, out var index) == false)
-                throw new Exception($"Index '{indexName}' does not exist in Memory Search Store");
+                throw new NotFoundException($"Index '{indexName}' does not exist in Memory Search Store");
 
             return Task.FromResult((ISearchIndex<TDocument>)index);
         }
@@ -39,7 +40,7 @@ namespace PolyPersist.Net.SearchStore.Memory
         {
             var index = new Memory_SearchIndex<TDocument>(indexName, this);
             if (_indexes.TryAdd(indexName, index) == false)
-                throw new Exception($"Index '{indexName}' already exists in Memory Search Store");
+                throw new DuplicateKeyException($"Index '{indexName}' already exists in Memory Search Store");
 
             return Task.FromResult((ISearchIndex<TDocument>)index);
         }
@@ -48,7 +49,7 @@ namespace PolyPersist.Net.SearchStore.Memory
         Task ISearchStore.DropIndex(string indexName)
         {
             if (_indexes.TryRemove(indexName, out _) == false)
-                throw new Exception($"Index '{indexName}' does not exist in Memory Search Store");
+                throw new NotFoundException($"Index '{indexName}' does not exist in Memory Search Store");
 
             return Task.CompletedTask;
         }

@@ -1,3 +1,4 @@
+using PolyPersist.Net.Common;
 namespace PolyPersist.Net.SearchStore.Tests
 {
     /// <summary>
@@ -43,7 +44,7 @@ namespace PolyPersist.Net.SearchStore.Tests
         public async Task CreateIndex_Twice_Throws(Func<Task<ISearchStore>> factory)
         {
             var (store, _, name) = await NewIndex(factory);
-            await Assert.ThrowsExceptionAsync<Exception>(() => store.CreateIndex<Article>(name));
+            await Assert.ThrowsExceptionAsync<DuplicateKeyException>(() => store.CreateIndex<Article>(name));
         }
 
         [DataTestMethod]
@@ -51,7 +52,7 @@ namespace PolyPersist.Net.SearchStore.Tests
         public async Task GetIndexByName_Missing_Throws(Func<Task<ISearchStore>> factory)
         {
             var store = await factory();
-            await Assert.ThrowsExceptionAsync<Exception>(() => store.GetIndexByName<Article>(TestMain.NewIndexName()));
+            await Assert.ThrowsExceptionAsync<NotFoundException>(() => store.GetIndexByName<Article>(TestMain.NewIndexName()));
         }
 
         [DataTestMethod]
@@ -77,7 +78,7 @@ namespace PolyPersist.Net.SearchStore.Tests
         public async Task DropIndex_Missing_Throws(Func<Task<ISearchStore>> factory)
         {
             var store = await factory();
-            await Assert.ThrowsExceptionAsync<Exception>(() => store.DropIndex(TestMain.NewIndexName()));
+            await Assert.ThrowsExceptionAsync<NotFoundException>(() => store.DropIndex(TestMain.NewIndexName()));
         }
 
         // ---- index + full-text search ----

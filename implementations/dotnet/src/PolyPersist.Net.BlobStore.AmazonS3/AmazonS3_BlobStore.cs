@@ -1,5 +1,6 @@
-﻿using Amazon.S3;
+using Amazon.S3;
 using Amazon.S3.Model;
+using PolyPersist.Net.Common;
 
 namespace PolyPersist.Net.BlobStore.AmazonS3
 {
@@ -38,7 +39,7 @@ namespace PolyPersist.Net.BlobStore.AmazonS3
         async Task<IBlobContainer<TBlob>> IBlobStore.CreateContainer<TBlob>(string containerName)
         {
             if (await ((IBlobStore)this).IsContainerExists(containerName).ConfigureAwait(false))
-                throw new Exception($"Container '{containerName}' already exists in AmazonS3");
+                throw new DuplicateKeyException($"Container '{containerName}' already exists in AmazonS3");
 
             await _s3Client.PutBucketAsync(new PutBucketRequest
             {
@@ -52,7 +53,7 @@ namespace PolyPersist.Net.BlobStore.AmazonS3
         async Task<IBlobContainer<TBlob>> IBlobStore.GetContainerByName<TBlob>(string containerName)
         {
             if (!await ((IBlobStore)this).IsContainerExists(containerName).ConfigureAwait(false))
-                throw new Exception($"Container '{containerName}' does not exist in AmazonS3");
+                throw new NotFoundException($"Container '{containerName}' does not exist in AmazonS3");
 
             return new AmazonS3_BlobContainer<TBlob>(containerName, _s3Client, this);
         }
@@ -60,7 +61,7 @@ namespace PolyPersist.Net.BlobStore.AmazonS3
         async Task IBlobStore.DropContainer(string containerName)
         {
             if (!await ((IBlobStore)this).IsContainerExists(containerName).ConfigureAwait(false))
-                throw new Exception($"Container '{containerName}' does not exist in AmazonS3");
+                throw new NotFoundException($"Container '{containerName}' does not exist in AmazonS3");
 
             var listResponse = await _s3Client.ListObjectsV2Async(new ListObjectsV2Request
             {

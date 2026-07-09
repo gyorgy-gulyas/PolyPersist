@@ -2,6 +2,7 @@ using PolyPersist;
 using PolyPersist.Net.ColumnStore.Memory;
 using System;
 using System.Threading.Tasks;
+using PolyPersist.Net.Common;
 
 namespace PolyPersist.Net.ColumnStore.Tests
 {
@@ -28,7 +29,7 @@ namespace PolyPersist.Net.ColumnStore.Tests
             var table = await store.CreateTable<SampleRow>("pptable");
             await table.Insert(new SampleRow { PartitionKey = "p1", id = "a", str_value = "x" });
 
-            await Assert.ThrowsExceptionAsync<Exception>(async () => await table.Delete("p2", "a"));
+            await Assert.ThrowsExceptionAsync<NotFoundException>(async () => await table.Delete("p2", "a"));
             Assert.IsNotNull(await table.Find("p1", "a")); // wrong-partition delete left it intact
         }
     }

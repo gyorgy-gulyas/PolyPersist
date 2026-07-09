@@ -1,4 +1,5 @@
-﻿namespace PolyPersist.Net.BlobStore.Memory
+using PolyPersist.Net.Common;
+namespace PolyPersist.Net.BlobStore.Memory
 {
     public class Memory_BlobStore : IBlobStore
     {
@@ -27,7 +28,7 @@
         {
             _ContainerData? containerData = _Containers.Find(c => c.Name == containerName);
             if (containerData == null)
-                throw new Exception($"Container '{containerName}' does not exist in Memory Blob Strore");
+                throw new NotFoundException($"Container '{containerName}' does not exist in Memory Blob Strore");
 
             IBlobContainer<TBlob> container = new Memory_BlobContainer<TBlob>(containerName, containerData, this);
             return Task.FromResult(container);
@@ -38,7 +39,7 @@
         {
             _ContainerData? containerData = _Containers.Find(c => c.Name == containerName);
             if (containerData != null)
-                throw new Exception($"Container '{containerName}' is already exist");
+                throw new DuplicateKeyException($"Container '{containerName}' is already exist");
 
             containerData = new(containerName);
             _Containers.Add(containerData);
@@ -52,7 +53,7 @@
         {
             _ContainerData? containerData = _Containers.Find(c => c.Name == containerName);
             if (containerData == null)
-                throw new Exception($"Container '{containerName}' does not exist in Memory Blob Strore");
+                throw new NotFoundException($"Container '{containerName}' does not exist in Memory Blob Strore");
 
             _Containers.Remove(containerData);
             return Task.CompletedTask;

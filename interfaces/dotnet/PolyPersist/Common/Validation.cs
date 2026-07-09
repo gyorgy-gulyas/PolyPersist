@@ -19,7 +19,7 @@ namespace PolyPersist.Net.Common
         public string ErrorText { get; set; } = null!;
     }
 
-    public class ValidationExeption : Exception
+    public class ValidationExeption : PolyPersistException
     {
         public IList<IValidationError> ValidationErrors { get; }
 

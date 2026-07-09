@@ -2,6 +2,7 @@ using PolyPersist;
 using PolyPersist.Net.DocumentStore.Memory;
 using System;
 using System.Threading.Tasks;
+using PolyPersist.Net.Common;
 
 namespace PolyPersist.Net.DocumentStore.Tests
 {
@@ -17,7 +18,7 @@ namespace PolyPersist.Net.DocumentStore.Tests
             var col = await store.CreateCollection<SampleDocument>("ppcol");
             await col.Insert(new SampleDocument { PartitionKey = "p1", id = "a", str_value = "x" });
 
-            await Assert.ThrowsExceptionAsync<Exception>(async () => await col.Delete("p2", "a"));
+            await Assert.ThrowsExceptionAsync<NotFoundException>(async () => await col.Delete("p2", "a"));
             Assert.IsNotNull(await col.Find("p1", "a")); // wrong-partition delete left it intact
 
             await col.Delete("p1", "a"); // right partition -> removed

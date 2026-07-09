@@ -1,5 +1,6 @@
-﻿using PolyPersist.Net.Test;
+using PolyPersist.Net.Test;
 using System.Reflection;
+using PolyPersist.Net.Common;
 
 namespace PolyPersist.Net.BlobStore.Tests
 {
@@ -49,7 +50,7 @@ namespace PolyPersist.Net.BlobStore.Tests
 
             var container = await store.CreateContainer<SampleBlob>("container");
 
-            Exception ex = await Assert.ThrowsExceptionAsync<Exception>( async () => await store.CreateContainer<SampleBlob>("container") );
+            Exception ex = await Assert.ThrowsExceptionAsync<DuplicateKeyException>( async () => await store.CreateContainer<SampleBlob>("container") );
             Assert.IsTrue(ex.Message.Contains("already exist"));
         }
 
@@ -60,7 +61,7 @@ namespace PolyPersist.Net.BlobStore.Tests
             var testName = MethodBase.GetCurrentMethod().GetAsyncMethodName().MakeStorageConformName();
             var store = await factory();
 
-            Exception ex = await Assert.ThrowsExceptionAsync<Exception>(async () => await store.GetContainerByName<SampleBlob>("notexist"));
+            Exception ex = await Assert.ThrowsExceptionAsync<NotFoundException>(async () => await store.GetContainerByName<SampleBlob>("notexist"));
             Assert.IsTrue(ex.Message.Contains("does not exist"));
         }
 
@@ -71,7 +72,7 @@ namespace PolyPersist.Net.BlobStore.Tests
             var testName = MethodBase.GetCurrentMethod().GetAsyncMethodName().MakeStorageConformName();
             var store = await factory();
 
-            Exception ex = await Assert.ThrowsExceptionAsync<Exception>(async () => await store.DropContainer("notexist"));
+            Exception ex = await Assert.ThrowsExceptionAsync<NotFoundException>(async () => await store.DropContainer("notexist"));
             Assert.IsTrue(ex.Message.Contains("does not exist"));
         }
     }

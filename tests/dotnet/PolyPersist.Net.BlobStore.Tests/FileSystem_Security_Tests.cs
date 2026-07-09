@@ -5,6 +5,7 @@ using System;
 using System.IO;
 using System.Text;
 using System.Threading.Tasks;
+using PolyPersist.Net.Common;
 
 namespace PolyPersist.Net.BlobStore.Tests
 {
@@ -44,7 +45,7 @@ namespace PolyPersist.Net.BlobStore.Tests
 
                 Assert.IsNotNull(await container.Find("p1", "a")); // right partition
                 Assert.IsNull(await container.Find("p2", "a"));    // wrong partition -> not found
-                await Assert.ThrowsExceptionAsync<Exception>(async () => await container.Delete("p2", "a"));
+                await Assert.ThrowsExceptionAsync<NotFoundException>(async () => await container.Delete("p2", "a"));
                 Assert.IsNotNull(await container.Find("p1", "a")); // wrong-partition delete left it
             }
             finally { if (Directory.Exists(basePath)) Directory.Delete(basePath, true); }
@@ -62,7 +63,7 @@ namespace PolyPersist.Net.BlobStore.Tests
 
                 var stale = new SampleBlob { PartitionKey = "p1", id = "a", etag = "stale-etag" };
                 using (var content = new MemoryStream(Encoding.UTF8.GetBytes("v2")))
-                    await Assert.ThrowsExceptionAsync<Exception>(async () => await container.UpdateContent(stale, content));
+                    await Assert.ThrowsExceptionAsync<ConcurrencyConflictException>(async () => await container.UpdateContent(stale, content));
 
                 // the old content is intact (no truncation, no overwrite on a rejected update)
                 using var stream = await container.Download(await container.Find("p1", "a"));

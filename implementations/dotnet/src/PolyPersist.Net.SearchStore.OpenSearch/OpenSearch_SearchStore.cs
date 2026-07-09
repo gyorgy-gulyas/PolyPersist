@@ -1,4 +1,5 @@
 using OpenSearch.Client;
+using PolyPersist.Net.Common;
 
 namespace PolyPersist.Net.SearchStore.OpenSearch
 {
@@ -40,7 +41,7 @@ namespace PolyPersist.Net.SearchStore.OpenSearch
         async Task<ISearchIndex<TDocument>> ISearchStore.GetIndexByName<TDocument>(string indexName)
         {
             if (await ((ISearchStore)this).IsIndexExists(indexName).ConfigureAwait(false) == false)
-                throw new Exception($"Index '{indexName}' does not exist in the OpenSearch store");
+                throw new NotFoundException($"Index '{indexName}' does not exist in the OpenSearch store");
 
             return _NewIndex<TDocument>(indexName);
         }
@@ -49,12 +50,12 @@ namespace PolyPersist.Net.SearchStore.OpenSearch
         async Task<ISearchIndex<TDocument>> ISearchStore.CreateIndex<TDocument>(string indexName)
         {
             if (await ((ISearchStore)this).IsIndexExists(indexName).ConfigureAwait(false) == true)
-                throw new Exception($"Index '{indexName}' already exists in the OpenSearch store");
+                throw new DuplicateKeyException($"Index '{indexName}' already exists in the OpenSearch store");
 
             // Dynamic mapping is enough for the portable surface (text fields become searchable text).
             var response = await _client.Indices.CreateAsync(indexName).ConfigureAwait(false);
             if (response.IsValid == false)
-                throw new Exception($"Failed to create index '{indexName}': {response.ServerError?.Error?.Reason ?? response.DebugInformation}");
+                throw new PolyPersistException($"Failed to create index '{indexName}': {response.ServerError?.Error?.Reason ?? response.DebugInformation}");
 
             return _NewIndex<TDocument>(indexName);
         }
@@ -63,11 +64,11 @@ namespace PolyPersist.Net.SearchStore.OpenSearch
         async Task ISearchStore.DropIndex(string indexName)
         {
             if (await ((ISearchStore)this).IsIndexExists(indexName).ConfigureAwait(false) == false)
-                throw new Exception($"Index '{indexName}' does not exist in the OpenSearch store");
+                throw new NotFoundException($"Index '{indexName}' does not exist in the OpenSearch store");
 
             var response = await _client.Indices.DeleteAsync(indexName).ConfigureAwait(false);
             if (response.IsValid == false)
-                throw new Exception($"Failed to drop index '{indexName}': {response.ServerError?.Error?.Reason ?? response.DebugInformation}");
+                throw new PolyPersistException($"Failed to drop index '{indexName}': {response.ServerError?.Error?.Reason ?? response.DebugInformation}");
         }
 
         // Bridges the class-constraint gap: OpenSearch.Client requires `class`, the interface only

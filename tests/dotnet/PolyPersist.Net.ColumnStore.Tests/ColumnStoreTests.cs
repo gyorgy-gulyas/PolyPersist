@@ -1,9 +1,10 @@
-﻿using Cassandra;
+using Cassandra;
 using PolyPersist.Net.Attributes;
 using PolyPersist.Net.Core;
 using PolyPersist.Net.Test;
 using System.Reflection;
 using System.Security.Principal;
+using PolyPersist.Net.Common;
 
 
 namespace PolyPersist.Net.ColumnStore.Tests
@@ -145,7 +146,7 @@ namespace PolyPersist.Net.ColumnStore.Tests
 
             var table = await store.CreateTable<SampleRow>("sampletable");
 
-            Exception ex = await Assert.ThrowsExceptionAsync<Exception>(async () => await store.CreateTable<SampleRow>("sampletable"));
+            Exception ex = await Assert.ThrowsExceptionAsync<DuplicateKeyException>(async () => await store.CreateTable<SampleRow>("sampletable"));
             Assert.IsTrue(ex.Message.Contains("already exist"));
         }
 
@@ -156,7 +157,7 @@ namespace PolyPersist.Net.ColumnStore.Tests
             var testName = MethodBase.GetCurrentMethod().GetAsyncMethodName().MakeStorageConformName();
             var store = await factory(testName);
 
-            Exception ex = await Assert.ThrowsExceptionAsync<Exception>(async () => await store.GetTableByName<SampleRow>("notexist"));
+            Exception ex = await Assert.ThrowsExceptionAsync<NotFoundException>(async () => await store.GetTableByName<SampleRow>("notexist"));
             Assert.IsTrue(ex.Message.Contains("does not exist"));
         }
 
@@ -167,7 +168,7 @@ namespace PolyPersist.Net.ColumnStore.Tests
             var testName = MethodBase.GetCurrentMethod().GetAsyncMethodName().MakeStorageConformName();
             var store = await factory(testName);
 
-            Exception ex = await Assert.ThrowsExceptionAsync<Exception>(async () => await store.DropTable("notexist"));
+            Exception ex = await Assert.ThrowsExceptionAsync<NotFoundException>(async () => await store.DropTable("notexist"));
             Assert.IsTrue(ex.Message.Contains("does not exist"));
         }
     }

@@ -1,6 +1,7 @@
-﻿using MongoDB.Driver;
+using MongoDB.Driver;
 using MongoDB.Driver.GridFS;
 using PolyPersist.Net.DocumentStore.MongoDB;
+using PolyPersist.Net.Common;
 
 
 namespace PolyPersist.Net.BlobStore.GridFS
@@ -45,7 +46,7 @@ namespace PolyPersist.Net.BlobStore.GridFS
             MongoDB_Serializer.RegisterType<TEntity>(typeof(TEntity));
 
             if (await (this as IBlobStore).IsContainerExists(containerName).ConfigureAwait(false) == false)
-                throw new Exception($"Container '{containerName}' does not exist");
+                throw new NotFoundException($"Container '{containerName}' does not exist");
 
             GridFSBucket gridFSBucket = new GridFSBucket(_mongoDatabase, new GridFSBucketOptions() { BucketName = containerName });
             return new GridFS_BlobContainer<TEntity>(gridFSBucket, this);
@@ -57,7 +58,7 @@ namespace PolyPersist.Net.BlobStore.GridFS
             MongoDB_Serializer.RegisterType<TEntity>(typeof(TEntity));
 
             if (await (this as IBlobStore).IsContainerExists(containerName).ConfigureAwait(false) == true)
-                throw new Exception($"Container '{containerName}' is already exist in Mongo Database '{_mongoDatabase.DatabaseNamespace.DatabaseName}'");
+                throw new DuplicateKeyException($"Container '{containerName}' is already exist in Mongo Database '{_mongoDatabase.DatabaseNamespace.DatabaseName}'");
 
             GridFSBucket gridFSBucket = new GridFSBucket(_mongoDatabase, new GridFSBucketOptions() { BucketName = containerName });
             await _mongoDatabase.CreateCollectionAsync(gridFSBucket.Options.BucketName + ".files").ConfigureAwait(false);
@@ -70,7 +71,7 @@ namespace PolyPersist.Net.BlobStore.GridFS
         async Task IBlobStore.DropContainer(string containerName)
         {
             if (await (this as IBlobStore).IsContainerExists(containerName).ConfigureAwait(false) == false)
-                throw new Exception($"Container '{containerName}' does not exist in Mongo Database '{_mongoDatabase.DatabaseNamespace.DatabaseName}'");
+                throw new NotFoundException($"Container '{containerName}' does not exist in Mongo Database '{_mongoDatabase.DatabaseNamespace.DatabaseName}'");
 
             GridFSBucket gridFSBucket = new GridFSBucket(_mongoDatabase, new GridFSBucketOptions() { BucketName = containerName });
             await _mongoDatabase.DropCollectionAsync(gridFSBucket.Options.BucketName + ".files").ConfigureAwait(false);

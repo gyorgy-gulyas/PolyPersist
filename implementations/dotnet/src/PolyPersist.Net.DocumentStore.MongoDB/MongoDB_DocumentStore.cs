@@ -1,4 +1,5 @@
-﻿using MongoDB.Driver;
+using MongoDB.Driver;
+using PolyPersist.Net.Common;
 
 namespace PolyPersist.Net.DocumentStore.MongoDB
 {
@@ -37,7 +38,7 @@ namespace PolyPersist.Net.DocumentStore.MongoDB
             MongoDB_Serializer.RegisterType<TEntity>(typeof(TEntity));
 
             if (await (this as IDocumentStore).IsCollectionExists(collectionName).ConfigureAwait(false) == false)
-                throw new Exception($"Collection '{collectionName}' does not exist in Memory Document Store");
+                throw new NotFoundException($"Collection '{collectionName}' does not exist in Memory Document Store");
 
             IMongoCollection<TEntity> mongoCollection = _mongoDatabase.GetCollection<TEntity>(collectionName);
 
@@ -50,7 +51,7 @@ namespace PolyPersist.Net.DocumentStore.MongoDB
             MongoDB_Serializer.RegisterType<TEntity>(typeof(TEntity));
 
             if (await (this as IDocumentStore).IsCollectionExists(collectionName).ConfigureAwait(false) == true)
-                throw new Exception($"Collection '{collectionName}' is already exist in Mongo Database '{_mongoDatabase.DatabaseNamespace.DatabaseName}'");
+                throw new DuplicateKeyException($"Collection '{collectionName}' is already exist in Mongo Database '{_mongoDatabase.DatabaseNamespace.DatabaseName}'");
 
             await _mongoDatabase.CreateCollectionAsync(collectionName).ConfigureAwait(false);
             IMongoCollection<TEntity> mongoCollection = _mongoDatabase.GetCollection<TEntity>(collectionName);
@@ -62,7 +63,7 @@ namespace PolyPersist.Net.DocumentStore.MongoDB
         async Task IDocumentStore.DropCollection(string collectionName)
         {
             if (await (this as IDocumentStore).IsCollectionExists(collectionName).ConfigureAwait(false) == false)
-                throw new Exception($"Collection '{collectionName}' does not exist in Mongo Database '{_mongoDatabase.DatabaseNamespace.DatabaseName}'");
+                throw new NotFoundException($"Collection '{collectionName}' does not exist in Mongo Database '{_mongoDatabase.DatabaseNamespace.DatabaseName}'");
 
             await _mongoDatabase.DropCollectionAsync(collectionName).ConfigureAwait(false);
         }

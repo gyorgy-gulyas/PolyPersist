@@ -1,3 +1,4 @@
+using PolyPersist.Net.Common;
 namespace PolyPersist.Net.RelationalStore.Tests
 {
     [TestClass]
@@ -44,7 +45,7 @@ namespace PolyPersist.Net.RelationalStore.Tests
             var store = await factory(name);
             await store.CreateTable<SampleRecord>(name);
 
-            var ex = await Assert.ThrowsExceptionAsync<Exception>(() => store.CreateTable<SampleRecord>(name));
+            var ex = await Assert.ThrowsExceptionAsync<DuplicateKeyException>(() => store.CreateTable<SampleRecord>(name));
             Assert.IsTrue(ex.Message.Contains("already exists"));
 
             await store.DropTable(name);
@@ -55,7 +56,7 @@ namespace PolyPersist.Net.RelationalStore.Tests
         public async Task GetTableByName_Missing_Throws(Func<string, Task<IRelationalStore>> factory)
         {
             var store = await factory(TestMain.NewTableName());
-            var ex = await Assert.ThrowsExceptionAsync<Exception>(() => store.GetTableByName<SampleRecord>(TestMain.NewTableName()));
+            var ex = await Assert.ThrowsExceptionAsync<NotFoundException>(() => store.GetTableByName<SampleRecord>(TestMain.NewTableName()));
             Assert.IsTrue(ex.Message.Contains("does not exist"));
         }
 
@@ -64,7 +65,7 @@ namespace PolyPersist.Net.RelationalStore.Tests
         public async Task DropTable_Missing_Throws(Func<string, Task<IRelationalStore>> factory)
         {
             var store = await factory(TestMain.NewTableName());
-            var ex = await Assert.ThrowsExceptionAsync<Exception>(() => store.DropTable(TestMain.NewTableName()));
+            var ex = await Assert.ThrowsExceptionAsync<NotFoundException>(() => store.DropTable(TestMain.NewTableName()));
             Assert.IsTrue(ex.Message.Contains("does not exist"));
         }
     }

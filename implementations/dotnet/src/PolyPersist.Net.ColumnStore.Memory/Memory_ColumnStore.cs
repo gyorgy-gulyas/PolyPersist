@@ -1,4 +1,5 @@
-﻿namespace PolyPersist.Net.ColumnStore.Memory
+using PolyPersist.Net.Common;
+namespace PolyPersist.Net.ColumnStore.Memory
 {
     public class Memory_ColumnStore : IColumnStore
     {
@@ -27,7 +28,7 @@
         {
             _TableData? tableData = _Tables.Find(c => c.Name == tableName);
             if (tableData == null)
-                throw new Exception($"Table '{tableName}' does not exist in Memory ColumnStore Store");
+                throw new NotFoundException($"Table '{tableName}' does not exist in Memory ColumnStore Store");
 
             IColumnTable<TRow> table = new Memory_ColumnTable<TRow>( tableName, tableData, this);
             return Task.FromResult(table);
@@ -37,7 +38,7 @@
         Task<IColumnTable<TRow>> IColumnStore.CreateTable<TRow>(string tableName)
         {
             if (_Tables.FindIndex(c => c.Name == tableName) != -1)
-                throw new Exception($"Table '{tableName}' is already exist");
+                throw new DuplicateKeyException($"Table '{tableName}' is already exist");
 
             _TableData tableData = new(tableName);
             _Tables.Add(tableData);
@@ -51,7 +52,7 @@
         {
             _TableData? tableData = _Tables.Find(c => c.Name == tableName);
             if (tableData == null)
-                throw new Exception($"Table '{tableName}' does not exist in Memory ColumnStore");
+                throw new NotFoundException($"Table '{tableName}' does not exist in Memory ColumnStore");
 
             _Tables.Remove(tableData);
             return Task.CompletedTask;

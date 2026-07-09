@@ -1,4 +1,5 @@
-﻿namespace PolyPersist.Net.DocumentStore.Memory
+using PolyPersist.Net.Common;
+namespace PolyPersist.Net.DocumentStore.Memory
 {
     public class Memory_DocumentStore : IDocumentStore
     {
@@ -27,7 +28,7 @@
         {
             _CollectionData? collectionData = _Collections.Find(c => c.Name == collectionName);
             if (collectionData == null)
-                throw new Exception($"Collection '{collectionName}' does not exist in Memory Document Store");
+                throw new NotFoundException($"Collection '{collectionName}' does not exist in Memory Document Store");
 
             IDocumentCollection<TDocument> collection = new Memory_DocumentCollection<TDocument>( collectionName, collectionData, this);
             return Task.FromResult(collection);
@@ -37,7 +38,7 @@
         Task<IDocumentCollection<TDocument>> IDocumentStore.CreateCollection<TDocument>(string collectionName)
         {
             if (_Collections.FindIndex(c => c.Name == collectionName) != -1)
-                throw new Exception($"Collection '{collectionName}' is already exist");
+                throw new DuplicateKeyException($"Collection '{collectionName}' is already exist");
 
             _CollectionData collectionData = new(collectionName);
             _Collections.Add(collectionData);
@@ -51,7 +52,7 @@
         {
             _CollectionData? collectionData = _Collections.Find(c => c.Name == collectionName);
             if (collectionData == null)
-                throw new Exception($"Collection '{collectionName}' does not exist in Memory Document Store");
+                throw new NotFoundException($"Collection '{collectionName}' does not exist in Memory Document Store");
 
             _Collections.Remove(collectionData);
             return Task.CompletedTask;

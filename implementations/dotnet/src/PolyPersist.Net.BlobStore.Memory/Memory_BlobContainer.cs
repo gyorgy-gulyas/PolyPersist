@@ -1,4 +1,4 @@
-﻿using PolyPersist.Net.Common;
+using PolyPersist.Net.Common;
 using System.Text.Json;
 
 namespace PolyPersist.Net.BlobStore.Memory
@@ -26,14 +26,14 @@ namespace PolyPersist.Net.BlobStore.Memory
         Task IBlobContainer<TBlob>.Upload(TBlob blob, Stream content)
         {
             if (content == null || content.CanRead == false)
-                throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} content cannot be read");
+                throw new InvalidRequestException($"Blob '{typeof(TBlob).Name}' {blob.id} content cannot be read");
 
             CollectionCommon.CheckBeforeInsert(blob);
 
             if (string.IsNullOrEmpty(blob.id) == true)
                 blob.id = Guid.NewGuid().ToString();
             else if (_collectionData.MapOfBlobs.ContainsKey(blob.id) == true)
-                throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} cannot be uploaded, beacuse of duplicate key");
+                throw new DuplicateKeyException($"Blob '{typeof(TBlob).Name}' {blob.id} cannot be uploaded, beacuse of duplicate key");
 
             blob.etag = Guid.NewGuid().ToString();
             blob.LastUpdate = DateTime.UtcNow;
@@ -56,7 +56,7 @@ namespace PolyPersist.Net.BlobStore.Memory
         Task<Stream> IBlobContainer<TBlob>.Download(TBlob blob)
         {
             if (_collectionData.MapOfBlobs.TryGetValue(blob.id, out _BlobData? blobData) == false || blobData.partitionKey != blob.PartitionKey)
-                throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not download, because it is does not exist");
+                throw new NotFoundException($"Blob '{typeof(TBlob).Name}' {blob.id} can not download, because it is does not exist");
 
 
             MemoryStream destination = new();
@@ -69,7 +69,7 @@ namespace PolyPersist.Net.BlobStore.Memory
         Task IBlobContainer<TBlob>.Delete(string partitionKey, string id)
         {
             if (_collectionData.MapOfBlobs.TryGetValue(id, out _BlobData? blobData) == false || blobData.partitionKey != partitionKey )
-                throw new Exception($"Blob '{typeof(TBlob).Name}' {id} can not be removed because it is does not exist");
+                throw new NotFoundException($"Blob '{typeof(TBlob).Name}' {id} can not be removed because it is does not exist");
 
             _collectionData.MapOfBlobs.Remove(id);
             _collectionData.ListOfBlobs.Remove(blobData);
@@ -93,12 +93,12 @@ namespace PolyPersist.Net.BlobStore.Memory
         Task IBlobContainer<TBlob>.UpdateContent(TBlob blob, Stream content)
         {
             if (content == null || content.CanRead == false)
-                throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} content cannot be read");
+                throw new InvalidRequestException($"Blob '{typeof(TBlob).Name}' {blob.id} content cannot be read");
 
             CollectionCommon.CheckBeforeUpdate(blob);
 
             if (_collectionData.MapOfBlobs.TryGetValue(blob.id, out _BlobData? blobData) == false || blobData.partitionKey != blob.PartitionKey)
-                throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not upload, because it is does not exist");
+                throw new NotFoundException($"Blob '{typeof(TBlob).Name}' {blob.id} can not upload, because it is does not exist");
 
             CollectionCommon.CheckEtagMatch(blobData.etag, blob);
 
@@ -117,7 +117,7 @@ namespace PolyPersist.Net.BlobStore.Memory
             CollectionCommon.CheckBeforeUpdate(blob);
 
             if (_collectionData.MapOfBlobs.TryGetValue(blob.id, out _BlobData? blobData) == false || blobData.partitionKey != blob.PartitionKey)
-                throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not be updated because it is does not exist");
+                throw new NotFoundException($"Blob '{typeof(TBlob).Name}' {blob.id} can not be updated because it is does not exist");
 
             CollectionCommon.CheckEtagMatch(blobData.etag, blob);
 

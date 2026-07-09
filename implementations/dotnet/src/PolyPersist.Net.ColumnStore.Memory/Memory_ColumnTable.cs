@@ -34,7 +34,7 @@ namespace PolyPersist.Net.ColumnStore.Memory
             if (string.IsNullOrEmpty(row.id) == true)
                 row.id = Guid.NewGuid().ToString();
             else if (_tableData.MapOfDocments.ContainsKey(row.id) == true)
-                throw new Exception($"Row '{typeof(TRow).Name}' {row.id} cannot be inserted, beacuse of duplicate key");
+                throw new DuplicateKeyException($"Row '{typeof(TRow).Name}' {row.id} cannot be inserted, beacuse of duplicate key");
 
             _RowData data = new()
             {
@@ -56,10 +56,10 @@ namespace PolyPersist.Net.ColumnStore.Memory
             CollectionCommon.CheckBeforeUpdate(row);
 
             if (_tableData.MapOfDocments.TryGetValue(row.id, out _RowData? data) == false)
-                throw new Exception($"Row '{typeof(TRow).Name}' {row.id} can not be updated because does not exist");
+                throw new NotFoundException($"Row '{typeof(TRow).Name}' {row.id} can not be updated because does not exist");
 
             if (data.etag != row.etag)
-                throw new Exception($"Row '{typeof(TRow).Name}' {row.id} can not be updated because it is already changed");
+                throw new ConcurrencyConflictException($"Row '{typeof(TRow).Name}' {row.id} can not be updated because it is already changed");
 
             row.etag = Guid.NewGuid().ToString();
             row.LastUpdate = DateTime.UtcNow;
@@ -75,7 +75,7 @@ namespace PolyPersist.Net.ColumnStore.Memory
         {
             // only delete when the row exists in the requested partition
             if (_tableData.MapOfDocments.TryGetValue(id, out _RowData? row) == false || row.partitionKey != partitionKey)
-                throw new Exception($"Row '{typeof(TRow).Name}' {id} can not be removed because it is already removed");
+                throw new NotFoundException($"Row '{typeof(TRow).Name}' {id} can not be removed because it is already removed");
 
             _tableData.MapOfDocments.Remove(id);
             _tableData.ListOfDocments.Remove(row);
