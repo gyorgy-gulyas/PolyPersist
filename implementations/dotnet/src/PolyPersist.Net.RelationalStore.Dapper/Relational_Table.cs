@@ -3,6 +3,7 @@ using System.Reflection;
 using Dapper;
 using LinqToDB;
 using LinqToDB.Data;
+using LinqToDB.Mapping;
 using PolyPersist.Net.Common;
 
 namespace PolyPersist.Net.RelationalStore.Dapper
@@ -36,8 +37,20 @@ namespace PolyPersist.Net.RelationalStore.Dapper
 
         private async Task _CreateSchemaAsync()
         {
-            using var db = _store.CreateConnection();
-            await db.CreateTableAsync<TRecord>(tableName: _name).ConfigureAwait(false);
+            // PP-36: linq2db's CreateTable emits the id PRIMARY KEY from the fluent mapping - but ONLY
+            // when the table name comes from the mapping too; a runtime CreateTable(tableName:) override
+            // silently drops the key. So build a per-table mapping schema carrying both the table name
+            // and the id primary key, and create from it (no name override). DML keeps using the
+            // store's default schema with a .TableName() override (which is honoured for SELECT/INSERT).
+            var schema = new MappingSchema();
+            var fluent = new FluentMappingBuilder(schema);
+            fluent.Entity<TRecord>().HasTableName(_name).HasPrimaryKey(r => r.id);
+            fluent.Build();
+
+            using var db = _store.CreateConnection(schema);
+            await db.CreateTableAsync<TRecord>().ConfigureAwait(false);
+            // Find/Delete/queries filter by (PartitionKey, id), so index PartitionKey.
+            await db.ExecuteAsync($"CREATE INDEX \"ix_{_name}_partitionkey\" ON \"{_name}\" (\"PartitionKey\")").ConfigureAwait(false);
         }
 
         /// <inheritdoc/>

@@ -113,15 +113,20 @@ namespace PolyPersist.Net.BlobStore.MinIO
             string meta_json = stat.MetaData[BlobMetadata.Key];
             var blob = BlobMetadata.Deserialize<TBlob>(meta_json);
 
+            // (partitionKey, id) identifies the blob: a matching id in another partition is not it.
+            if (blob.PartitionKey != partitionKey)
+                return default(TBlob)!;
+
             return blob;
         }
 
         /// <inheritdoc/>
         async Task IBlobContainer<TBlob>.Delete(string partitionKey, string id)
         {
+            ObjectStat stat;
             try
             {
-                await _minioClient.StatObjectAsync(new StatObjectArgs()
+                stat = await _minioClient.StatObjectAsync(new StatObjectArgs()
                     .WithBucket(_bucketName)
                     .WithObject(id)).ConfigureAwait(false);
             }
@@ -129,6 +134,10 @@ namespace PolyPersist.Net.BlobStore.MinIO
             {
                 throw new Exception($"Blob '{typeof(TBlob).Name}' {id} cannot be deleted: it does not exist.");
             }
+
+            // Only delete within the requested partition: a matching id in another partition is not it.
+            if (BlobMetadata.Deserialize<TBlob>(stat.MetaData[BlobMetadata.Key]).PartitionKey != partitionKey)
+                throw new Exception($"Blob '{typeof(TBlob).Name}' {id} cannot be deleted: it does not exist.");
 
             await _minioClient.RemoveObjectAsync(new RemoveObjectArgs()
                 .WithBucket(_bucketName)
@@ -155,7 +164,11 @@ namespace PolyPersist.Net.BlobStore.MinIO
                 throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not be updated because it is does not exist", ex);
             }
 
-            CollectionCommon.CheckEtagMatch(BlobMetadata.Deserialize<TBlob>(stat.MetaData[BlobMetadata.Key]), blob);
+            var stored = BlobMetadata.Deserialize<TBlob>(stat.MetaData[BlobMetadata.Key]);
+            // A matching id in another partition is not this blob - refuse to write across it.
+            if (stored.PartitionKey != blob.PartitionKey)
+                throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not be updated because it is does not exist");
+            CollectionCommon.CheckEtagMatch(stored, blob);
 
             blob.etag = Guid.NewGuid().ToString();
             blob.LastUpdate = DateTime.UtcNow;
@@ -195,7 +208,11 @@ namespace PolyPersist.Net.BlobStore.MinIO
                 throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not be updated because it is does not exist", ex);
             }
 
-            CollectionCommon.CheckEtagMatch(BlobMetadata.Deserialize<TBlob>(stat.MetaData[BlobMetadata.Key]), blob);
+            var stored = BlobMetadata.Deserialize<TBlob>(stat.MetaData[BlobMetadata.Key]);
+            // A matching id in another partition is not this blob - refuse to write across it.
+            if (stored.PartitionKey != blob.PartitionKey)
+                throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not be updated because it is does not exist");
+            CollectionCommon.CheckEtagMatch(stored, blob);
 
             blob.etag = Guid.NewGuid().ToString();
             blob.LastUpdate = DateTime.UtcNow;
