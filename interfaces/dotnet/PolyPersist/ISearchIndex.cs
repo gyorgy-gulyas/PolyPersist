@@ -28,13 +28,14 @@ namespace PolyPersist
 		public Task IndexBatch( IList<TDocument> documents );
 		/// Removes a document from the index by its id.
 		public Task Delete( string id );
-		/// Simple full-text search over the index, with paging.
+		/// Full-text search over the index, with paging.
 		///
 		/// @param queryText - the free-text query.
+		/// @param mode - FullText (exact, whole-word, fast) or Fuzzy (substring + typo tolerant, slower).
 		/// @param from - the zero-based offset of the first hit to return.
 		/// @param size - the maximum number of hits to return.
 		/// @returns the matching documents, most relevant first.
-		public Task<IList<TDocument>> Search( string queryText, int from, int size );
+		public Task<IList<TDocument>> Search( string queryText, SearchMode mode, int from, int size );
 		/// Getting the underlying implementation.
 		/// Please use this method carefully, because the returned value is different in every
 		/// implementation. This is where PROVIDER-SPECIFIC search capabilities live (relevance
