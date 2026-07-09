@@ -270,25 +270,16 @@ namespace PolyPersist.Net.Transactions.Tests
 
         // ---------------------------------------------------------------- blob
 
-        // NOTE: Transaction.Upload requires the blob to have been AddOriginal'd first (it guards on
-        // the tracked-entity snapshot). We seed + track + remove, then upload through the tx.
-        private static async Task<TxBlob> SeedTrackedForUploadAsync(Transaction tx, IBlobContainer<TxBlob> cnt)
-        {
-            var blob = new TxBlob { PartitionKey = "pk", id = "a", fileName = "f.txt", contentType = "text/plain" };
-            await cnt.Upload(blob, S("seed"));   // create so it can be tracked
-            await tx.AddOriginal(cnt, blob);     // register the tracked snapshot (required by Upload)
-            await cnt.Delete("pk", "a");         // remove so the tx upload is not a duplicate key
-            blob.etag = null!;                   // Upload -> insert semantics need an empty etag
-            return blob;
-        }
+        // Upload is the blob counterpart of Insert: a brand-new blob, no AddOriginal required.
+        private static TxBlob NewUploadBlob() =>
+            new TxBlob { PartitionKey = "pk", id = "a", fileName = "f.txt", contentType = "text/plain" };
 
         [TestMethod]
         public async Task Blob_Upload_Commit_Persists()
         {
             var cnt = await NewContainerAsync();
             var tx = new Transaction();
-            var blob = await SeedTrackedForUploadAsync(tx, cnt);
-            await tx.Upload(cnt, blob, S("hello"));
+            await tx.Upload(cnt, NewUploadBlob(), S("hello"));
             await tx.Commit();
 
             Assert.IsNotNull(await cnt.Find("pk", "a"));
@@ -299,8 +290,7 @@ namespace PolyPersist.Net.Transactions.Tests
         {
             var cnt = await NewContainerAsync();
             var tx = new Transaction();
-            var blob = await SeedTrackedForUploadAsync(tx, cnt);
-            await tx.Upload(cnt, blob, S("hello"));
+            await tx.Upload(cnt, NewUploadBlob(), S("hello"));
             await tx.Rollback();
 
             Assert.IsNull(await cnt.Find("pk", "a"));
@@ -423,16 +413,6 @@ namespace PolyPersist.Net.Transactions.Tests
             var tx = new Transaction();
             await tx.AddOriginal(cnt, blob);
             await Assert.ThrowsExceptionAsync<InvalidOperationException>(() => tx.AddOriginal(cnt, blob));
-        }
-
-        [TestMethod]
-        public async Task Blob_Upload_WithoutOriginal_Throws()
-        {
-            // Transaction.Upload guards on the tracked snapshot: no AddOriginal -> throws.
-            var cnt = await NewContainerAsync();
-            var tx = new Transaction();
-            var blob = new TxBlob { PartitionKey = "pk", id = "a", fileName = "f.txt", contentType = "text/plain" };
-            await Assert.ThrowsExceptionAsync<InvalidOperationException>(() => tx.Upload(cnt, blob, S("hi")));
         }
 
         [TestMethod]

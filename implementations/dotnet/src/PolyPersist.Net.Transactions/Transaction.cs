@@ -203,16 +203,12 @@ namespace PolyPersist.Net.Transactions
         /// <param name="blob">The blob metadata.</param>
         /// <param name="content">The content stream of the blob.</param>
         /// <returns>A task that represents the asynchronous operation.</returns>
-        /// <exception cref="InvalidOperationException">
-        /// Thrown if the blob was not added as Original before upload.
-        /// </exception>
         public async Task Upload<TBlob>(IBlobContainer<TBlob> container, TBlob blob, Stream content)
             where TBlob : IBlob, new()
         {
-            string key = _getEntityKey(blob);
-            if (!_deepCloneOfEntities.ContainsKey(key))
-                throw new InvalidOperationException($"Blob: '{blob.GetType().FullName}' not added as Original. Id: '{blob.id}'");
-
+            // Upload is the blob counterpart of Insert: it creates a NEW blob, so there is no
+            // original to track (AddOriginal would even be impossible — a new blob has no etag and
+            // cannot be downloaded). Rollback simply deletes what was uploaded.
             await container.Upload(blob, content).ConfigureAwait(false);
             _executedOperations.Add((ITransaction.Operations.Insert, blob));
 

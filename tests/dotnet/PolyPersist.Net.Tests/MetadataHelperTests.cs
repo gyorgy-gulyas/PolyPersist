@@ -41,7 +41,7 @@ namespace PolyPersist.Net.Tests
             Name = "hello",
             Count = 42,
             Flag = true,
-            Ratio = 4, // whole number: double ToString() is culture-sensitive, keep round-trip stable
+            Ratio = 3.5, // fractional: must serialize/round-trip with InvariantCulture regardless of locale
             Big = 123456789L,
             Amount = 19.95m,
             When = new DateTime(2026, 7, 9, 10, 30, 0, DateTimeKind.Utc),
@@ -68,6 +68,7 @@ namespace PolyPersist.Net.Tests
             Assert.AreEqual("42", meta["Count"]);
             Assert.AreEqual("True", meta["Flag"]);
             Assert.AreEqual("19.95", meta["Amount"]);
+            Assert.AreEqual("3.5", meta["Ratio"]); // InvariantCulture: '.' decimal even on comma-decimal locales
             Assert.AreEqual("Green", meta["Shade"]);
             Assert.AreEqual(string.Empty, meta["MaybeNull"]); // null -> empty
             Assert.AreEqual("readonly-value", meta["ReadOnly"]);
