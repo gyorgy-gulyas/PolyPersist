@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Reflection;
 using Google.Cloud.BigQuery.V2;
 
@@ -71,7 +72,14 @@ namespace PolyPersist.Net.AnalyticalStore.GCPBigQuery
         }
 
         /// <inheritdoc/>
-        System.Linq.IQueryable<TRecord> IAnalyticalTable<TRecord>.Query()
+        System.Linq.IQueryable<TRecord> IAnalyticalTable<TRecord>.Query(string partitionKey)
+            => _CrossPartitionQuery().Where(r => r.PartitionKey == partitionKey);
+
+        /// <inheritdoc/>
+        System.Linq.IQueryable<TRecord> IAnalyticalTable<TRecord>.QueryCrossPartition()
+            => _CrossPartitionQuery();
+
+        private System.Linq.IQueryable<TRecord> _CrossPartitionQuery()
             => new BigQuery_Queryable<TRecord>(new BigQuery_QueryProvider(_store.Client, _store.TableRef(_name), _props));
 
         /// <inheritdoc/>

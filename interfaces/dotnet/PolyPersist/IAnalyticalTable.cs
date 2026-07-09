@@ -25,9 +25,15 @@ namespace PolyPersist
 		/// Bulk-appends a batch of fact rows. This is the only write path: OLAP engines are optimized
 		/// for batched ingestion, so callers should accumulate rows and append them together.
 		public Task InsertBatch( IList<TRecord> records );
-		/// Single-table analytical query (aggregation / GROUP BY / scan). Language-mapped:
-		/// .NET IQueryable<TRecord>, Java Stream<TRecord>, ...
-		public System.Linq.IQueryable<TRecord> Query();
+		/// Single-table analytical query (aggregation / GROUP BY / scan) SCOPED to one partition: the
+		/// returned queryable is already filtered to rows whose PartitionKey == partitionKey. Use it
+		/// for tenant-scoped analytics; a caller cannot widen it back across partitions.
+		/// Language-mapped: .NET IQueryable<TRecord>, Java Stream<TRecord>, ...
+		public System.Linq.IQueryable<TRecord> Query( string partitionKey );
+		/// Explicit CROSS-PARTITION analytical query: an unfiltered queryable spanning every partition.
+		/// This is the natural BI / reporting path for an OLAP store (aggregate across all tenants);
+		/// it is the deliberate opt-out from the partition-scoped Query.
+		public System.Linq.IQueryable<TRecord> QueryCrossPartition();
 		/// Getting the underlying implementation.
 		/// Please use this method carefully, because the returned value is different in every
 		/// implementation (e.g. the linq2db DataConnection, or the raw DbConnection).

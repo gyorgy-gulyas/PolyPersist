@@ -53,57 +53,57 @@ namespace PolyPersist.Net.AnalyticalStore.Tests
         [DataTestMethod]
         [DynamicData(nameof(TestMain.StoreInstances), typeof(TestMain), DynamicDataSourceType.Property)]
         public async Task Where_Equal(Func<string, Task<IAnalyticalStore>> factory)
-            => Assert.AreEqual(2, (await WithSales(factory)).Query().Where(s => s.Region == "US").Count());
+            => Assert.AreEqual(2, (await WithSales(factory)).QueryCrossPartition().Where(s => s.Region == "US").Count());
 
         [DataTestMethod]
         [DynamicData(nameof(TestMain.StoreInstances), typeof(TestMain), DynamicDataSourceType.Property)]
         public async Task Where_NotEqual(Func<string, Task<IAnalyticalStore>> factory)
-            => Assert.AreEqual(3, (await WithSales(factory)).Query().Where(s => s.Region != "US").Count());
+            => Assert.AreEqual(3, (await WithSales(factory)).QueryCrossPartition().Where(s => s.Region != "US").Count());
 
         [DataTestMethod]
         [DynamicData(nameof(TestMain.StoreInstances), typeof(TestMain), DynamicDataSourceType.Property)]
         public async Task Where_GreaterThan(Func<string, Task<IAnalyticalStore>> factory)
-            => Assert.AreEqual(2, (await WithSales(factory)).Query().Where(s => s.Amount > 30m).Count());
+            => Assert.AreEqual(2, (await WithSales(factory)).QueryCrossPartition().Where(s => s.Amount > 30m).Count());
 
         [DataTestMethod]
         [DynamicData(nameof(TestMain.StoreInstances), typeof(TestMain), DynamicDataSourceType.Property)]
         public async Task Where_GreaterThanOrEqual(Func<string, Task<IAnalyticalStore>> factory)
-            => Assert.AreEqual(3, (await WithSales(factory)).Query().Where(s => s.Amount >= 30m).Count());
+            => Assert.AreEqual(3, (await WithSales(factory)).QueryCrossPartition().Where(s => s.Amount >= 30m).Count());
 
         [DataTestMethod]
         [DynamicData(nameof(TestMain.StoreInstances), typeof(TestMain), DynamicDataSourceType.Property)]
         public async Task Where_LessThan(Func<string, Task<IAnalyticalStore>> factory)
-            => Assert.AreEqual(2, (await WithSales(factory)).Query().Where(s => s.Amount < 30m).Count());
+            => Assert.AreEqual(2, (await WithSales(factory)).QueryCrossPartition().Where(s => s.Amount < 30m).Count());
 
         [DataTestMethod]
         [DynamicData(nameof(TestMain.StoreInstances), typeof(TestMain), DynamicDataSourceType.Property)]
         public async Task Where_LessThanOrEqual(Func<string, Task<IAnalyticalStore>> factory)
-            => Assert.AreEqual(3, (await WithSales(factory)).Query().Where(s => s.Amount <= 30m).Count());
+            => Assert.AreEqual(3, (await WithSales(factory)).QueryCrossPartition().Where(s => s.Amount <= 30m).Count());
 
         // ---- boolean combinators ----
 
         [DataTestMethod]
         [DynamicData(nameof(TestMain.StoreInstances), typeof(TestMain), DynamicDataSourceType.Property)]
         public async Task Where_And(Func<string, Task<IAnalyticalStore>> factory)
-            => Assert.AreEqual(1, (await WithSales(factory)).Query().Where(s => s.Region == "EU" && s.Amount >= 20m).Count());
+            => Assert.AreEqual(1, (await WithSales(factory)).QueryCrossPartition().Where(s => s.Region == "EU" && s.Amount >= 20m).Count());
 
         [DataTestMethod]
         [DynamicData(nameof(TestMain.StoreInstances), typeof(TestMain), DynamicDataSourceType.Property)]
         public async Task Where_Or(Func<string, Task<IAnalyticalStore>> factory)
-            => Assert.AreEqual(2, (await WithSales(factory)).Query().Where(s => s.Region == "APAC" || s.Amount >= 50m).Count());
+            => Assert.AreEqual(2, (await WithSales(factory)).QueryCrossPartition().Where(s => s.Region == "APAC" || s.Amount >= 50m).Count());
 
         // ---- ordering / paging ----
 
         [DataTestMethod]
         [DynamicData(nameof(TestMain.StoreInstances), typeof(TestMain), DynamicDataSourceType.Property)]
         public async Task OrderBy_Ascending_First(Func<string, Task<IAnalyticalStore>> factory)
-            => Assert.AreEqual(10m, (await WithSales(factory)).Query().OrderBy(s => s.Amount).First().Amount);
+            => Assert.AreEqual(10m, (await WithSales(factory)).QueryCrossPartition().OrderBy(s => s.Amount).First().Amount);
 
         [DataTestMethod]
         [DynamicData(nameof(TestMain.StoreInstances), typeof(TestMain), DynamicDataSourceType.Property)]
         public async Task OrderBy_Take(Func<string, Task<IAnalyticalStore>> factory)
         {
-            var top2 = (await WithSales(factory)).Query().OrderBy(s => s.Amount).Take(2).ToList();
+            var top2 = (await WithSales(factory)).QueryCrossPartition().OrderBy(s => s.Amount).Take(2).ToList();
             CollectionAssert.AreEqual(new[] { 10m, 20m }, top2.Select(s => s.Amount).ToArray());
         }
 
@@ -112,12 +112,12 @@ namespace PolyPersist.Net.AnalyticalStore.Tests
         [DataTestMethod]
         [DynamicData(nameof(TestMain.StoreInstances), typeof(TestMain), DynamicDataSourceType.Property)]
         public async Task Aggregate_Average(Func<string, Task<IAnalyticalStore>> factory)
-            => Assert.AreEqual(36m, (await WithSales(factory)).Query().Average(s => s.Amount));
+            => Assert.AreEqual(36m, (await WithSales(factory)).QueryCrossPartition().Average(s => s.Amount));
 
         [DataTestMethod]
         [DynamicData(nameof(TestMain.StoreInstances), typeof(TestMain), DynamicDataSourceType.Property)]
         public async Task Sum_With_Where(Func<string, Task<IAnalyticalStore>> factory)
-            => Assert.AreEqual(30m, (await WithSales(factory)).Query().Where(s => s.Region == "EU").Sum(s => s.Amount));
+            => Assert.AreEqual(30m, (await WithSales(factory)).QueryCrossPartition().Where(s => s.Region == "EU").Sum(s => s.Amount));
 
         [DataTestMethod]
         [DynamicData(nameof(TestMain.StoreInstances), typeof(TestMain), DynamicDataSourceType.Property)]
@@ -125,14 +125,14 @@ namespace PolyPersist.Net.AnalyticalStore.Tests
         {
             var store = await factory(null!);
             var table = await store.CreateTable<Sale>(TestMain.NewTableName());
-            Assert.IsNull(table.Query().FirstOrDefault());
+            Assert.IsNull(table.QueryCrossPartition().FirstOrDefault());
         }
 
         [DataTestMethod]
         [DynamicData(nameof(TestMain.StoreInstances), typeof(TestMain), DynamicDataSourceType.Property)]
         public async Task FullRows_ToList_Materializes(Func<string, Task<IAnalyticalStore>> factory)
         {
-            var all = (await WithSales(factory)).Query().ToList();
+            var all = (await WithSales(factory)).QueryCrossPartition().ToList();
             Assert.AreEqual(5, all.Count);
             Assert.AreEqual(180m, all.Sum(s => s.Amount));
             var us = all.Where(s => s.Region == "US").OrderBy(s => s.Amount).ToList();
@@ -146,7 +146,7 @@ namespace PolyPersist.Net.AnalyticalStore.Tests
         [DynamicData(nameof(TestMain.StoreInstances), typeof(TestMain), DynamicDataSourceType.Property)]
         public async Task GroupBy_MinMaxAvg(Func<string, Task<IAnalyticalStore>> factory)
         {
-            var byRegion = (await WithSales(factory)).Query()
+            var byRegion = (await WithSales(factory)).QueryCrossPartition()
                 .GroupBy(s => s.Region)
                 .Select(g => new { Region = g.Key, Lo = g.Min(x => x.Amount), Hi = g.Max(x => x.Amount), Avg = g.Average(x => x.Amount) })
                 .ToList()
@@ -164,7 +164,7 @@ namespace PolyPersist.Net.AnalyticalStore.Tests
         [DynamicData(nameof(TestMain.StoreInstances), typeof(TestMain), DynamicDataSourceType.Property)]
         public async Task Metric_Roundtrip_AllTypes(Func<string, Task<IAnalyticalStore>> factory)
         {
-            var rows = (await WithMetrics(factory)).Query().ToList().OrderBy(m => m.Big).ToList();
+            var rows = (await WithMetrics(factory)).QueryCrossPartition().ToList().OrderBy(m => m.Big).ToList();
             Assert.AreEqual(3, rows.Count);
 
             var b = rows[1]; // Name "b"
@@ -182,21 +182,21 @@ namespace PolyPersist.Net.AnalyticalStore.Tests
         [DataTestMethod]
         [DynamicData(nameof(TestMain.StoreInstances), typeof(TestMain), DynamicDataSourceType.Property)]
         public async Task Metric_Where_Bool(Func<string, Task<IAnalyticalStore>> factory)
-            => Assert.AreEqual(2, (await WithMetrics(factory)).Query().Where(m => m.Flag).Count());
+            => Assert.AreEqual(2, (await WithMetrics(factory)).QueryCrossPartition().Where(m => m.Flag).Count());
 
         [DataTestMethod]
         [DynamicData(nameof(TestMain.StoreInstances), typeof(TestMain), DynamicDataSourceType.Property)]
         public async Task Metric_Where_Long(Func<string, Task<IAnalyticalStore>> factory)
-            => Assert.AreEqual(2, (await WithMetrics(factory)).Query().Where(m => m.Big >= 200L).Count());
+            => Assert.AreEqual(2, (await WithMetrics(factory)).QueryCrossPartition().Where(m => m.Big >= 200L).Count());
 
         [DataTestMethod]
         [DynamicData(nameof(TestMain.StoreInstances), typeof(TestMain), DynamicDataSourceType.Property)]
         public async Task Metric_Sum_Double(Func<string, Task<IAnalyticalStore>> factory)
-            => Assert.AreEqual(8.0, (await WithMetrics(factory)).Query().Sum(m => m.Ratio), 0.0001);
+            => Assert.AreEqual(8.0, (await WithMetrics(factory)).QueryCrossPartition().Sum(m => m.Ratio), 0.0001);
 
         [DataTestMethod]
         [DynamicData(nameof(TestMain.StoreInstances), typeof(TestMain), DynamicDataSourceType.Property)]
         public async Task FullRows_Distinct(Func<string, Task<IAnalyticalStore>> factory)
-            => Assert.AreEqual(5, (await WithSales(factory)).Query().Distinct().ToList().Count);
+            => Assert.AreEqual(5, (await WithSales(factory)).QueryCrossPartition().Distinct().ToList().Count);
     }
 }

@@ -14,8 +14,15 @@ namespace PolyPersist
 	/// IAnalyticalRecord is the marker for a denormalized "fact" row in an analytical (OLAP) store.
 	/// It is deliberately NOT an IEntity: analytical rows have no per-row identity, etag or
 	/// concurrency control - they are append-only facts whose columns (dimensions and measures) are
-	/// defined entirely by the concrete record's mapping.
+	/// defined entirely by the concrete record's mapping. It carries ONE routing column, PartitionKey,
+	/// so a fact table can be queried tenant-scoped (Query(partitionKey)) as well as across every
+	/// partition (QueryCrossPartition), matching the operational stores - but there is still no id or
+	/// etag (a fact has a partition, not an identity).
 	public interface IAnalyticalRecord
 	{
+		/// The partition (e.g. tenant) this fact belongs to. It is the ONLY identity-like column on a
+		/// fact row: there is no id or etag. It scopes Query(partitionKey) and, for backends that
+		/// support it, is the natural clustering/partitioning column of the fact table.
+		public string PartitionKey { get; set;}
 	}
 }

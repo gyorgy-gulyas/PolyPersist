@@ -10,11 +10,14 @@ using Testcontainers.PostgreSql;
 
 namespace PolyPersist.Net.AnalyticalStore.Tests
 {
-    // ---- Test fact records (denormalized rows; no id / etag / partition key) ----
+    // ---- Test fact records (denormalized rows; a PartitionKey routing column, but no id / etag) ----
+    // PartitionKey defaults to "p1" so the cross-partition aggregate fixtures need not set it; the
+    // partition-scoping tests assign explicit partitions.
 
     /// <summary>A sales fact row: dimensions (Region, Product, SoldAt) + measures (Quantity, Amount).</summary>
     public class Sale : IAnalyticalRecord
     {
+        public string PartitionKey { get; set; } = "p1";
         public string Region { get; set; } = null!;
         public string Product { get; set; } = null!;
         public int Quantity { get; set; }
@@ -25,6 +28,7 @@ namespace PolyPersist.Net.AnalyticalStore.Tests
     /// <summary>A fact row exercising the remaining column types (bool, double, long, nullable, Guid).</summary>
     public class Metric : IAnalyticalRecord
     {
+        public string PartitionKey { get; set; } = "p1";
         public string Name { get; set; } = null!;
         public bool Flag { get; set; }
         public double Ratio { get; set; }

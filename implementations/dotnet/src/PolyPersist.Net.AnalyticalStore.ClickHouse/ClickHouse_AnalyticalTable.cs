@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Reflection;
 using LinqToDB;
 using LinqToDB.Data;
@@ -83,7 +84,14 @@ namespace PolyPersist.Net.AnalyticalStore.ClickHouse
         }
 
         /// <inheritdoc/>
-        System.Linq.IQueryable<TRecord> IAnalyticalTable<TRecord>.Query()
+        System.Linq.IQueryable<TRecord> IAnalyticalTable<TRecord>.Query(string partitionKey)
+            => _CrossPartitionQuery().Where(r => r.PartitionKey == partitionKey);
+
+        /// <inheritdoc/>
+        System.Linq.IQueryable<TRecord> IAnalyticalTable<TRecord>.QueryCrossPartition()
+            => _CrossPartitionQuery();
+
+        private System.Linq.IQueryable<TRecord> _CrossPartitionQuery()
         {
             var ctx = new DataContext(_store.Options());
             return ctx.GetTable<TRecord>().TableName(_name);
