@@ -44,6 +44,20 @@ namespace PolyPersist {
         async method DropIndex(indexName: string)
     }
 
+    # SearchMode selects how the query text is matched against the indexed documents.
+    enum SearchMode {
+
+        # Exact, whole-word full-text matching (the query terms must appear as whole tokens). Fast.
+        FullText,
+
+        # Loose matching, for when exact is too strict. A document matches when it CONTAINS a query
+        # term as a fragment (substring, anywhere in a word) OR fuzzily matches it (typo tolerance,
+        # small edit distance). The two are unioned. Slower than FullText, and may need extra index-
+        # time structures (e.g. PostgreSQL trigram index); the exact fuzzy distance / fragment rules
+        # are engine-specific.
+        Fuzzy
+    }
+
     # ISearchIndex represents a single search index. Documents are indexed (upserted) by id and
     # deleted by id. The Search method covers the common full-text case; anything more advanced goes
     # through GetUnderlyingImplementation.
@@ -64,13 +78,14 @@ namespace PolyPersist {
         # Removes a document from the index by its id.
         async method Delete(id: string)
 
-        # Simple full-text search over the index, with paging.
+        # Full-text search over the index, with paging.
         #
         # @param queryText - the free-text query.
+        # @param mode - FullText (exact, whole-word, fast) or Fuzzy (substring + typo tolerant, slower).
         # @param from - the zero-based offset of the first hit to return.
         # @param size - the maximum number of hits to return.
         # @returns the matching documents, most relevant first.
-        async method Search(queryText: string, from: integer, size: integer) => list[TDocument]
+        async method Search(queryText: string, mode: SearchMode, from: integer, size: integer) => list[TDocument]
 
         # Getting the underlying implementation.
         # Please use this method carefully, because the returned value is different in every
