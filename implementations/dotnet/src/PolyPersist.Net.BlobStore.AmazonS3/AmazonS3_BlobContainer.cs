@@ -1,4 +1,4 @@
-﻿using Amazon.S3;
+using Amazon.S3;
 using Amazon.S3.Model;
 using PolyPersist.Net.Common;
 using System.Text.Json;
@@ -28,14 +28,14 @@ namespace PolyPersist.Net.BlobStore.AmazonS3
         async Task IBlobContainer<TBlob>.Upload(TBlob blob, Stream content)
         {
             if (content == null || content.CanRead == false)
-                throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} content cannot be read");
+                throw new PolyPersist.Net.Common.InvalidRequestException($"Blob '{typeof(TBlob).Name}' {blob.id} content cannot be read");
 
             CollectionCommon.CheckBeforeInsert(blob);
 
             if (string.IsNullOrEmpty(blob.id) == true)
                 blob.id = Guid.NewGuid().ToString();
             else if (await _IsExistsInternal(blob.id).ConfigureAwait(false) == true)
-                throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} cannot be uploaded, beacuse of duplicate key");
+                throw new DuplicateKeyException($"Blob '{typeof(TBlob).Name}' {blob.id} cannot be uploaded, beacuse of duplicate key");
 
             blob.etag = Guid.NewGuid().ToString();
             blob.LastUpdate = DateTime.UtcNow;
@@ -84,7 +84,7 @@ namespace PolyPersist.Net.BlobStore.AmazonS3
             }
             catch (AmazonS3Exception ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
             {
-                throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not download, because it is does not exist");
+                throw new NotFoundException($"Blob '{typeof(TBlob).Name}' {blob.id} can not download, because it is does not exist");
             }
         }
 
@@ -117,12 +117,12 @@ namespace PolyPersist.Net.BlobStore.AmazonS3
             }
             catch (AmazonS3Exception ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
             {
-                throw new Exception($"Blob '{typeof(TBlob).Name}' {id} can not be deleted because it does not exist.");
+                throw new NotFoundException($"Blob '{typeof(TBlob).Name}' {id} can not be deleted because it does not exist.");
             }
 
             // Only delete within the requested partition: a matching id in another partition is not it.
             if (BlobMetadata.Deserialize<TBlob>(meta.Metadata[BlobMetadata.Key]).PartitionKey != partitionKey)
-                throw new Exception($"Blob '{typeof(TBlob).Name}' {id} can not be deleted because it does not exist.");
+                throw new NotFoundException($"Blob '{typeof(TBlob).Name}' {id} can not be deleted because it does not exist.");
 
             await _amazonS3Client.DeleteObjectAsync(_bucketName, id).ConfigureAwait(false);
         }
@@ -132,7 +132,7 @@ namespace PolyPersist.Net.BlobStore.AmazonS3
             CollectionCommon.CheckBeforeUpdate(blob);
 
             if (content == null || content.CanRead == false)
-                throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} content cannot be read");
+                throw new PolyPersist.Net.Common.InvalidRequestException($"Blob '{typeof(TBlob).Name}' {blob.id} content cannot be read");
 
             GetObjectMetadataResponse response;
             try
@@ -141,13 +141,13 @@ namespace PolyPersist.Net.BlobStore.AmazonS3
             }
             catch (AmazonS3Exception ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
             {
-                throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not upload, because it is does not exist");
+                throw new NotFoundException($"Blob '{typeof(TBlob).Name}' {blob.id} can not upload, because it is does not exist");
             }
 
             var stored = BlobMetadata.Deserialize<TBlob>(response.Metadata[BlobMetadata.Key]);
             // A matching id in another partition is not this blob - refuse to write across it.
             if (stored.PartitionKey != blob.PartitionKey)
-                throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not upload, because it is does not exist");
+                throw new NotFoundException($"Blob '{typeof(TBlob).Name}' {blob.id} can not upload, because it is does not exist");
             CollectionCommon.CheckEtagMatch(stored, blob);
 
             var request = new PutObjectRequest
@@ -178,13 +178,13 @@ namespace PolyPersist.Net.BlobStore.AmazonS3
             }
             catch (AmazonS3Exception ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
             {
-                throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not upload, because it is does not exist");
+                throw new NotFoundException($"Blob '{typeof(TBlob).Name}' {blob.id} can not upload, because it is does not exist");
             }
 
             var stored = BlobMetadata.Deserialize<TBlob>(metadata.Metadata[BlobMetadata.Key]);
             // A matching id in another partition is not this blob - refuse to write across it.
             if (stored.PartitionKey != blob.PartitionKey)
-                throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not upload, because it is does not exist");
+                throw new NotFoundException($"Blob '{typeof(TBlob).Name}' {blob.id} can not upload, because it is does not exist");
             CollectionCommon.CheckEtagMatch(stored, blob);
 
             blob.etag = Guid.NewGuid().ToString();

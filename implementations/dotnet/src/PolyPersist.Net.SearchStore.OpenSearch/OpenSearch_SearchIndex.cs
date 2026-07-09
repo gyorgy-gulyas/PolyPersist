@@ -1,5 +1,6 @@
 using OpenSearch.Client;
 using OpenSearch.Net;
+using PolyPersist.Net.Common;
 
 namespace PolyPersist.Net.SearchStore.OpenSearch
 {
@@ -35,7 +36,7 @@ namespace PolyPersist.Net.SearchStore.OpenSearch
                 .IndexAsync(document, i => i.Index(_name).Id(document.id).Refresh(Refresh.True))
                 .ConfigureAwait(false);
             if (response.IsValid == false)
-                throw new Exception($"Index failed: {response.ServerError?.Error?.Reason ?? response.DebugInformation}");
+                throw new PolyPersistException($"Index failed: {response.ServerError?.Error?.Reason ?? response.DebugInformation}");
         }
 
         /// <inheritdoc/>
@@ -51,7 +52,7 @@ namespace PolyPersist.Net.SearchStore.OpenSearch
                     .Refresh(Refresh.True))
                 .ConfigureAwait(false);
             if (response.IsValid == false)
-                throw new Exception($"IndexBatch failed: {response.ServerError?.Error?.Reason ?? response.DebugInformation}");
+                throw new PolyPersistException($"IndexBatch failed: {response.ServerError?.Error?.Reason ?? response.DebugInformation}");
         }
 
         /// <inheritdoc/>
@@ -62,7 +63,7 @@ namespace PolyPersist.Net.SearchStore.OpenSearch
                 .ConfigureAwait(false);
             // A missing document is not an error for an idempotent delete.
             if (response.IsValid == false && response.Result != Result.NotFound)
-                throw new Exception($"Delete failed: {response.ServerError?.Error?.Reason ?? response.DebugInformation}");
+                throw new PolyPersistException($"Delete failed: {response.ServerError?.Error?.Reason ?? response.DebugInformation}");
         }
 
         /// <inheritdoc/>
@@ -97,7 +98,7 @@ namespace PolyPersist.Net.SearchStore.OpenSearch
                     .Query(_ => query))
                 .ConfigureAwait(false);
             if (response.IsValid == false)
-                throw new Exception($"Search failed: {response.ServerError?.Error?.Reason ?? response.DebugInformation}");
+                throw new PolyPersistException($"Search failed: {response.ServerError?.Error?.Reason ?? response.DebugInformation}");
 
             return response.Documents.ToList();
         }

@@ -33,7 +33,7 @@ namespace PolyPersist.Net.DocumentStore.Memory
             if (string.IsNullOrEmpty(document.id) == true)
                 document.id = Guid.NewGuid().ToString();
             else if (_collectionData.MapOfDocments.ContainsKey(document.id) == true)
-                throw new Exception($"Document '{typeof(TDocument).Name}' {document.id} cannot be inserted, beacuse of duplicate key");
+                throw new DuplicateKeyException($"Document '{typeof(TDocument).Name}' {document.id} cannot be inserted, beacuse of duplicate key");
 
             _RowData row = new()
             {
@@ -55,10 +55,10 @@ namespace PolyPersist.Net.DocumentStore.Memory
             CollectionCommon.CheckBeforeUpdate(document);
 
             if (_collectionData.MapOfDocments.TryGetValue(document.id, out _RowData? row) == false)
-                throw new Exception($"Document '{typeof(TDocument).Name}' {document.id} can not be updated because does not exist");
+                throw new NotFoundException($"Document '{typeof(TDocument).Name}' {document.id} can not be updated because does not exist");
 
             if (row.etag != document.etag)
-                throw new Exception($"Document '{typeof(TDocument).Name}' {document.id} can not be updated because it is already changed");
+                throw new ConcurrencyConflictException($"Document '{typeof(TDocument).Name}' {document.id} can not be updated because it is already changed");
 
             document.etag = Guid.NewGuid().ToString();
             document.LastUpdate = DateTime.UtcNow;
@@ -75,7 +75,7 @@ namespace PolyPersist.Net.DocumentStore.Memory
             // only delete when the document exists in the requested partition (Find already
             // checks this; Delete used to match on id alone)
             if (_collectionData.MapOfDocments.TryGetValue(id, out _RowData? row) == false || row.partitionKey != partitionKey)
-                throw new Exception($"Document '{typeof(TDocument).Name}' {id} can not be removed because it is already removed");
+                throw new NotFoundException($"Document '{typeof(TDocument).Name}' {id} can not be removed because it is already removed");
 
             _collectionData.MapOfDocments.Remove(id);
             _collectionData.ListOfDocments.Remove(row);

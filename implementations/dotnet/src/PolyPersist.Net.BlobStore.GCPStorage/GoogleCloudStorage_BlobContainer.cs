@@ -1,4 +1,4 @@
-﻿using Google.Apis.Download;
+using Google.Apis.Download;
 using Google.Apis.Storage.v1;
 using Google.Apis.Upload;
 using PolyPersist.Net.Common;
@@ -30,14 +30,14 @@ namespace PolyPersist.Net.BlobStore.GCPStorage
         public async Task Upload(TBlob blob, Stream content)
         {
             if (content == null || content.CanRead == false)
-                throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} content cannot be read");
+                throw new InvalidRequestException($"Blob '{typeof(TBlob).Name}' {blob.id} content cannot be read");
 
             CollectionCommon.CheckBeforeInsert(blob);
 
             if (string.IsNullOrEmpty(blob.id) == true)
                 blob.id = Guid.NewGuid().ToString();
             else if (await _IsExistsInternal(blob.id).ConfigureAwait(false) == true)
-                throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} cannot be uploaded, beacuse of duplicate key");
+                throw new DuplicateKeyException($"Blob '{typeof(TBlob).Name}' {blob.id} cannot be uploaded, beacuse of duplicate key");
 
             blob.etag = Guid.NewGuid().ToString();
             blob.LastUpdate = DateTime.UtcNow;
@@ -62,7 +62,7 @@ namespace PolyPersist.Net.BlobStore.GCPStorage
 
             var result = await insertRequest.UploadAsync().ConfigureAwait(false);
             if (result.Status != UploadStatus.Completed)
-                throw new Exception($"Blob '{blob.id}' cannot be uploaded '{_bucketName}'");
+                throw new PolyPersistException($"Blob '{blob.id}' cannot be uploaded '{_bucketName}'");
         }
 
         private async Task<bool> _IsExistsInternal(string id)
@@ -94,11 +94,11 @@ namespace PolyPersist.Net.BlobStore.GCPStorage
                 // Lehetséges, hogy 404 (nem létezik), vagy más hiba
                 if (result.Exception is Google.GoogleApiException ex && ex.HttpStatusCode == System.Net.HttpStatusCode.NotFound)
                 {
-                    throw new Exception($"Blob '{blob.id}' does not exist in bucket '{_bucketName}'", ex);
+                    throw new NotFoundException($"Blob '{blob.id}' does not exist in bucket '{_bucketName}'", ex);
                 }
 
                 // Általános hibadobás más hiba esetén
-                throw new Exception($"Download failed for blob '{blob.id}' in bucket '{_bucketName}'", result.Exception);
+                throw new PolyPersistException($"Download failed for blob '{blob.id}' in bucket '{_bucketName}'", result.Exception);
             }
 
             content.Seek(0, SeekOrigin.Begin);
@@ -142,12 +142,12 @@ namespace PolyPersist.Net.BlobStore.GCPStorage
             }
             catch (Google.GoogleApiException ex) when (ex.HttpStatusCode == System.Net.HttpStatusCode.NotFound)
             {
-                throw new Exception($"Blob '{typeof(TBlob).Name}' {id} can not be deleted because it does not exist.");
+                throw new NotFoundException($"Blob '{typeof(TBlob).Name}' {id} can not be deleted because it does not exist.");
             }
 
             // Only delete within the requested partition: a matching id in another partition is not it.
             if (BlobMetadata.Deserialize<TBlob>(existingObject.Metadata[BlobMetadata.Key]).PartitionKey != partitionKey)
-                throw new Exception($"Blob '{typeof(TBlob).Name}' {id} can not be deleted because it does not exist.");
+                throw new NotFoundException($"Blob '{typeof(TBlob).Name}' {id} can not be deleted because it does not exist.");
 
             await _storageService.Objects.Delete(_bucketName, id)
                 .ExecuteAsync()
@@ -160,7 +160,7 @@ namespace PolyPersist.Net.BlobStore.GCPStorage
             CollectionCommon.CheckBeforeUpdate(blob);
 
             if (content == null || content.CanRead == false)
-                throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} content cannot be read");
+                throw new InvalidRequestException($"Blob '{typeof(TBlob).Name}' {blob.id} content cannot be read");
 
             // 1. Check if the object exists
             Google.Apis.Storage.v1.Data.Object existingObject;
@@ -172,13 +172,13 @@ namespace PolyPersist.Net.BlobStore.GCPStorage
             }
             catch (Google.GoogleApiException ex) when (ex.HttpStatusCode == System.Net.HttpStatusCode.NotFound)
             {
-                throw new Exception($"Blob '{blob.id}' does not exist in bucket '{_bucketName}'", ex);
+                throw new NotFoundException($"Blob '{blob.id}' does not exist in bucket '{_bucketName}'", ex);
             }
 
             var stored = BlobMetadata.Deserialize<TBlob>(existingObject.Metadata[BlobMetadata.Key]);
             // A matching id in another partition is not this blob - refuse to write across it.
             if (stored.PartitionKey != blob.PartitionKey)
-                throw new Exception($"Blob '{blob.id}' does not exist in bucket '{_bucketName}'");
+                throw new NotFoundException($"Blob '{blob.id}' does not exist in bucket '{_bucketName}'");
             CollectionCommon.CheckEtagMatch(stored, blob);
 
             blob.etag = Guid.NewGuid().ToString();
@@ -203,7 +203,7 @@ namespace PolyPersist.Net.BlobStore.GCPStorage
 
             var result = await insertRequest.UploadAsync().ConfigureAwait(false);
             if (result.Status != UploadStatus.Completed)
-                throw new Exception($"Blob '{blob.id}' cannot be uploaded '{_bucketName}'");
+                throw new PolyPersistException($"Blob '{blob.id}' cannot be uploaded '{_bucketName}'");
         }
 
         /// <inheritdoc/>
@@ -219,13 +219,13 @@ namespace PolyPersist.Net.BlobStore.GCPStorage
             }
             catch (Google.GoogleApiException ex) when (ex.HttpStatusCode == System.Net.HttpStatusCode.NotFound)
             {
-                throw new Exception($"Cannot update metadata because the object '{blob.id}' does not exist in bucket '{_bucketName}'", ex);
+                throw new NotFoundException($"Cannot update metadata because the object '{blob.id}' does not exist in bucket '{_bucketName}'", ex);
             }
 
             var stored = BlobMetadata.Deserialize<TBlob>(existingObject.Metadata[BlobMetadata.Key]);
             // A matching id in another partition is not this blob - refuse to write across it.
             if (stored.PartitionKey != blob.PartitionKey)
-                throw new Exception($"Cannot update metadata because the object '{blob.id}' does not exist in bucket '{_bucketName}'");
+                throw new NotFoundException($"Cannot update metadata because the object '{blob.id}' does not exist in bucket '{_bucketName}'");
             CollectionCommon.CheckEtagMatch(stored, blob);
 
             blob.etag = Guid.NewGuid().ToString();

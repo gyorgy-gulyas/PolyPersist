@@ -1,4 +1,5 @@
-﻿namespace PolyPersist.Net.BlobStore.FileSystem
+using PolyPersist.Net.Common;
+namespace PolyPersist.Net.BlobStore.FileSystem
 {
     public class FileSystem_BlobStore : IBlobStore
     {
@@ -23,7 +24,7 @@
         {
             var path = Path.Combine(_rootPath, containerName);
             if (Directory.Exists(path))
-                throw new Exception($"Container '{containerName}' already exists");
+                throw new DuplicateKeyException($"Container '{containerName}' already exists");
 
             Directory.CreateDirectory(path);
             return Task.FromResult<IBlobContainer<TBlob>>(new FileSystem_BlobContainer<TBlob>(path, this));
@@ -33,7 +34,7 @@
         {
             var path = Path.Combine(_rootPath, containerName);
             if (!Directory.Exists(path))
-                throw new Exception($"Container '{containerName}' does not exist");
+                throw new NotFoundException($"Container '{containerName}' does not exist");
 
             return Task.FromResult<IBlobContainer<TBlob>>(new FileSystem_BlobContainer<TBlob>(path, this));
         }
@@ -42,7 +43,7 @@
         {
             var path = Path.Combine(_rootPath, containerName);
             if (!Directory.Exists(path))
-                throw new Exception($"Container '{containerName}' does not exist");
+                throw new NotFoundException($"Container '{containerName}' does not exist");
 
             Directory.Delete(path, recursive: true);
             return Task.CompletedTask;

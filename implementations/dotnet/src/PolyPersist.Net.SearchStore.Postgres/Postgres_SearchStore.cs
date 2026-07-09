@@ -1,4 +1,5 @@
 using Npgsql;
+using PolyPersist.Net.Common;
 
 namespace PolyPersist.Net.SearchStore.Postgres
 {
@@ -61,7 +62,7 @@ namespace PolyPersist.Net.SearchStore.Postgres
         async Task<ISearchIndex<TDocument>> ISearchStore.GetIndexByName<TDocument>(string indexName)
         {
             if (await ((ISearchStore)this).IsIndexExists(indexName).ConfigureAwait(false) == false)
-                throw new Exception($"Index '{indexName}' does not exist in the PostgreSQL search store");
+                throw new NotFoundException($"Index '{indexName}' does not exist in the PostgreSQL search store");
 
             return new Postgres_SearchIndex<TDocument>(indexName, this);
         }
@@ -70,7 +71,7 @@ namespace PolyPersist.Net.SearchStore.Postgres
         async Task<ISearchIndex<TDocument>> ISearchStore.CreateIndex<TDocument>(string indexName)
         {
             if (await ((ISearchStore)this).IsIndexExists(indexName).ConfigureAwait(false) == true)
-                throw new Exception($"Index '{indexName}' already exists in the PostgreSQL search store");
+                throw new DuplicateKeyException($"Index '{indexName}' already exists in the PostgreSQL search store");
 
             await using var conn = await OpenConnectionAsync().ConfigureAwait(false);
 
@@ -101,7 +102,7 @@ namespace PolyPersist.Net.SearchStore.Postgres
         async Task ISearchStore.DropIndex(string indexName)
         {
             if (await ((ISearchStore)this).IsIndexExists(indexName).ConfigureAwait(false) == false)
-                throw new Exception($"Index '{indexName}' does not exist in the PostgreSQL search store");
+                throw new NotFoundException($"Index '{indexName}' does not exist in the PostgreSQL search store");
 
             await using var conn = await OpenConnectionAsync().ConfigureAwait(false);
             await using var cmd = new NpgsqlCommand($"DROP TABLE \"{indexName}\"", conn);

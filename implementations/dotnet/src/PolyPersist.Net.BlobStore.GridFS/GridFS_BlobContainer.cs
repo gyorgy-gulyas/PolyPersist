@@ -1,4 +1,4 @@
-﻿using MongoDB.Bson;
+using MongoDB.Bson;
 using MongoDB.Driver;
 using MongoDB.Driver.GridFS;
 using PolyPersist.Net.Common;
@@ -31,7 +31,7 @@ namespace PolyPersist.Net.BlobStore.GridFS
         async Task IBlobContainer<TBlob>.Upload(TBlob blob, Stream content)
         {
             if (content == null || content.CanRead == false)
-                throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} content cannot be read");
+                throw new InvalidRequestException($"Blob '{typeof(TBlob).Name}' {blob.id} content cannot be read");
 
             CollectionCommon.CheckBeforeInsert(blob);
 
@@ -47,7 +47,7 @@ namespace PolyPersist.Net.BlobStore.GridFS
             }
             catch (MongoWriteException ex)
             {
-                throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} cannot be uploaded, beacuse of duplicate key", ex);
+                throw new DuplicateKeyException($"Blob '{typeof(TBlob).Name}' {blob.id} cannot be uploaded, beacuse of duplicate key", ex);
             }
 
             // Upload empty content to GridFS, to create a entity is database
@@ -59,7 +59,7 @@ namespace PolyPersist.Net.BlobStore.GridFS
         {
             GridFSFileInfo fileInfo = await _getFileInfo(blob.PartitionKey, blob.id).ConfigureAwait(false);
             if (fileInfo == null)
-                throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not download, because it is does not exist");
+                throw new NotFoundException($"Blob '{typeof(TBlob).Name}' {blob.id} can not download, because it is does not exist");
 
             return await _gridFSBucket.OpenDownloadStreamAsync(fileInfo.Id);
         }
@@ -73,16 +73,16 @@ namespace PolyPersist.Net.BlobStore.GridFS
             // This order leaves at worst a dangling metadata row, which is detectable/retryable.
             GridFSFileInfo fileInfo = await _getFileInfo(partitionKey, id).ConfigureAwait(false);
             if (fileInfo == null)
-                throw new Exception($"Blob '{typeof(TBlob).Name}' {id} can not be removed because it is does not exist");
+                throw new NotFoundException($"Blob '{typeof(TBlob).Name}' {id} can not be removed because it is does not exist");
 
             await _gridFSBucket.DeleteAsync(fileInfo.Id).ConfigureAwait(false);
 
             DeleteResult result = await _metadataCollection.DeleteOneAsync(e => e.id == id && e.PartitionKey == partitionKey).ConfigureAwait(false);
             if (result.IsAcknowledged == false)
-                throw new Exception($"Blob '{typeof(TBlob).Name}' {id} can not be removed. Database refused to acknowledge the operation.");
+                throw new PolyPersistException($"Blob '{typeof(TBlob).Name}' {id} can not be removed. Database refused to acknowledge the operation.");
 
             if (result.DeletedCount != 1)
-                throw new Exception($"Blob '{typeof(TBlob).Name}' {id} can not be removed because it is does not exist");
+                throw new NotFoundException($"Blob '{typeof(TBlob).Name}' {id} can not be removed because it is does not exist");
         }
 
         /// <inheritdoc/>
@@ -100,11 +100,11 @@ namespace PolyPersist.Net.BlobStore.GridFS
             CollectionCommon.CheckBeforeUpdate(blob);
 
             if (content == null || content.CanRead == false)
-                throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} content cannot be read");
+                throw new InvalidRequestException($"Blob '{typeof(TBlob).Name}' {blob.id} content cannot be read");
 
             GridFSFileInfo fileInfo = await _getFileInfo(blob.PartitionKey, blob.id).ConfigureAwait(false);
             if (fileInfo == null)
-                throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not upload, because it is does not exist");
+                throw new NotFoundException($"Blob '{typeof(TBlob).Name}' {blob.id} can not upload, because it is does not exist");
 
             string oldETag = blob.etag;
             blob.etag = Guid.NewGuid().ToString();
@@ -116,7 +116,7 @@ namespace PolyPersist.Net.BlobStore.GridFS
             // reassigned to the null result and then dereferenced in the throw.)
             var replaced = await _metadataCollection.FindOneAndReplaceAsync(e => e.id == blob.id && e.PartitionKey == blob.PartitionKey && e.etag == oldETag, blob).ConfigureAwait(false);
             if (replaced == null)
-                throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not be updated because it is already changed");
+                throw new ConcurrencyConflictException($"Blob '{typeof(TBlob).Name}' {blob.id} can not be updated because it is already changed");
 
             await _gridFSBucket.DeleteAsync(fileInfo.Id).ConfigureAwait(false);
             await _gridFSBucket.UploadFromStreamAsync(_makeId(blob), content).ConfigureAwait(false);
@@ -129,7 +129,7 @@ namespace PolyPersist.Net.BlobStore.GridFS
 
             GridFSFileInfo fileInfo = await _getFileInfo(blob.PartitionKey, blob.id).ConfigureAwait(false);
             if (fileInfo == null)
-                throw new Exception($"Entity '{typeof(TBlob).Name}' {blob.id} can not be updated because it does not exist.");
+                throw new NotFoundException($"Entity '{typeof(TBlob).Name}' {blob.id} can not be updated because it does not exist.");
 
             string oldETag = blob.etag;
             blob.etag = Guid.NewGuid().ToString();
@@ -137,7 +137,7 @@ namespace PolyPersist.Net.BlobStore.GridFS
 
             var replaced = await _metadataCollection.FindOneAndReplaceAsync(e => e.id == blob.id && e.PartitionKey == blob.PartitionKey && e.etag == oldETag, blob).ConfigureAwait(false);
             if (replaced == null)
-                throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not be updated because it is already changed");
+                throw new ConcurrencyConflictException($"Blob '{typeof(TBlob).Name}' {blob.id} can not be updated because it is already changed");
         }
 
 

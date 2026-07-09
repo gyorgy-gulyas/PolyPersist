@@ -1,5 +1,6 @@
 using System.Reflection;
 using Google.Cloud.BigQuery.V2;
+using PolyPersist.Net.Common;
 
 namespace PolyPersist.Net.AnalyticalStore.GCPBigQuery
 {
@@ -61,7 +62,7 @@ namespace PolyPersist.Net.AnalyticalStore.GCPBigQuery
         Task<IAnalyticalTable<TRecord>> IAnalyticalStore.GetTableByName<TRecord>(string tableName)
         {
             if (_IsTableExists(tableName) == false)
-                throw new Exception($"Table '{tableName}' does not exist in the analytical store");
+                throw new NotFoundException($"Table '{tableName}' does not exist in the analytical store");
 
             return Task.FromResult(_NewTable<TRecord>(tableName));
         }
@@ -70,7 +71,7 @@ namespace PolyPersist.Net.AnalyticalStore.GCPBigQuery
         async Task<IAnalyticalTable<TRecord>> IAnalyticalStore.CreateTable<TRecord>(string tableName)
         {
             if (_IsTableExists(tableName) == true)
-                throw new Exception($"Table '{tableName}' already exists in the analytical store");
+                throw new DuplicateKeyException($"Table '{tableName}' already exists in the analytical store");
 
             var table = _NewTable<TRecord>(tableName);
             await ((IAnalyticalTableInternal)table).CreateSchemaAsync().ConfigureAwait(false);
@@ -81,7 +82,7 @@ namespace PolyPersist.Net.AnalyticalStore.GCPBigQuery
         async Task IAnalyticalStore.DropTable(string tableName)
         {
             if (_IsTableExists(tableName) == false)
-                throw new Exception($"Table '{tableName}' does not exist in the analytical store");
+                throw new NotFoundException($"Table '{tableName}' does not exist in the analytical store");
 
             await Client.ExecuteQueryAsync($"DROP TABLE {TableRef(tableName)}", parameters: null).ConfigureAwait(false);
         }

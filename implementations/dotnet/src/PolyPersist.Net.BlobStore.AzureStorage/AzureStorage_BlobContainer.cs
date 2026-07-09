@@ -1,4 +1,4 @@
-﻿using Azure.Storage.Blobs;
+using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
 using PolyPersist.Net.Common;
 using System.Text.Json;
@@ -26,14 +26,14 @@ namespace PolyPersist.Net.BlobStore.AzureStorage
         async Task IBlobContainer<TBlob>.Upload(TBlob blob, Stream content)
         {
             if (content == null || content.CanRead == false)
-                throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} content cannot be read");
+                throw new InvalidRequestException($"Blob '{typeof(TBlob).Name}' {blob.id} content cannot be read");
 
             CollectionCommon.CheckBeforeInsert(blob);
 
             if (string.IsNullOrEmpty(blob.id) == true)
                 blob.id = Guid.NewGuid().ToString();
             else if (await _FindInternal(blob.id).ConfigureAwait(false) == true)
-                throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} cannot be uploaded, beacuse of duplicate key");
+                throw new DuplicateKeyException($"Blob '{typeof(TBlob).Name}' {blob.id} cannot be uploaded, beacuse of duplicate key");
 
             blob.etag = Guid.NewGuid().ToString();
             blob.LastUpdate = DateTime.UtcNow;
@@ -67,7 +67,7 @@ namespace PolyPersist.Net.BlobStore.AzureStorage
             // create blob client
             BlobClient blobClient = _containerClient.GetBlobClient(blob.id);
             if (await blobClient.ExistsAsync().ConfigureAwait(false) == false)
-                throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not be download because it does not exist.");
+                throw new NotFoundException($"Blob '{typeof(TBlob).Name}' {blob.id} can not be download because it does not exist.");
 
             // Download blob content
             var response = await blobClient.DownloadAsync();
@@ -101,12 +101,12 @@ namespace PolyPersist.Net.BlobStore.AzureStorage
             BlobClient blobClient = _containerClient.GetBlobClient(id);
 
             if (await blobClient.ExistsAsync().ConfigureAwait(false) == false)
-                throw new Exception($"Blob '{typeof(TBlob).Name}' {id} cannot be deleted: it does not exist.");
+                throw new NotFoundException($"Blob '{typeof(TBlob).Name}' {id} cannot be deleted: it does not exist.");
 
             // Only delete within the requested partition: a matching id in another partition is not it.
             var props = await blobClient.GetPropertiesAsync().ConfigureAwait(false);
             if (BlobMetadata.Deserialize<TBlob>(props.Value.Metadata[BlobMetadata.Key]).PartitionKey != partitionKey)
-                throw new Exception($"Blob '{typeof(TBlob).Name}' {id} cannot be deleted: it does not exist.");
+                throw new NotFoundException($"Blob '{typeof(TBlob).Name}' {id} cannot be deleted: it does not exist.");
 
             await blobClient.DeleteAsync().ConfigureAwait(false);
         }
@@ -117,18 +117,18 @@ namespace PolyPersist.Net.BlobStore.AzureStorage
             CollectionCommon.CheckBeforeUpdate(blob);
 
             if (content == null || content.CanRead == false)
-                throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} content cannot be read");
+                throw new InvalidRequestException($"Blob '{typeof(TBlob).Name}' {blob.id} content cannot be read");
 
             // create blob client
             BlobClient blobClient = _containerClient.GetBlobClient(blob.id);
             if (await blobClient.ExistsAsync().ConfigureAwait(false) == false)
-                throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not be updated because it does not exist.");
+                throw new NotFoundException($"Blob '{typeof(TBlob).Name}' {blob.id} can not be updated because it does not exist.");
 
             var props = await blobClient.GetPropertiesAsync().ConfigureAwait(false);
             var stored = BlobMetadata.Deserialize<TBlob>(props.Value.Metadata[BlobMetadata.Key]);
             // A matching id in another partition is not this blob - refuse to write across it.
             if (stored.PartitionKey != blob.PartitionKey)
-                throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not be updated because it does not exist.");
+                throw new NotFoundException($"Blob '{typeof(TBlob).Name}' {blob.id} can not be updated because it does not exist.");
             CollectionCommon.CheckEtagMatch(stored, blob);
 
             blob.etag = Guid.NewGuid().ToString();
@@ -155,13 +155,13 @@ namespace PolyPersist.Net.BlobStore.AzureStorage
             // create blob client
             BlobClient blobClient = _containerClient.GetBlobClient(blob.id);
             if (await blobClient.ExistsAsync().ConfigureAwait(false) == false)
-                throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not be updated because it does not exist.");
+                throw new NotFoundException($"Blob '{typeof(TBlob).Name}' {blob.id} can not be updated because it does not exist.");
 
             var props = await blobClient.GetPropertiesAsync().ConfigureAwait(false);
             var stored = BlobMetadata.Deserialize<TBlob>(props.Value.Metadata[BlobMetadata.Key]);
             // A matching id in another partition is not this blob - refuse to write across it.
             if (stored.PartitionKey != blob.PartitionKey)
-                throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not be updated because it does not exist.");
+                throw new NotFoundException($"Blob '{typeof(TBlob).Name}' {blob.id} can not be updated because it does not exist.");
             CollectionCommon.CheckEtagMatch(stored, blob);
 
             blob.etag = Guid.NewGuid().ToString();

@@ -1,3 +1,4 @@
+using PolyPersist.Net.Common;
 namespace PolyPersist.Net.AnalyticalStore.Tests
 {
     /// <summary>
@@ -56,7 +57,7 @@ namespace PolyPersist.Net.AnalyticalStore.Tests
         public async Task CreateTable_Twice_Throws(Func<string, Task<IAnalyticalStore>> factory)
         {
             var (store, _, name) = await NewTable(factory);
-            await Assert.ThrowsExceptionAsync<Exception>(() => store.CreateTable<Sale>(name));
+            await Assert.ThrowsExceptionAsync<DuplicateKeyException>(() => store.CreateTable<Sale>(name));
         }
 
         [DataTestMethod]
@@ -64,7 +65,7 @@ namespace PolyPersist.Net.AnalyticalStore.Tests
         public async Task GetTableByName_Missing_Throws(Func<string, Task<IAnalyticalStore>> factory)
         {
             var store = await factory(null!);
-            await Assert.ThrowsExceptionAsync<Exception>(() => store.GetTableByName<Sale>(TestMain.NewTableName()));
+            await Assert.ThrowsExceptionAsync<NotFoundException>(() => store.GetTableByName<Sale>(TestMain.NewTableName()));
         }
 
         [DataTestMethod]
@@ -90,7 +91,7 @@ namespace PolyPersist.Net.AnalyticalStore.Tests
         public async Task DropTable_Missing_Throws(Func<string, Task<IAnalyticalStore>> factory)
         {
             var store = await factory(null!);
-            await Assert.ThrowsExceptionAsync<Exception>(() => store.DropTable(TestMain.NewTableName()));
+            await Assert.ThrowsExceptionAsync<NotFoundException>(() => store.DropTable(TestMain.NewTableName()));
         }
 
         // ---- partition scoping (PP-55) ----

@@ -102,7 +102,7 @@ namespace PolyPersist.Net.RelationalStore.Dapper
 
             int affected = await ((DbConnection)db.Connection).ExecuteAsync(sql, parameters).ConfigureAwait(false);
             if (affected == 0)
-                throw new Exception($"Record '{typeof(TRecord).Name}' {record.id} can not be updated because it is already changed");
+                throw new ConcurrencyConflictException($"Record '{typeof(TRecord).Name}' {record.id} can not be updated because it is already changed");
         }
 
         private static bool _IsId(PropertyInfo p) => string.Equals(p.Name, nameof(IEntity.id), StringComparison.Ordinal);
@@ -118,7 +118,7 @@ namespace PolyPersist.Net.RelationalStore.Dapper
                 .ConfigureAwait(false);
 
             if (affected == 0)
-                throw new Exception($"Record '{typeof(TRecord).Name}' {id} can not be removed because it is already removed");
+                throw new NotFoundException($"Record '{typeof(TRecord).Name}' {id} can not be removed because it is already removed");
         }
 
         /// <inheritdoc/>

@@ -1,4 +1,5 @@
 using PolyPersist.Net.Core;
+using PolyPersist.Net.Common;
 
 namespace PolyPersist.Net.EventStore.Memory
 {
@@ -40,9 +41,9 @@ namespace PolyPersist.Net.EventStore.Memory
             if (expectedVersion == Any)
                 return;
             if (expectedVersion == NoStream && currentVersion != NoStream)
-                throw new Exception($"Concurrency conflict: stream '{streamId}' already exists (version {currentVersion})");
+                throw new DuplicateKeyException($"Concurrency conflict: stream '{streamId}' already exists (version {currentVersion})");
             if (expectedVersion >= 0 && currentVersion != expectedVersion)
-                throw new Exception($"Concurrency conflict: stream '{streamId}' expected version {expectedVersion} but was {currentVersion}");
+                throw new ConcurrencyConflictException($"Concurrency conflict: stream '{streamId}' expected version {expectedVersion} but was {currentVersion}");
         }
 
         /// <inheritdoc/>

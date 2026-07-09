@@ -1,6 +1,7 @@
-﻿using PolyPersist.Net.Core;
+using PolyPersist.Net.Core;
 using PolyPersist.Net.Test;
 using System.Reflection;
+using PolyPersist.Net.Common;
 
 namespace PolyPersist.Net.DocumentStore.Tests
 {
@@ -58,7 +59,7 @@ namespace PolyPersist.Net.DocumentStore.Tests
 
             var col = await store.CreateCollection<SampleDocument>("docs");
 
-            var exception = await Assert.ThrowsExceptionAsync<Exception>(async () => await store.CreateCollection<SampleDocument>("docs"));
+            var exception = await Assert.ThrowsExceptionAsync<DuplicateKeyException>(async () => await store.CreateCollection<SampleDocument>("docs"));
             Assert.IsTrue(exception.Message.Contains("already exist"));
         }
 
@@ -68,7 +69,7 @@ namespace PolyPersist.Net.DocumentStore.Tests
         {
             var store = await factory(MethodBase.GetCurrentMethod().GetAsyncMethodName());
 
-            var exception = await Assert.ThrowsExceptionAsync<Exception>(async () => await store.GetCollectionByName<SampleDocument>("notexist"));
+            var exception = await Assert.ThrowsExceptionAsync<NotFoundException>(async () => await store.GetCollectionByName<SampleDocument>("notexist"));
             Assert.IsTrue(exception.Message.Contains("does not exist"));
         }
 
@@ -78,7 +79,7 @@ namespace PolyPersist.Net.DocumentStore.Tests
         {
             var store = await factory(MethodBase.GetCurrentMethod().GetAsyncMethodName());
 
-            var exception = await Assert.ThrowsExceptionAsync<Exception>(async () => await store.DropCollection("notexist"));
+            var exception = await Assert.ThrowsExceptionAsync<NotFoundException>(async () => await store.DropCollection("notexist"));
             Assert.IsTrue(exception.Message.Contains("does not exist"));
         }
 
@@ -94,7 +95,13 @@ namespace PolyPersist.Net.DocumentStore.Tests
             await col.Insert(doc);
 
             doc.etag = "stale-etag"; // not the persisted etag -> the update must fail
-            await Assert.ThrowsExceptionAsync<Exception>(async () => await col.Update(doc));
+
+            // Read-then-check stores report ConcurrencyConflict; an LWT store (Mongo) cannot tell a
+            // stale etag from a missing row and reports NotFound - both are PolyPersistException.
+            bool caught = false;
+            try { await col.Update(doc); }
+            catch (PolyPersistException) { caught = true; }
+            Assert.IsTrue(caught, "a failed update must raise a PolyPersist error");
 
             Assert.AreEqual("stale-etag", doc.etag);
         }

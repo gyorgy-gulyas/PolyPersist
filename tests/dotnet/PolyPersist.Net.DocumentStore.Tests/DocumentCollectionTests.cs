@@ -1,4 +1,4 @@
-﻿using PolyPersist.Net.Common;
+using PolyPersist.Net.Common;
 using PolyPersist.Net.Core;
 using PolyPersist.Net.Extensions;
 using PolyPersist.Net.Test;
@@ -49,7 +49,7 @@ namespace PolyPersist.Net.DocumentStore.Tests
             var doc2 = new SampleDocument { PartitionKey = "p1", id = "d1" };
             await col.Insert(doc1);
 
-            var exception = await Assert.ThrowsExceptionAsync<Exception>(async () => await col.Insert(doc2));
+            var exception = await Assert.ThrowsExceptionAsync<DuplicateKeyException>(async () => await col.Insert(doc2));
             Assert.IsTrue(exception.Message.Contains("duplicate key"));
         }
 
@@ -112,7 +112,7 @@ namespace PolyPersist.Net.DocumentStore.Tests
 
             var missing = new SampleDocument { PartitionKey = "p1", id = "notfound", etag = "fake-etag" };
 
-            var exception = await Assert.ThrowsExceptionAsync<Exception>(async () =>
+            var exception = await Assert.ThrowsExceptionAsync<NotFoundException>(async () =>
             {
                 await col.Update(missing);
             });
@@ -128,7 +128,7 @@ namespace PolyPersist.Net.DocumentStore.Tests
             var store = await factory(MethodBase.GetCurrentMethod().GetAsyncMethodName());
             var col = await store.CreateCollection<SampleDocument>("docs");
 
-            var exception = await Assert.ThrowsExceptionAsync<Exception>(async () =>
+            var exception = await Assert.ThrowsExceptionAsync<NotFoundException>(async () =>
             {
                 await col.Delete("pk-missing", "id-missing");
             });

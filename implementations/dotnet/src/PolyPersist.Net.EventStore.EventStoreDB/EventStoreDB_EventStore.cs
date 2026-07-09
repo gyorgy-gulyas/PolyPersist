@@ -1,6 +1,7 @@
 using System.Text;
 using EventStore.Client;
 using PolyPersist.Net.Core;
+using PolyPersist.Net.Common;
 
 namespace PolyPersist.Net.EventStore.EventStoreDB
 {
@@ -64,8 +65,8 @@ namespace PolyPersist.Net.EventStore.EventStoreDB
             catch (WrongExpectedVersionException)
             {
                 if (expectedVersion == NoStream)
-                    throw new Exception($"Concurrency conflict: stream '{streamId}' already exists");
-                throw new Exception($"Concurrency conflict: stream '{streamId}' expected version {expectedVersion}");
+                    throw new PolyPersist.Net.Common.DuplicateKeyException($"Concurrency conflict: stream '{streamId}' already exists");
+                throw new ConcurrencyConflictException($"Concurrency conflict: stream '{streamId}' expected version {expectedVersion}");
             }
         }
 
@@ -130,7 +131,7 @@ namespace PolyPersist.Net.EventStore.EventStoreDB
             }
             catch (WrongExpectedVersionException)
             {
-                throw new Exception($"Concurrency conflict: stream '{streamId}' expected version {expectedVersion}");
+                throw new ConcurrencyConflictException($"Concurrency conflict: stream '{streamId}' expected version {expectedVersion}");
             }
         }
 

@@ -1,4 +1,4 @@
-﻿namespace PolyPersist.Net.Common
+namespace PolyPersist.Net.Common
 {
     public static class CollectionCommon
     {
@@ -10,10 +10,10 @@
                 Validator.Validate(validable);
 
             if (string.IsNullOrEmpty(entity.PartitionKey) == true)
-                throw new Exception($"PartitionKey must be filled at Insert operation in entity '{typeof(TEntity).Name}' id: {entity.id}");
+                throw new InvalidRequestException($"PartitionKey must be filled at Insert operation in entity '{typeof(TEntity).Name}' id: {entity.id}");
 
             if (string.IsNullOrEmpty(entity.etag) == false)
-                throw new Exception($"ETag is already filled at Insert operation in entity '{typeof(TEntity).Name}' id: {entity.id}");
+                throw new InvalidRequestException($"ETag is already filled at Insert operation in entity '{typeof(TEntity).Name}' id: {entity.id}");
         }
 
         public static void CheckBeforeUpdate<TEntity>(TEntity entity)
@@ -23,10 +23,10 @@
                 Validator.Validate(validable);
 
             if (string.IsNullOrEmpty(entity.PartitionKey) == true)
-                throw new Exception($"PartitionKey must be filled at Insert operation in entity '{typeof(TEntity).Name}' id: {entity.id}");
+                throw new InvalidRequestException($"PartitionKey must be filled at Insert operation in entity '{typeof(TEntity).Name}' id: {entity.id}");
 
             if (string.IsNullOrEmpty(entity.etag) == true)
-                throw new Exception($"ETag must be filled at Update operation in entity '{typeof(TEntity).Name}' id: {entity.id}");
+                throw new InvalidRequestException($"ETag must be filled at Update operation in entity '{typeof(TEntity).Name}' id: {entity.id}");
         }
 
         /// <summary>
@@ -38,7 +38,7 @@
             where TEntity : IEntity
         {
             if (stored is null)
-                throw new Exception($"Entity '{typeof(TEntity).Name}' {incoming.id} can not be updated because it does not exist");
+                throw new NotFoundException($"Entity '{typeof(TEntity).Name}' {incoming.id} can not be updated because it does not exist");
 
             CheckEtagMatch(stored.etag, incoming);
         }
@@ -48,7 +48,7 @@
             where TEntity : IEntity
         {
             if (storedEtag != incoming.etag)
-                throw new Exception($"Entity '{typeof(TEntity).Name}' {incoming.id} can not be updated because it is already changed");
+                throw new ConcurrencyConflictException($"Entity '{typeof(TEntity).Name}' {incoming.id} can not be updated because it is already changed");
         }
     }
 }

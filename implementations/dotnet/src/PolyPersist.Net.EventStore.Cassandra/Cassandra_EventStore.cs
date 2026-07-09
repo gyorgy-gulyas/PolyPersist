@@ -1,5 +1,6 @@
 using Cassandra;
 using PolyPersist.Net.Core;
+using PolyPersist.Net.Common;
 
 namespace PolyPersist.Net.EventStore.Cassandra
 {
@@ -72,9 +73,9 @@ namespace PolyPersist.Net.EventStore.Cassandra
             if (expectedVersion == Any)
                 return;
             if (expectedVersion == NoStream && currentVersion != NoStream)
-                throw new Exception($"Concurrency conflict: stream '{streamId}' already exists (version {currentVersion})");
+                throw new DuplicateKeyException($"Concurrency conflict: stream '{streamId}' already exists (version {currentVersion})");
             if (expectedVersion >= 0 && currentVersion != expectedVersion)
-                throw new Exception($"Concurrency conflict: stream '{streamId}' expected version {expectedVersion} but was {currentVersion}");
+                throw new ConcurrencyConflictException($"Concurrency conflict: stream '{streamId}' expected version {expectedVersion} but was {currentVersion}");
         }
 
         /// <inheritdoc/>
@@ -104,7 +105,7 @@ namespace PolyPersist.Net.EventStore.Cassandra
 
                 bool applied = rs.FirstOrDefault()?.GetValue<bool>("[applied]") ?? true;
                 if (applied == false)
-                    throw new Exception($"Concurrency conflict: stream '{streamId}' version {version} already exists");
+                    throw new DuplicateKeyException($"Concurrency conflict: stream '{streamId}' version {version} already exists");
             }
 
             return version;

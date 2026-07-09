@@ -1,4 +1,4 @@
-﻿using MongoDB.Driver;
+using MongoDB.Driver;
 using PolyPersist.Net.Common;
 
 namespace PolyPersist.Net.DocumentStore.MongoDB
@@ -33,7 +33,7 @@ namespace PolyPersist.Net.DocumentStore.MongoDB
             }
             catch (MongoWriteException ex) when (ex.WriteError?.Category == ServerErrorCategory.DuplicateKey)
             {
-                throw new Exception($"Document '{typeof(TDocument).Name}' {document.id} cannot be inserted, beacuse of duplicate key");
+                throw new DuplicateKeyException($"Document '{typeof(TDocument).Name}' {document.id} cannot be inserted, beacuse of duplicate key");
             }
             catch
             {
@@ -58,7 +58,7 @@ namespace PolyPersist.Net.DocumentStore.MongoDB
                 // caller's entity so it is not left with a new etag that was never persisted.
                 document.etag = oldETag;
                 document.LastUpdate = oldLastUpdate;
-                throw new Exception($"Document '{typeof(TDocument).Name}' {document.id} can not be updated because does not exist.");
+                throw new NotFoundException($"Document '{typeof(TDocument).Name}' {document.id} can not be updated because does not exist.");
             }
         }
 
@@ -67,10 +67,10 @@ namespace PolyPersist.Net.DocumentStore.MongoDB
         {
             DeleteResult result = await _mongoCollection.DeleteOneAsync(e => e.id == id && e.PartitionKey == partitionKey).ConfigureAwait(false);
             if (result.IsAcknowledged == false)
-                throw new Exception($"Document '{typeof(TDocument).Name}' {id} can not be removed. Database refused to acknowledge the operation.");
+                throw new PolyPersistException($"Document '{typeof(TDocument).Name}' {id} can not be removed. Database refused to acknowledge the operation.");
 
             if (result.DeletedCount != 1)
-                throw new Exception($"Document'{typeof(TDocument).Name}'{id} can not be removed because it is already removed or changed.");
+                throw new NotFoundException($"Document'{typeof(TDocument).Name}'{id} can not be removed because it is already removed or changed.");
         }
 
         /// <inheritdoc/>

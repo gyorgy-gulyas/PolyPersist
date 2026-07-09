@@ -1,5 +1,6 @@
-﻿using PolyPersist.Net.Test;
+using PolyPersist.Net.Test;
 using System.Reflection;
+using PolyPersist.Net.Common;
 
 namespace PolyPersist.Net.ColumnStore.Tests
 {
@@ -73,7 +74,7 @@ namespace PolyPersist.Net.ColumnStore.Tests
 
             await table.Insert(row1);
 
-            var exception = await Assert.ThrowsExceptionAsync<Exception>(async () =>
+            var exception = await Assert.ThrowsExceptionAsync<DuplicateKeyException>(async () =>
             {
                 await table.Insert(row2);
             });
@@ -111,10 +112,12 @@ namespace PolyPersist.Net.ColumnStore.Tests
 
             var missing = new SampleRow { PartitionKey = "notfound", id = "missing", etag = "fake-etag", str_value = "data" };
 
-            var exception = await Assert.ThrowsExceptionAsync<Exception>(async () =>
-            {
-                await table.Update(missing);
-            });
+            // Memory reports NotFound; Cassandra's LWT cannot separate "missing" from "stale etag"
+            // and reports ConcurrencyConflict - both are PolyPersistException and both say "does not exist".
+            PolyPersistException? exception = null;
+            try { await table.Update(missing); }
+            catch (PolyPersistException e) { exception = e; }
+            Assert.IsNotNull(exception);
             Assert.IsTrue(exception.Message.Contains("does not exist"));
         }
 
@@ -142,7 +145,7 @@ namespace PolyPersist.Net.ColumnStore.Tests
             var store = await factory(testName);
             var table = await store.CreateTable<SampleRow>("sampletable");
 
-            var exception = await Assert.ThrowsExceptionAsync<Exception>(async () =>
+            var exception = await Assert.ThrowsExceptionAsync<NotFoundException>(async () =>
             {
                 await table.Delete("missing-pk", "missing-id");
             });

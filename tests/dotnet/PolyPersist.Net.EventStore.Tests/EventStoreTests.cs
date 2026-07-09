@@ -1,6 +1,7 @@
 using System.Data.Common;
 using Dapper;
 using PolyPersist.Net.Core;
+using PolyPersist.Net.Common;
 
 namespace PolyPersist.Net.EventStore.Tests
 {
@@ -124,7 +125,7 @@ namespace PolyPersist.Net.EventStore.Tests
             var stream = TestMain.NewStreamId();
             await store.AppendToStream(stream, NoStream, Evs(Ev("A", "1")));
 
-            var ex = await Assert.ThrowsExceptionAsync<Exception>(
+            var ex = await Assert.ThrowsExceptionAsync<DuplicateKeyException>(
                 () => store.AppendToStream(stream, NoStream, Evs(Ev("B", "2"))));
             Assert.IsTrue(ex.Message.Contains("already exists"));
         }
@@ -137,7 +138,7 @@ namespace PolyPersist.Net.EventStore.Tests
             var stream = TestMain.NewStreamId();
             await store.AppendToStream(stream, NoStream, Evs(Ev("A", "1"), Ev("B", "2"))); // last = 1
 
-            var ex = await Assert.ThrowsExceptionAsync<Exception>(
+            var ex = await Assert.ThrowsExceptionAsync<ConcurrencyConflictException>(
                 () => store.AppendToStream(stream, 0, Evs(Ev("C", "3")))); // expected 0, but is 1
             Assert.IsTrue(ex.Message.Contains("expected version"));
         }
@@ -226,7 +227,7 @@ namespace PolyPersist.Net.EventStore.Tests
             var stream = TestMain.NewStreamId();
             await store.AppendToStream(stream, NoStream, Evs(Ev("A", "1"))); // last = 0
 
-            var ex = await Assert.ThrowsExceptionAsync<Exception>(() => store.DeleteStream(stream, 5));
+            var ex = await Assert.ThrowsExceptionAsync<ConcurrencyConflictException>(() => store.DeleteStream(stream, 5));
             Assert.IsTrue(ex.Message.Contains("expected version"));
         }
 

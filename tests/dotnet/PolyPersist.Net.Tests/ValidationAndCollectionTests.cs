@@ -69,7 +69,7 @@ namespace PolyPersist.Net.Tests
         public void CheckBeforeInsert_MissingPartitionKey_Throws()
         {
             var e = new PlainEntity { id = "1", PartitionKey = "", etag = "" };
-            var ex = Assert.ThrowsException<Exception>(() => CollectionCommon.CheckBeforeInsert(e));
+            var ex = Assert.ThrowsException<InvalidRequestException>(() => CollectionCommon.CheckBeforeInsert(e));
             StringAssert.Contains(ex.Message, "PartitionKey");
         }
 
@@ -77,7 +77,7 @@ namespace PolyPersist.Net.Tests
         public void CheckBeforeInsert_EtagAlreadySet_Throws()
         {
             var e = new PlainEntity { id = "1", PartitionKey = "pk", etag = "already" };
-            var ex = Assert.ThrowsException<Exception>(() => CollectionCommon.CheckBeforeInsert(e));
+            var ex = Assert.ThrowsException<InvalidRequestException>(() => CollectionCommon.CheckBeforeInsert(e));
             StringAssert.Contains(ex.Message, "ETag");
         }
 
@@ -99,7 +99,7 @@ namespace PolyPersist.Net.Tests
         public void CheckBeforeUpdate_MissingPartitionKey_Throws()
         {
             var e = new PlainEntity { id = "1", PartitionKey = "", etag = "e1" };
-            var ex = Assert.ThrowsException<Exception>(() => CollectionCommon.CheckBeforeUpdate(e));
+            var ex = Assert.ThrowsException<InvalidRequestException>(() => CollectionCommon.CheckBeforeUpdate(e));
             StringAssert.Contains(ex.Message, "PartitionKey");
         }
 
@@ -107,7 +107,7 @@ namespace PolyPersist.Net.Tests
         public void CheckBeforeUpdate_MissingEtag_Throws()
         {
             var e = new PlainEntity { id = "1", PartitionKey = "pk", etag = "" };
-            var ex = Assert.ThrowsException<Exception>(() => CollectionCommon.CheckBeforeUpdate(e));
+            var ex = Assert.ThrowsException<InvalidRequestException>(() => CollectionCommon.CheckBeforeUpdate(e));
             StringAssert.Contains(ex.Message, "ETag");
         }
 
@@ -124,7 +124,7 @@ namespace PolyPersist.Net.Tests
         {
             PlainEntity? stored = null;
             var incoming = new PlainEntity { id = "1", etag = "e1" };
-            var ex = Assert.ThrowsException<Exception>(() => CollectionCommon.CheckEtagMatch(stored, incoming));
+            var ex = Assert.ThrowsException<NotFoundException>(() => CollectionCommon.CheckEtagMatch(stored, incoming));
             StringAssert.Contains(ex.Message, "does not exist");
         }
 
@@ -133,7 +133,7 @@ namespace PolyPersist.Net.Tests
         {
             var stored = new PlainEntity { id = "1", etag = "old" };
             var incoming = new PlainEntity { id = "1", etag = "new" };
-            var ex = Assert.ThrowsException<Exception>(() => CollectionCommon.CheckEtagMatch(stored, incoming));
+            var ex = Assert.ThrowsException<ConcurrencyConflictException>(() => CollectionCommon.CheckEtagMatch(stored, incoming));
             StringAssert.Contains(ex.Message, "already changed");
         }
 
@@ -148,7 +148,7 @@ namespace PolyPersist.Net.Tests
         public void CheckEtagMatch_StringOverload_Mismatch_Throws()
         {
             var incoming = new PlainEntity { id = "1", etag = "e1" };
-            var ex = Assert.ThrowsException<Exception>(() => CollectionCommon.CheckEtagMatch("other", incoming));
+            var ex = Assert.ThrowsException<ConcurrencyConflictException>(() => CollectionCommon.CheckEtagMatch("other", incoming));
             StringAssert.Contains(ex.Message, "already changed");
         }
     }

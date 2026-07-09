@@ -3,6 +3,7 @@ using Dapper;
 using LinqToDB;
 using LinqToDB.Data;
 using PolyPersist.Net.RelationalStore.Dapper;
+using PolyPersist.Net.Common;
 
 namespace PolyPersist.Net.RelationalStore.Tests
 {
@@ -47,7 +48,7 @@ namespace PolyPersist.Net.RelationalStore.Tests
         {
             var table = await NewTable(factory);
             var rec = Sample(pk: null!);
-            await Assert.ThrowsExceptionAsync<Exception>(() => table.Insert(rec));
+            await Assert.ThrowsExceptionAsync<InvalidRequestException>(() => table.Insert(rec));
         }
 
         [DataTestMethod]
@@ -57,7 +58,7 @@ namespace PolyPersist.Net.RelationalStore.Tests
             var table = await NewTable(factory);
             var rec = Sample();
             rec.etag = Guid.NewGuid().ToString(); // pretend it is already stored
-            await Assert.ThrowsExceptionAsync<Exception>(() => table.Insert(rec));
+            await Assert.ThrowsExceptionAsync<InvalidRequestException>(() => table.Insert(rec));
         }
 
         [DataTestMethod]
@@ -137,7 +138,7 @@ namespace PolyPersist.Net.RelationalStore.Tests
             await table.Update(rec); // rotates the stored etag
 
             stale.Name = "conflict";
-            var ex = await Assert.ThrowsExceptionAsync<Exception>(() => table.Update(stale));
+            var ex = await Assert.ThrowsExceptionAsync<ConcurrencyConflictException>(() => table.Update(stale));
             Assert.IsTrue(ex.Message.Contains("already changed"));
         }
 
@@ -149,7 +150,7 @@ namespace PolyPersist.Net.RelationalStore.Tests
             var rec = Sample();
             rec.id = Guid.NewGuid().ToString();
             rec.etag = Guid.NewGuid().ToString(); // looks like an existing entity, but it is not stored
-            var ex = await Assert.ThrowsExceptionAsync<Exception>(() => table.Update(rec));
+            var ex = await Assert.ThrowsExceptionAsync<NotFoundException>(() => table.Update(rec));
             Assert.IsTrue(ex.Message.Contains("does not exist"));
         }
 
@@ -170,7 +171,7 @@ namespace PolyPersist.Net.RelationalStore.Tests
         public async Task Delete_Missing_Throws(Func<string, Task<IRelationalStore>> factory)
         {
             var table = await NewTable(factory);
-            var ex = await Assert.ThrowsExceptionAsync<Exception>(() => table.Delete("p1", Guid.NewGuid().ToString()));
+            var ex = await Assert.ThrowsExceptionAsync<NotFoundException>(() => table.Delete("p1", Guid.NewGuid().ToString()));
             Assert.IsTrue(ex.Message.Contains("already removed"));
         }
 

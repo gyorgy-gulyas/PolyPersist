@@ -1,6 +1,7 @@
 using LinqToDB;
 using LinqToDB.Data;
 using LinqToDB.Mapping;
+using PolyPersist.Net.Common;
 
 namespace PolyPersist.Net.AnalyticalStore.ClickHouse
 {
@@ -70,7 +71,7 @@ namespace PolyPersist.Net.AnalyticalStore.ClickHouse
         Task<IAnalyticalTable<TRecord>> IAnalyticalStore.GetTableByName<TRecord>(string tableName)
         {
             if (_IsTableExists(tableName) == false)
-                throw new Exception($"Table '{tableName}' does not exist in the analytical store");
+                throw new NotFoundException($"Table '{tableName}' does not exist in the analytical store");
 
             return Task.FromResult(_NewTable<TRecord>(tableName));
         }
@@ -79,7 +80,7 @@ namespace PolyPersist.Net.AnalyticalStore.ClickHouse
         async Task<IAnalyticalTable<TRecord>> IAnalyticalStore.CreateTable<TRecord>(string tableName)
         {
             if (_IsTableExists(tableName) == true)
-                throw new Exception($"Table '{tableName}' already exists in the analytical store");
+                throw new DuplicateKeyException($"Table '{tableName}' already exists in the analytical store");
 
             var table = _NewTable<TRecord>(tableName);
             await ((IAnalyticalTableInternal)table).CreateSchemaAsync().ConfigureAwait(false);
@@ -90,7 +91,7 @@ namespace PolyPersist.Net.AnalyticalStore.ClickHouse
         async Task IAnalyticalStore.DropTable(string tableName)
         {
             if (_IsTableExists(tableName) == false)
-                throw new Exception($"Table '{tableName}' does not exist in the analytical store");
+                throw new NotFoundException($"Table '{tableName}' does not exist in the analytical store");
 
             using var db = CreateConnection();
             await db.ExecuteAsync($"DROP TABLE \"{tableName}\"").ConfigureAwait(false);
