@@ -14,7 +14,7 @@ namespace PolyPersist.Net.EventStore.Tests
         private static async Task<IEventStore> NewStore(Func<string, Task<IEventStore>> factory)
             => await factory(TestMain.NewTableName());
 
-        private static IEvent Ev(string type, string data, string metadata = null)
+        private static IEvent Ev(string type, string data, string metadata = null!)
             => new Event { eventType = type, data = data, metadata = metadata };
 
         private static List<IEvent> Evs(params IEvent[] e) => new(e);

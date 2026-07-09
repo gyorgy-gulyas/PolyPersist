@@ -89,7 +89,7 @@ namespace PolyPersist.Net.EventStore.EventStoreDB
                     eventId = ev.EventId.ToString(),
                     eventType = ev.EventType,
                     data = Encoding.UTF8.GetString(ev.Data.ToArray()),
-                    metadata = ev.Metadata.Length > 0 ? Encoding.UTF8.GetString(ev.Metadata.ToArray()) : null,
+                    metadata = ev.Metadata.Length > 0 ? Encoding.UTF8.GetString(ev.Metadata.ToArray()) : null!,
                     timestamp = ev.Created,
                 });
             }

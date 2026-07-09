@@ -31,6 +31,6 @@ namespace PolyPersist.Net.Common
             => JsonSerializer.Serialize(blob, typeof(TBlob), _options);
 
         public static TBlob Deserialize<TBlob>(string json)
-            => JsonSerializer.Deserialize<TBlob>(json, _options);
+            => JsonSerializer.Deserialize<TBlob>(json, _options)!;
     }
 }

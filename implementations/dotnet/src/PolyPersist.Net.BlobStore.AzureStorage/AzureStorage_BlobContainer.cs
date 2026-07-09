@@ -81,7 +81,7 @@ namespace PolyPersist.Net.BlobStore.AzureStorage
             BlobClient blobClient = _containerClient.GetBlobClient(id);
 
             if (await blobClient.ExistsAsync().ConfigureAwait(false) == false)
-                return default(TBlob);
+                return default(TBlob)!;
 
             var properties = await blobClient.GetPropertiesAsync().ConfigureAwait(false);
             // Create a new instance of the target type

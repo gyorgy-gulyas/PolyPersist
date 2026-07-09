@@ -20,7 +20,7 @@ namespace PolyPersist.Net.ColumnStore.Cassandra.Linq
         {
             var elementType = expression.Type.GetGenericArguments().First();
             var queryableType = typeof(Cassandra_Queryable<,>).MakeGenericType(typeof(TRow), elementType);
-            return (IQueryable)Activator.CreateInstance(queryableType, this, expression);
+            return (IQueryable)Activator.CreateInstance(queryableType, this, expression)!;
         }
 
         public IQueryable<TElement> CreateQuery<TElement>(Expression expression)
@@ -144,11 +144,11 @@ namespace PolyPersist.Net.ColumnStore.Cassandra.Linq
 
                             // reflection-nel castoljuk a helyes típusra
                             var castMethod = typeof(Enumerable)
-                                .GetMethod(nameof(Enumerable.Cast), BindingFlags.Static | BindingFlags.Public)
+                                .GetMethod(nameof(Enumerable.Cast), BindingFlags.Static | BindingFlags.Public)!
                                 .MakeGenericMethod(elementType);
 
                             var castedEnumerable = castMethod.Invoke(null, new object[] { StreamRows() });
-                            return castedEnumerable;
+                            return castedEnumerable!;
                         }
                     case Cassandra_Query.ResultTypes.ProjectionToClass:
                         {
@@ -174,7 +174,7 @@ namespace PolyPersist.Net.ColumnStore.Cassandra.Linq
                             {
                                 foreach (var row in rs)
                                 {
-                                    var item = Activator.CreateInstance(resultItemType);
+                                    var item = Activator.CreateInstance(resultItemType)!;
 
                                     foreach (var (fieldIndex, property, cassandraGetter) in mappers)
                                     {
@@ -188,12 +188,12 @@ namespace PolyPersist.Net.ColumnStore.Cassandra.Linq
 
                             // reflection-al hívjuk meg Enumerable.Cast<T>()
                             var castMethod = typeof(Enumerable)
-                                .GetMethod(nameof(Enumerable.Cast), BindingFlags.Static | BindingFlags.Public)
+                                .GetMethod(nameof(Enumerable.Cast), BindingFlags.Static | BindingFlags.Public)!
                                 .MakeGenericMethod(resultItemType);
 
                             var castedEnumerable = castMethod.Invoke(null, new object[] { StreamRows() });
 
-                            return castedEnumerable;
+                            return castedEnumerable!;
                         }
                     case Cassandra_Query.ResultTypes.ProjectionToAnonymous:
                         {
@@ -202,11 +202,11 @@ namespace PolyPersist.Net.ColumnStore.Cassandra.Linq
                             for (int i = 0; i < columns.Length; i++)
                                 fieldIndexMap[columns[i].Name.ToLower()] = i;
 
-                            var mappers = query.projectionCtorForAnonymous
-                                .Constructor
+                            var mappers = query.projectionCtorForAnonymous!
+                                .Constructor!
                                 .GetParameters()
                                 .Select((parameter, index) => (
-                                    FieldIndex: fieldIndexMap[query.projectionMemberMap[parameter.Name]],
+                                    FieldIndex: fieldIndexMap[query.projectionMemberMap[parameter.Name!]],
                                     Parameter: parameter,
                                     ParameterIndex: index,
                                     CassandraValueGetter: Cassandra_Mapper.BuildTypedGetter(parameter.ParameterType)))
@@ -224,19 +224,19 @@ namespace PolyPersist.Net.ColumnStore.Cassandra.Linq
                                         args[paramIndex] = value;
                                     }
 
-                                    yield return query.projectionCtorForAnonymous.Constructor.Invoke(args);
+                                    yield return query.projectionCtorForAnonymous!.Constructor!.Invoke(args);
                                 }
                             }
 
                             // reflection-al hívjuk meg Enumerable.Cast<T>()
                             Type resultItemType = expression.Type.GetGenericArguments().First();
                             var castMethod = typeof(Enumerable)
-                                .GetMethod(nameof(Enumerable.Cast), BindingFlags.Static | BindingFlags.Public)
+                                .GetMethod(nameof(Enumerable.Cast), BindingFlags.Static | BindingFlags.Public)!
                                 .MakeGenericMethod(resultItemType);
 
                             var castedEnumerable = castMethod.Invoke(null, new object[] { StreamRows() });
 
-                            return castedEnumerable;
+                            return castedEnumerable!;
                         }
                     default:
                         throw new NotSupportedException("Only select row, or projection is alllowed with IEnumerable result");
@@ -257,7 +257,7 @@ namespace PolyPersist.Net.ColumnStore.Cassandra.Linq
         {
             var row = rs.FirstOrDefault();
             if (row == null)
-                return default;
+                return default!;
 
             var accessors = MetadataHelper.GetAccessors<TRow>().ToDictionary(kvp => kvp.Key.ToLower(), kvp => kvp.Value);
             var columns = rs.Columns;

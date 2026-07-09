@@ -58,7 +58,7 @@ namespace PolyPersist.Net.ColumnStore.Cassandra
                 throw new Exception($"Blob '{typeof(TRow).Name}' {row.id} cannot be uploaded, beacuse of duplicate key");
         }
 
-        private PreparedStatement _insertStatemant;
+        private PreparedStatement? _insertStatemant;
         private readonly SemaphoreSlim _insertStatemantLock = new(1, 1);
         private async Task<PreparedStatement> _getPreparedInsertStatement()
         {
@@ -84,7 +84,7 @@ namespace PolyPersist.Net.ColumnStore.Cassandra
                 }
             }
 
-            return _insertStatemant;
+            return _insertStatemant!;
         }
 
         /// <inheritdoc/>
@@ -120,7 +120,7 @@ namespace PolyPersist.Net.ColumnStore.Cassandra
                 throw new Exception($"Blob '{typeof(TRow).Name}' {row.id} can not updated, because it is does not exist of already changed");
         }
 
-        private PreparedStatement _updateStatemant;
+        private PreparedStatement? _updateStatemant;
         private readonly SemaphoreSlim _updateStatemantLock = new(1, 1);
         private async Task<PreparedStatement> _getPreparedUpdateStatement()
         {
@@ -148,7 +148,7 @@ namespace PolyPersist.Net.ColumnStore.Cassandra
                 }
             }
 
-            return _updateStatemant;
+            return _updateStatemant!;
         }
 
         /// <inheritdoc/>
@@ -170,7 +170,7 @@ namespace PolyPersist.Net.ColumnStore.Cassandra
 
             var row = rs.FirstOrDefault();
             if (row == null)
-                return default;
+                return default!;
 
             var mappedAccessors = await _getFindMappedAccessors(rs.Columns).ConfigureAwait(false);
 
@@ -188,7 +188,7 @@ namespace PolyPersist.Net.ColumnStore.Cassandra
             return result;
         }
 
-        private List<(int, MetadataHelper.MemberAccessor, Cassandra_Mapper.GetterDelegate)> _findMappedAccessors;
+        private List<(int, MetadataHelper.MemberAccessor, Cassandra_Mapper.GetterDelegate)>? _findMappedAccessors;
         private readonly SemaphoreSlim _findMappedAccessorsLock = new(1, 1);
 
         private async Task<List<(int, MetadataHelper.MemberAccessor, Cassandra_Mapper.GetterDelegate)>> _getFindMappedAccessors(CqlColumn[] columns)
@@ -222,7 +222,7 @@ namespace PolyPersist.Net.ColumnStore.Cassandra
                 }
             }
 
-            return _findMappedAccessors;
+            return _findMappedAccessors!;
         }
 
         /// <inheritdoc/>
@@ -234,7 +234,7 @@ namespace PolyPersist.Net.ColumnStore.Cassandra
         /// <inheritdoc/>
         object IColumnTable<TRow>.GetUnderlyingImplementation() => _session;
 
-        private async Task<string> _FindInternal(string partitionKey, string id)
+        private async Task<string?> _FindInternal(string partitionKey, string id)
         {
             var cql = $"SELECT * FROM {_session.Keyspace}.{_tableName} WHERE partitionkey = ? AND id = ? LIMIT 1;";
             var ps = await _PrepareOrGetAsync(cql);

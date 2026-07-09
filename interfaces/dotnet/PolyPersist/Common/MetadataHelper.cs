@@ -10,8 +10,8 @@ namespace PolyPersist.Net.Common
         // Static cache to store property and field access delegates
         public class MemberAccessorContainer
         {
-            internal Dictionary<string, MemberAccessor> NormalNames;
-            internal Dictionary<string, MemberAccessor> LowerCaseNames;
+            internal Dictionary<string, MemberAccessor> NormalNames = null!;
+            internal Dictionary<string, MemberAccessor> LowerCaseNames = null!;
         }
 
         private static readonly ConcurrentDictionary<Type, MemberAccessorContainer> _cache = new();
@@ -40,7 +40,7 @@ namespace PolyPersist.Net.Common
                     DateOnly dateonly => dateonly.ToString(CultureInfo.InvariantCulture),
                     TimeOnly timeonly => timeonly.ToString(CultureInfo.InvariantCulture),
                     decimal _decimal => _decimal.ToString(CultureInfo.InvariantCulture),
-                    _ => value.ToString(),
+                    _ => value.ToString() ?? string.Empty,
                 };
             }
 
@@ -64,7 +64,7 @@ namespace PolyPersist.Net.Common
                 if (metadata.TryGetValue(accessor.Name, out var value) && accessor.Setter != null)
                 {
                     var convertedValue = ConvertToType(value, accessor.Type);
-                    accessor.Setter(entity, convertedValue);
+                    accessor.Setter(entity!, convertedValue);
                 }
             }
 
@@ -87,7 +87,7 @@ namespace PolyPersist.Net.Common
             {
                 if (metadata.TryGetValue(accessor.Name, out var value) && accessor.Setter != null)
                 {
-                    accessor.Setter(entity, value);
+                    accessor.Setter(entity!, value);
                 }
             }
 
@@ -95,13 +95,13 @@ namespace PolyPersist.Net.Common
         }
 
         /// Populates a new instance of the specified type using metadata from a dictionary.
-        public static T SetMetadata<T>(T entity, string fieldName, object value, MemberAccessorContainer accessors = null) where T : new()
+        public static T SetMetadata<T>(T entity, string fieldName, object value, MemberAccessorContainer? accessors = null) where T : new()
         {
             // Get cached accessors or generate new ones
             accessors ??= _cache.GetOrAdd(typeof(T), GenerateAccessors);
 
             if (accessors.NormalNames.TryGetValue(fieldName, out var accessor) == true)
-                accessor.Setter(entity, value);
+                accessor.Setter!(entity!, value);
 
             return entity;
         }
@@ -237,7 +237,7 @@ namespace PolyPersist.Net.Common
             public string Name { get; set; } = null!;
             public Type Type { get; set; } = null!;
             public Func<object, object> Getter { get; set; } = null!;
-            public Action<object, object> Setter { get; set; }
+            public Action<object, object>? Setter { get; set; }
         }
     }
 }

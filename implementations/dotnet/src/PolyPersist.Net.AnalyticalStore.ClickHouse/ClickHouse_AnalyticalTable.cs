@@ -47,7 +47,7 @@ namespace PolyPersist.Net.AnalyticalStore.ClickHouse
         // strings map to String (ClickHouse String is non-nullable by default, which suits dimensions).
         private static string _ClickHouseType(Type type)
         {
-            Type underlying = Nullable.GetUnderlyingType(type);
+            Type? underlying = Nullable.GetUnderlyingType(type);
             Type t = underlying ?? type;
 
             string ch =

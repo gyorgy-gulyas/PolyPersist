@@ -184,7 +184,7 @@ namespace PolyPersist.Net.EventStore.Cassandra
             dict.TryGetValue("username", out var username);
             dict.TryGetValue("password", out var password);
             dict.TryGetValue("keyspace", out var keyspace);
-            return new _Conn(host, int.TryParse(port, out var p) ? p : 9042, username, password, keyspace);
+            return new _Conn(host!, int.TryParse(port, out var p) ? p : 9042, username!, password!, keyspace!);
         }
     }
 }

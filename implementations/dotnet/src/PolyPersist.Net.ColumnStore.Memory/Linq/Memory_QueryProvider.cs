@@ -26,7 +26,7 @@ namespace PolyPersist.Net.ColumnStore.Memory.Linq
         public object Execute(Expression expression)
         {
             _checkExpressionCompatibility(expression);
-            return _queryProvider.Execute(expression);
+            return _queryProvider.Execute(expression)!;
         }
 
         private static void _checkExpressionCompatibility(Expression expression)

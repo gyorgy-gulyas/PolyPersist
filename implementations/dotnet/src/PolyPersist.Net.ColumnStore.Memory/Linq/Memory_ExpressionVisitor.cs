@@ -135,7 +135,7 @@ namespace PolyPersist.Net.ColumnStore.Memory.Linq
             throw new NotSupportedException($"The method '{node.Method.Name}' is not supported by Cassandra LINQ provider.");
         }
 
-        private static object TryEvaluateConstans(Expression expr)
+        private static object? TryEvaluateConstans(Expression expr)
         {
             return expr switch
             {

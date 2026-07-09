@@ -4,17 +4,17 @@ using Google.Apis.Upload;
 using PolyPersist.Net.Common;
 using System.Text.Json;
 
-namespace PolyPersist.Net.BlobStore.GoogleCloudStorage
+namespace PolyPersist.Net.BlobStore.GCPStorage
 {
     internal class GoogleCloudStorage_BlobContainer<TBlob> : IBlobContainer<TBlob>
         where TBlob : IBlob, new()
     {
         private readonly string _bucketName;
         private readonly StorageService _storageService;
-        private readonly string _projectId;
+        private readonly string? _projectId;
         private readonly GoogleCloudStorage_BlobStore _store;
 
-        public GoogleCloudStorage_BlobContainer(string bucketName, StorageService storageService, string projectId, GoogleCloudStorage_BlobStore store)
+        public GoogleCloudStorage_BlobContainer(string bucketName, StorageService storageService, string? projectId, GoogleCloudStorage_BlobStore store)
         {
             _bucketName = bucketName;
             _storageService = storageService;
@@ -122,7 +122,7 @@ namespace PolyPersist.Net.BlobStore.GoogleCloudStorage
             }
             catch (Google.GoogleApiException ex) when (ex.HttpStatusCode == System.Net.HttpStatusCode.NotFound)
             {
-                return default;
+                return default!;
             }
         }
 

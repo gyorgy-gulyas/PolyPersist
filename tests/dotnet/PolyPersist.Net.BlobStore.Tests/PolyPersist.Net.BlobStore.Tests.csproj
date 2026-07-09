@@ -3,6 +3,7 @@
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
   </PropertyGroup>
@@ -20,7 +21,7 @@
     <ProjectReference Include="..\..\..\implementations\dotnet\src\PolyPersist.Net.BlobStore.AmazonS3\PolyPersist.Net.BlobStore.AmazonS3.csproj" />
     <ProjectReference Include="..\..\..\implementations\dotnet\src\PolyPersist.Net.BlobStore.AzureStorage\PolyPersist.Net.BlobStore.AzureStorage.csproj" />
     <ProjectReference Include="..\..\..\implementations\dotnet\src\PolyPersist.Net.BlobStore.FileSystem\PolyPersist.Net.BlobStore.FileSystem.csproj" />
-    <ProjectReference Include="..\..\..\implementations\dotnet\src\PolyPersist.Net.BlobStore.GoogleCloudStorage\PolyPersist.Net.BlobStore.GoogleCloudStorage.csproj" />
+    <ProjectReference Include="..\..\..\implementations\dotnet\src\PolyPersist.Net.BlobStore.GCPStorage\PolyPersist.Net.BlobStore.GCPStorage.csproj" />
     <ProjectReference Include="..\..\..\implementations\dotnet\src\PolyPersist.Net.BlobStore.GridFS\PolyPersist.Net.BlobStore.GridFS.csproj" />
     <ProjectReference Include="..\..\..\implementations\dotnet\src\PolyPersist.Net.BlobStore.Memory\PolyPersist.Net.BlobStore.Memory.csproj" />
     <ProjectReference Include="..\..\..\implementations\dotnet\src\PolyPersist.Net.BlobStore.MinIO\PolyPersist.Net.BlobStore.MinIO.csproj" />

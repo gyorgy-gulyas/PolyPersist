@@ -13,10 +13,10 @@ namespace PolyPersist.Net.ColumnStore.Cassandra.Linq
             ProjectionToSingleColumn,
         }
 
-        internal string cql;
+        internal string cql = null!;
         internal object[] parameters = System.Array.Empty<object>();   // bound values for '?' in cql
         internal ResultTypes resultType;
-        internal Dictionary<string, string> projectionMemberMap;
-        internal NewExpression projectionCtorForAnonymous;
+        internal Dictionary<string, string> projectionMemberMap = null!;
+        internal NewExpression? projectionCtorForAnonymous;
     }
 }

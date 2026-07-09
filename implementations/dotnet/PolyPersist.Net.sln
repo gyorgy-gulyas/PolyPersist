@@ -35,7 +35,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PolyPersist.Net.BlobStore.M
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PolyPersist.Net.BlobStore.AmazonS3", "src\PolyPersist.Net.BlobStore.AmazonS3\PolyPersist.Net.BlobStore.AmazonS3.csproj", "{A78446B1-7AB7-45AF-BEC2-FFF9E61E6373}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PolyPersist.Net.BlobStore.GoogleCloudStorage", "src\PolyPersist.Net.BlobStore.GoogleCloudStorage\PolyPersist.Net.BlobStore.GoogleCloudStorage.csproj", "{7FBE9D73-A56A-4D38-A2A7-DEC98D834C2F}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PolyPersist.Net.BlobStore.GCPStorage", "src\PolyPersist.Net.BlobStore.GCPStorage\PolyPersist.Net.BlobStore.GCPStorage.csproj", "{7FBE9D73-A56A-4D38-A2A7-DEC98D834C2F}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PolyPersist.Net.BlobStore.FileSystem", "src\PolyPersist.Net.BlobStore.FileSystem\PolyPersist.Net.BlobStore.FileSystem.csproj", "{B27153A6-FBFB-412A-AC43-DDA7B7307BAA}"
 EndProject
@@ -84,7 +84,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PolyPersist.Net.AnalyticalS
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PolyPersist.Net.AnalyticalStore.ClickHouse", "src\PolyPersist.Net.AnalyticalStore.ClickHouse\PolyPersist.Net.AnalyticalStore.ClickHouse.csproj", "{D2DB0F61-224F-43F2-9EA3-7E3F077B9366}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PolyPersist.Net.AnalyticalStore.BigQuery", "src\PolyPersist.Net.AnalyticalStore.BigQuery\PolyPersist.Net.AnalyticalStore.BigQuery.csproj", "{97ACBCF0-6CE9-4F4F-9BD9-D315A97B5C82}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PolyPersist.Net.AnalyticalStore.GCPBigQuery", "src\PolyPersist.Net.AnalyticalStore.GCPBigQuery\PolyPersist.Net.AnalyticalStore.GCPBigQuery.csproj", "{97ACBCF0-6CE9-4F4F-9BD9-D315A97B5C82}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

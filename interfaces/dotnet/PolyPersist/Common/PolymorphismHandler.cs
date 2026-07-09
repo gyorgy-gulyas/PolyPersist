@@ -39,7 +39,7 @@ namespace PolyPersist.Net.Common
 
         public static IEnumerable<(Type Derived, object Discriminator)> GetDerivedTypes(Type baseType)
         {
-            if (_map.TryGetValue(baseType, out List<(Type Derived, object Discriminator)> result) == true)
+            if (_map.TryGetValue(baseType, out List<(Type Derived, object Discriminator)>? result) == true)
                 return result;
 
             return [];

@@ -3,7 +3,7 @@ using Google.Apis.Services;
 using Google.Apis.Storage.v1;
 using Google.Apis.Storage.v1.Data;
 
-namespace PolyPersist.Net.BlobStore.GoogleCloudStorage
+namespace PolyPersist.Net.BlobStore.GCPStorage
 {
     public class GoogleCloudStorage_BlobStore : IBlobStore
     {
@@ -108,9 +108,9 @@ namespace PolyPersist.Net.BlobStore.GoogleCloudStorage
 
     public class GoogleCloudStorageConnectionInfo
     {
-        public string ProjectId { get; set; }
-        public string CredentialPath { get; set; }
-        public string BaseUrl { get; set; }
+        public string? ProjectId { get; set; }
+        public string? CredentialPath { get; set; }
+        public string? BaseUrl { get; set; }
         public bool UseFakeToken { get; set; }
     }
 

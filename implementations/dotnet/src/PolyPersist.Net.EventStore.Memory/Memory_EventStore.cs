@@ -15,7 +15,7 @@ namespace PolyPersist.Net.EventStore.Memory
         private readonly Dictionary<string, List<IEvent>> _streams = [];
         private readonly object _lock = new();
 
-        public Memory_EventStore(string connectionString = null)
+        public Memory_EventStore(string? connectionString = null)
         {
         }
 

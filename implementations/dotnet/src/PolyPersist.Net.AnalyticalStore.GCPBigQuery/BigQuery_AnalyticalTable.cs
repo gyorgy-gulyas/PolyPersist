@@ -1,7 +1,7 @@
 using System.Reflection;
 using Google.Cloud.BigQuery.V2;
 
-namespace PolyPersist.Net.AnalyticalStore.BigQuery
+namespace PolyPersist.Net.AnalyticalStore.GCPBigQuery
 {
     /// <summary>
     /// A single BigQuery fact table. Batch-first: <see cref="InsertBatch"/> uses INSERT DML (chunked,
@@ -93,7 +93,7 @@ namespace PolyPersist.Net.AnalyticalStore.BigQuery
                 "STRING";
         }
 
-        private static string _Literal(Type type, object value)
+        private static string _Literal(Type type, object? value)
         {
             if (value == null)
                 return "NULL";
@@ -110,7 +110,7 @@ namespace PolyPersist.Net.AnalyticalStore.BigQuery
             if (t == typeof(DateTime)) return "DATETIME '" + ((DateTime)value).ToString("yyyy-MM-dd HH:mm:ss.ffffff", inv) + "'";
             if (t == typeof(Guid)) return "'" + value + "'";
 
-            return "'" + _Escape(value.ToString()) + "'";
+            return "'" + _Escape(value.ToString()!) + "'";
         }
 
         // GoogleSQL string-literal escaping (backslash-style).

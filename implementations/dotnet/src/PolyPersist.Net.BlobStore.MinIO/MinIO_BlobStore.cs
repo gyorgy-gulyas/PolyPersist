@@ -89,11 +89,11 @@ namespace PolyPersist.Net.BlobStore.MinIO
 
     public class MinioConnectionInfo
     {
-        public string Type { get; set; }
-        public string Endpoint { get; set; }
+        public string? Type { get; set; }
+        public string? Endpoint { get; set; }
         public ushort Port { get; set; }
-        public string AccessKey { get; set; }
-        public string SecretKey { get; set; }
+        public string? AccessKey { get; set; }
+        public string? SecretKey { get; set; }
         public bool WithSSL { get; set; }
     }
 
@@ -125,7 +125,7 @@ namespace PolyPersist.Net.BlobStore.MinIO
             {
                 Type = type,
                 Endpoint = endpoint,
-                Port = ushort.Parse(port),
+                Port = ushort.Parse(port!),
                 AccessKey = accessKey,
                 SecretKey = secretKey,
                 WithSSL = bool.TryParse(withSslStr, out var withSsl) && withSsl

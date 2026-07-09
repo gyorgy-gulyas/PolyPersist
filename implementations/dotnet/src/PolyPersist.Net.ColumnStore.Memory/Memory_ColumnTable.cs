@@ -55,7 +55,7 @@ namespace PolyPersist.Net.ColumnStore.Memory
         {
             CollectionCommon.CheckBeforeUpdate(row);
 
-            if (_tableData.MapOfDocments.TryGetValue(row.id, out _RowData data) == false)
+            if (_tableData.MapOfDocments.TryGetValue(row.id, out _RowData? data) == false)
                 throw new Exception($"Row '{typeof(TRow).Name}' {row.id} can not be updated because does not exist");
 
             if (data.etag != row.etag)
@@ -74,7 +74,7 @@ namespace PolyPersist.Net.ColumnStore.Memory
         Task IColumnTable<TRow>.Delete(string partitionKey, string id)
         {
             // only delete when the row exists in the requested partition
-            if (_tableData.MapOfDocments.TryGetValue(id, out _RowData row) == false || row.partitionKey != partitionKey)
+            if (_tableData.MapOfDocments.TryGetValue(id, out _RowData? row) == false || row.partitionKey != partitionKey)
                 throw new Exception($"Row '{typeof(TRow).Name}' {id} can not be removed because it is already removed");
 
             _tableData.MapOfDocments.Remove(id);
@@ -88,10 +88,10 @@ namespace PolyPersist.Net.ColumnStore.Memory
         {
             // the row is identified by (partitionKey, id): a matching id in a different
             // partition is not the requested row.
-            if (_tableData.MapOfDocments.TryGetValue(id, out _RowData row) == true && row.partitionKey == partitionKey)
-                return Task.FromResult(JsonSerializer.Deserialize<TRow>(row.Value, JsonOptionsProvider.Options()));
+            if (_tableData.MapOfDocments.TryGetValue(id, out _RowData? row) == true && row.partitionKey == partitionKey)
+                return Task.FromResult(JsonSerializer.Deserialize<TRow>(row.Value, JsonOptionsProvider.Options())!);
 
-            return Task.FromResult<TRow>((TRow)default(TRow));
+            return Task.FromResult<TRow>(default!);
         }
 
         /// <inheritdoc/>
@@ -99,7 +99,7 @@ namespace PolyPersist.Net.ColumnStore.Memory
         {
             var queryable = _tableData
                 .ListOfDocments
-                .Select(data => JsonSerializer.Deserialize<TRow>(data.Value, JsonOptionsProvider.Options()))
+                .Select(data => JsonSerializer.Deserialize<TRow>(data.Value, JsonOptionsProvider.Options())!)
                 .AsQueryable();
 
             return new Memory_Queryable<TRow>(queryable);

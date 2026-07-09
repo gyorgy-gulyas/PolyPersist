@@ -99,7 +99,7 @@ namespace PolyPersist.Net.BlobStore.AmazonS3
             }
             catch (AmazonS3Exception ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
             {
-                return default(TBlob);
+                return default(TBlob)!;
             }
         }
 

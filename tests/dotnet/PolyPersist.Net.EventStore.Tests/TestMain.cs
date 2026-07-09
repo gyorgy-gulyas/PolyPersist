@@ -23,7 +23,7 @@ namespace PolyPersist.Net.EventStore.Tests
         public static List<object[]> StoreInstances { get; } = [];
 
         private static readonly List<string> _sqliteFiles = [];
-        private static PostgreSqlContainer _pg;
+        private static PostgreSqlContainer _pg = null!;
         private static readonly SemaphoreSlim _pgLock = new(1, 1);
 
         static TestMain()
@@ -35,7 +35,7 @@ namespace PolyPersist.Net.EventStore.Tests
             _Setup_EventStoreDB();
         }
 
-        private static EventStoreDbContainer _esdb;
+        private static EventStoreDbContainer _esdb = null!;
         private static readonly SemaphoreSlim _esdbLock = new(1, 1);
 
         private static void _Setup_EventStoreDB()
@@ -127,7 +127,7 @@ namespace PolyPersist.Net.EventStore.Tests
             }
         }
 
-        private static IContainer _scylla;
+        private static IContainer _scylla = null!;
         private static readonly SemaphoreSlim _scyllaLock = new(1, 1);
 
         private static void _Setup_Scylla()

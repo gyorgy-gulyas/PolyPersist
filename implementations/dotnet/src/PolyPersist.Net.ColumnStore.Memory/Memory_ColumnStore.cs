@@ -25,7 +25,7 @@
         /// <inheritdoc/>
         Task<IColumnTable<TRow>> IColumnStore.GetTableByName<TRow>(string tableName)
         {
-            _TableData tableData = _Tables.Find(c => c.Name == tableName);
+            _TableData? tableData = _Tables.Find(c => c.Name == tableName);
             if (tableData == null)
                 throw new Exception($"Table '{tableName}' does not exist in Memory ColumnStore Store");
 
@@ -49,7 +49,7 @@
         /// <inheritdoc/>
         Task IColumnStore.DropTable(string tableName)
         {
-            _TableData tableData = _Tables.Find(c => c.Name == tableName);
+            _TableData? tableData = _Tables.Find(c => c.Name == tableName);
             if (tableData == null)
                 throw new Exception($"Table '{tableName}' does not exist in Memory ColumnStore");
 
@@ -74,9 +74,9 @@
 
     public class _RowData
     {
-        internal string id;
-        internal string partitionKey;
-        internal string etag;
-        internal string Value;
+        internal string id = null!;
+        internal string partitionKey = null!;
+        internal string etag = null!;
+        internal string Value = null!;
     }
 }

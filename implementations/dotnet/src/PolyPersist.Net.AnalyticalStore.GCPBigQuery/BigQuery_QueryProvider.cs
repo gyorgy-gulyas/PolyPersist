@@ -4,7 +4,7 @@ using System.Linq.Expressions;
 using System.Reflection;
 using Google.Cloud.BigQuery.V2;
 
-namespace PolyPersist.Net.AnalyticalStore.BigQuery
+namespace PolyPersist.Net.AnalyticalStore.GCPBigQuery
 {
     /// <summary>
     /// IQueryable over a BigQuery fact table. Enumeration (ToList / foreach) and terminal operators
@@ -313,7 +313,6 @@ namespace PolyPersist.Net.AnalyticalStore.BigQuery
         {
             public List<string> Where { get; } = new();
             public List<BigQueryParameter> Params { get; } = new();
-            public int PIdx;
             public string? GroupKeyCol;
             public NewExpression? GroupProjection;
             public string? ScalarProjectionCol;

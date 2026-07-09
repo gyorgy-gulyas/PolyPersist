@@ -25,7 +25,7 @@
         /// <inheritdoc/>
         Task<IDocumentCollection<TDocument>> IDocumentStore.GetCollectionByName<TDocument>(string collectionName)
         {
-            _CollectionData collectionData = _Collections.Find(c => c.Name == collectionName);
+            _CollectionData? collectionData = _Collections.Find(c => c.Name == collectionName);
             if (collectionData == null)
                 throw new Exception($"Collection '{collectionName}' does not exist in Memory Document Store");
 
@@ -49,7 +49,7 @@
         /// <inheritdoc/>
         Task IDocumentStore.DropCollection(string collectionName)
         {
-            _CollectionData collectionData = _Collections.Find(c => c.Name == collectionName);
+            _CollectionData? collectionData = _Collections.Find(c => c.Name == collectionName);
             if (collectionData == null)
                 throw new Exception($"Collection '{collectionName}' does not exist in Memory Document Store");
 
@@ -74,9 +74,9 @@
 
     public class _RowData
     {
-        internal string id;
-        internal string partitionKey;
-        internal string etag;
-        internal string Value;
+        internal string id = null!;
+        internal string partitionKey = null!;
+        internal string etag = null!;
+        internal string Value = null!;
     }
 }

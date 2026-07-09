@@ -10,14 +10,14 @@ namespace PolyPersist.Net.Test
     [ExcludeFromCodeCoverage]
     public static class MethodBaseExtensions
     {
-        public static string GetAsyncMethodName(this MethodBase method)
+        public static string GetAsyncMethodName(this MethodBase? method)
         {
-            Type generatedType = method.DeclaringType;
-            Type originalType = generatedType.DeclaringType;
+            Type? generatedType = method?.DeclaringType;
+            Type? originalType = generatedType?.DeclaringType;
 
             // not async method
             if (originalType == null)
-                return method.Name;
+                return method?.Name ?? string.Empty;
 
             IEnumerable<MethodInfo> matchingMethods =
                 from methodInfo in originalType.GetMethods()

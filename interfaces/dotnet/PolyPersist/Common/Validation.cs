@@ -14,9 +14,9 @@ namespace PolyPersist.Net.Common
 
     public class ValidationError : IValidationError
     {
-        public string TypeOfEntity { get; set; }
-        public string MemberOfEntity { get; set; }
-        public string ErrorText { get; set; }
+        public string TypeOfEntity { get; set; } = null!;
+        public string MemberOfEntity { get; set; } = null!;
+        public string ErrorText { get; set; } = null!;
     }
 
     public class ValidationExeption : Exception

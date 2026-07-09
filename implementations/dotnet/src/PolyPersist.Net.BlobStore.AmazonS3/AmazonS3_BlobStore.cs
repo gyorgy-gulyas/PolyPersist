@@ -78,10 +78,10 @@ namespace PolyPersist.Net.BlobStore.AmazonS3
 
     public class AmazonS3ConnectionInfo
     {
-        public string Type { get; set; }
-        public string Endpoint { get; set; }
-        public string AccessKey { get; set; }
-        public string SecretKey { get; set; }
+        public string? Type { get; set; }
+        public string? Endpoint { get; set; }
+        public string? AccessKey { get; set; }
+        public string? SecretKey { get; set; }
         public bool WithSSL { get; set; }
     }
 

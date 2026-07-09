@@ -2,7 +2,7 @@
 {
     public class Blob : Entity, IBlob
     {
-        public string fileName { get; set; }
-        public string contentType { get; set; }
+        public string fileName { get; set; } = null!;
+        public string contentType { get; set; } = null!;
     }
 }

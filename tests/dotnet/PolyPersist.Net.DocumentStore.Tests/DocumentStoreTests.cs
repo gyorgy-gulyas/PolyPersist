@@ -7,7 +7,7 @@ namespace PolyPersist.Net.DocumentStore.Tests
     #region
     class SampleDocument : Entity, IDocument
     {
-        public string str_value { get; set; }
+        public string str_value { get; set; } = null!;
         public int int_value { get; set; }
         public decimal decimal_value { get; set; }
         public bool bool_value { get; set; }
