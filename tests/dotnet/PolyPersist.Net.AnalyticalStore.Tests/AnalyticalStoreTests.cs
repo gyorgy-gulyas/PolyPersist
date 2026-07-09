@@ -93,6 +93,32 @@ namespace PolyPersist.Net.AnalyticalStore.Tests
             await Assert.ThrowsExceptionAsync<Exception>(() => store.DropTable(TestMain.NewTableName()));
         }
 
+        // ---- partition scoping (PP-55) ----
+
+        // Query(partitionKey) scopes an OLAP query to one partition (tenant-scoped analytics);
+        // QueryCrossPartition() aggregates across every partition (the BI default). Runs on all backends.
+        [DataTestMethod]
+        [DynamicData(nameof(TestMain.StoreInstances), typeof(TestMain), DynamicDataSourceType.Property)]
+        public async Task Query_ScopedToPartition_Ok(Func<string, Task<IAnalyticalStore>> factory)
+        {
+            var (_, table, _) = await NewTable(factory);
+            await table.InsertBatch(
+            [
+                new Sale { PartitionKey = "p1", Region = "EU", Product = "A", Quantity = 1, Amount = 10m, SoldAt = new DateTime(2026, 1, 1) },
+                new Sale { PartitionKey = "p1", Region = "US", Product = "B", Quantity = 2, Amount = 20m, SoldAt = new DateTime(2026, 1, 2) },
+                new Sale { PartitionKey = "p2", Region = "EU", Product = "C", Quantity = 3, Amount = 30m, SoldAt = new DateTime(2026, 1, 3) },
+            ]);
+
+            // scoped: only the requested partition is visible, including its aggregates
+            Assert.AreEqual(2, table.Query("p1").ToList().Count);
+            Assert.AreEqual(30m, table.Query("p1").Sum(s => s.Amount));
+            Assert.AreEqual(1, table.Query("p2").ToList().Count);
+
+            // explicit cross-partition spans every partition (the BI default)
+            Assert.AreEqual(3, table.QueryCrossPartition().ToList().Count);
+            Assert.AreEqual(60m, table.QueryCrossPartition().Sum(s => s.Amount));
+        }
+
         // ---- ingestion ----
 
         [DataTestMethod]
@@ -101,7 +127,7 @@ namespace PolyPersist.Net.AnalyticalStore.Tests
         {
             var (_, table, _) = await NewTable(factory);
             await table.InsertBatch(SampleSales());
-            Assert.AreEqual(5, table.Query().Count());
+            Assert.AreEqual(5, table.QueryCrossPartition().Count());
         }
 
         [DataTestMethod]
@@ -110,7 +136,7 @@ namespace PolyPersist.Net.AnalyticalStore.Tests
         {
             var (_, table, _) = await NewTable(factory);
             await table.InsertBatch(new List<Sale>());
-            Assert.AreEqual(0, table.Query().Count());
+            Assert.AreEqual(0, table.QueryCrossPartition().Count());
         }
 
         [DataTestMethod]
@@ -119,7 +145,7 @@ namespace PolyPersist.Net.AnalyticalStore.Tests
         {
             var (_, table, _) = await NewTable(factory);
             await table.InsertBatch(null);
-            Assert.AreEqual(0, table.Query().Count());
+            Assert.AreEqual(0, table.QueryCrossPartition().Count());
         }
 
         [DataTestMethod]
@@ -129,7 +155,7 @@ namespace PolyPersist.Net.AnalyticalStore.Tests
             var (_, table, _) = await NewTable(factory);
             await table.InsertBatch(SampleSales());
             await table.InsertBatch(SampleSales());
-            Assert.AreEqual(10, table.Query().Count());
+            Assert.AreEqual(10, table.QueryCrossPartition().Count());
         }
 
         [DataTestMethod]
@@ -141,7 +167,7 @@ namespace PolyPersist.Net.AnalyticalStore.Tests
                 .Select(i => new Sale { Region = "R" + (i % 4), Product = "P" + (i % 10), Quantity = i, Amount = i, SoldAt = new DateTime(2026, 1, 1).AddMinutes(i) })
                 .ToList();
             await table.InsertBatch(rows);
-            Assert.AreEqual(1000, table.Query().Count());
+            Assert.AreEqual(1000, table.QueryCrossPartition().Count());
         }
 
         // ---- read: filter / project / order ----
@@ -151,7 +177,7 @@ namespace PolyPersist.Net.AnalyticalStore.Tests
         public async Task EmptyTable_Query_ReturnsEmpty(Func<string, Task<IAnalyticalStore>> factory)
         {
             var (_, table, _) = await NewTable(factory);
-            Assert.IsFalse(table.Query().Any());
+            Assert.IsFalse(table.QueryCrossPartition().Any());
         }
 
         [DataTestMethod]
@@ -160,7 +186,7 @@ namespace PolyPersist.Net.AnalyticalStore.Tests
         {
             var (_, table, _) = await NewTable(factory);
             await table.InsertBatch(SampleSales());
-            Assert.AreEqual(2, table.Query().Where(s => s.Region == "US").Count());
+            Assert.AreEqual(2, table.QueryCrossPartition().Where(s => s.Region == "US").Count());
         }
 
         [DataTestMethod]
@@ -170,7 +196,7 @@ namespace PolyPersist.Net.AnalyticalStore.Tests
             var (_, table, _) = await NewTable(factory);
             await table.InsertBatch(SampleSales());
             // Quantity >= 5: US(5) + APAC(7) = 2 rows.
-            Assert.AreEqual(2, table.Query().Where(s => s.Quantity >= 5).Count());
+            Assert.AreEqual(2, table.QueryCrossPartition().Where(s => s.Quantity >= 5).Count());
         }
 
         [DataTestMethod]
@@ -179,7 +205,7 @@ namespace PolyPersist.Net.AnalyticalStore.Tests
         {
             var (_, table, _) = await NewTable(factory);
             await table.InsertBatch(SampleSales());
-            var top = table.Query().OrderByDescending(s => s.Amount).First();
+            var top = table.QueryCrossPartition().OrderByDescending(s => s.Amount).First();
             Assert.AreEqual(70m, top.Amount);
         }
 
@@ -189,7 +215,7 @@ namespace PolyPersist.Net.AnalyticalStore.Tests
         {
             var (_, table, _) = await NewTable(factory);
             await table.InsertBatch(SampleSales());
-            var regions = table.Query().Select(s => s.Region).Distinct().ToList();
+            var regions = table.QueryCrossPartition().Select(s => s.Region).Distinct().ToList();
             CollectionAssert.AreEquivalent(new[] { "EU", "US", "APAC" }, regions);
         }
 
@@ -202,7 +228,7 @@ namespace PolyPersist.Net.AnalyticalStore.Tests
             var (_, table, _) = await NewTable(factory);
             await table.InsertBatch(SampleSales());
 
-            var q = table.Query();
+            var q = table.QueryCrossPartition();
             Assert.AreEqual(5, q.Count());
             Assert.AreEqual(180m, q.Sum(s => s.Amount));
             Assert.AreEqual(18, q.Sum(s => s.Quantity));
@@ -217,7 +243,7 @@ namespace PolyPersist.Net.AnalyticalStore.Tests
             var (_, table, _) = await NewTable(factory);
             await table.InsertBatch(SampleSales());
 
-            var byRegion = table.Query()
+            var byRegion = table.QueryCrossPartition()
                 .GroupBy(s => s.Region)
                 .Select(g => new { Region = g.Key, Total = g.Sum(x => x.Amount), Rows = g.Count() })
                 .ToList()

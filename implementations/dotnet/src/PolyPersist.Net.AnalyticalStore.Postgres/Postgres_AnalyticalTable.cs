@@ -1,3 +1,4 @@
+using System.Linq;
 using LinqToDB;
 using LinqToDB.Data;
 
@@ -46,7 +47,14 @@ namespace PolyPersist.Net.AnalyticalStore.Postgres
         }
 
         /// <inheritdoc/>
-        System.Linq.IQueryable<TRecord> IAnalyticalTable<TRecord>.Query()
+        System.Linq.IQueryable<TRecord> IAnalyticalTable<TRecord>.Query(string partitionKey)
+            => _CrossPartitionQuery().Where(r => r.PartitionKey == partitionKey);
+
+        /// <inheritdoc/>
+        System.Linq.IQueryable<TRecord> IAnalyticalTable<TRecord>.QueryCrossPartition()
+            => _CrossPartitionQuery();
+
+        private System.Linq.IQueryable<TRecord> _CrossPartitionQuery()
         {
             // A DataContext (not DataConnection) backs the returned IQueryable: it opens/closes the
             // ADO connection per query, so the queryable can be composed and enumerated after this

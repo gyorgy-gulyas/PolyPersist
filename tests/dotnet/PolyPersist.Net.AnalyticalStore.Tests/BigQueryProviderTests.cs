@@ -24,7 +24,7 @@ namespace PolyPersist.Net.AnalyticalStore.Tests
         public async Task Skip_NotSupported()
         {
             var table = await Table();
-            var ex = Assert.ThrowsException<NotSupportedException>(() => table.Query().Skip(1).ToList());
+            var ex = Assert.ThrowsException<NotSupportedException>(() => table.QueryCrossPartition().Skip(1).ToList());
             Assert.IsTrue(ex.Message.Contains("Skip"));
         }
 
@@ -33,7 +33,7 @@ namespace PolyPersist.Net.AnalyticalStore.Tests
         {
             var table = await Table();
             // s.Region.StartsWith(...) is not a column/param/comparison the provider translates.
-            Assert.ThrowsException<NotSupportedException>(() => table.Query().Where(s => s.Region.StartsWith("E")).ToList());
+            Assert.ThrowsException<NotSupportedException>(() => table.QueryCrossPartition().Where(s => s.Region.StartsWith("E")).ToList());
         }
     }
 }
