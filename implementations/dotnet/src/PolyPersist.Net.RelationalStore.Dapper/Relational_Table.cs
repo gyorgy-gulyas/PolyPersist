@@ -133,7 +133,16 @@ namespace PolyPersist.Net.RelationalStore.Dapper
         }
 
         /// <inheritdoc/>
-        System.Linq.IQueryable<TRecord> ITable<TRecord>.Query()
+        System.Linq.IQueryable<TRecord> ITable<TRecord>.Query(string partitionKey)
+            // Pre-filtered to one partition and translated to a SQL WHERE (using the PartitionKey
+            // index, PP-36); a caller can only narrow it further, never widen back across partitions.
+            => _CrossPartitionQuery().Where(r => r.PartitionKey == partitionKey);
+
+        /// <inheritdoc/>
+        System.Linq.IQueryable<TRecord> ITable<TRecord>.QueryCrossPartition()
+            => _CrossPartitionQuery();
+
+        private System.Linq.IQueryable<TRecord> _CrossPartitionQuery()
         {
             // A DataContext (not DataConnection) backs the returned IQueryable: it opens/closes the
             // ADO connection per query, so the queryable can be composed and enumerated after this

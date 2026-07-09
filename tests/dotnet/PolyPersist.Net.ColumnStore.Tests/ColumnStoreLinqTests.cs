@@ -42,6 +42,30 @@ namespace PolyPersist.Net.ColumnStore.Tests
             Assert.IsNotNull(list.First(r => r.id == "q2"));
         }
 
+        // PP-55: Query(partitionKey) is a single-partition query (only that partition visible);
+        // QueryCrossPartition() full-scans every partition. Proves the partition-safe query default.
+        [DataTestMethod]
+        [DynamicData(nameof(TestMain.StoreInstances), typeof(TestMain), DynamicDataSourceType.Property)]
+        public async Task ColumnStore_Query_ScopedToPartition_OK(Func<string, Task<IColumnStore>> factory)
+        {
+            var testName = MethodBase.GetCurrentMethod().GetAsyncMethodName().MakeStorageConformName();
+            var store = await factory(testName);
+            var table = await store.CreateTable<SampleRow>("sampletable");
+
+            await table.Insert(new SampleRow { PartitionKey = "query-pk", id = "q1", int_value = 10 });
+            await table.Insert(new SampleRow { PartitionKey = "query-pk", id = "q2", int_value = 20 });
+            await table.Insert(new SampleRow { PartitionKey = "diffe-pk", id = "q3", int_value = 30 });
+
+            // scoped: only query-pk is visible, even without an explicit .Where
+            var scoped = table.Query("query-pk").ToList();
+            Assert.AreEqual(2, scoped.Count);
+            Assert.IsNotNull(scoped.First(r => r.id == "q1"));
+            Assert.IsNotNull(scoped.First(r => r.id == "q2"));
+
+            // explicit cross-partition full-scans every partition
+            Assert.AreEqual(3, table.QueryCrossPartition().ToList().Count);
+        }
+
         [DataTestMethod]
         [DynamicData(nameof(TestMain.StoreInstances), typeof(TestMain), DynamicDataSourceType.Property)]
         public async Task ColumnStore_Linq_Where_ConstantOnLeft_OK(Func<string, Task<IColumnStore>> factory)

@@ -777,7 +777,9 @@ namespace PolyPersist.Net.Transactions.Tests
                 return Task.FromResult(default(TRecord)!);
             }
 
-            public System.Linq.IQueryable<TRecord> Query() =>
+            public System.Linq.IQueryable<TRecord> Query(string partitionKey) =>
+                QueryCrossPartition().Where(r => r.PartitionKey == partitionKey);
+            public System.Linq.IQueryable<TRecord> QueryCrossPartition() =>
                 _rows.Values.Select(s => System.Text.Json.JsonSerializer.Deserialize<TRecord>(s.Json)!).AsQueryable();
 
             public object GetUnderlyingImplementation() => _rows;

@@ -210,6 +210,31 @@ namespace PolyPersist.Net.DocumentStore.Tests
             Assert.AreEqual("i2", list[0].id);
         }
 
+        // PP-55: Query(partitionKey) is pre-scoped to one partition (a caller cannot widen it back);
+        // QueryCrossPartition() spans every partition. Proves the partition-safe query default.
+        [DataTestMethod]
+        [DynamicData(nameof(TestMain.StoreInstances), typeof(TestMain), DynamicDataSourceType.Property)]
+        public async Task Document_Query_ScopedToPartition_OK(Func<string, Task<IDocumentStore>> factory)
+        {
+            var store = await factory(MethodBase.GetCurrentMethod().GetAsyncMethodName());
+            var col = await store.CreateCollection<SampleDocument>("docs");
+
+            await col.Insert(new SampleDocument { PartitionKey = "pk1", id = "i1", int_value = 10 });
+            await col.Insert(new SampleDocument { PartitionKey = "pk1", id = "i2", int_value = 20 });
+            await col.Insert(new SampleDocument { PartitionKey = "pk2", id = "i3", int_value = 30 });
+
+            // scoped: only pk1 is visible, even without an explicit .Where
+            var scoped = col.Query("pk1").ToList();
+            Assert.AreEqual(2, scoped.Count);
+            CollectionAssert.AreEquivalent(new[] { "i1", "i2" }, scoped.Select(d => d.id).ToList());
+
+            // a foreign-partition filter on top of a scoped query leaks nothing
+            Assert.AreEqual(0, col.Query("pk1").Where(d => d.PartitionKey == "pk2").ToList().Count);
+
+            // explicit cross-partition spans everything
+            Assert.AreEqual(3, col.QueryCrossPartition().ToList().Count);
+        }
+
 
         public class Animal : Entity, IDocument
         {

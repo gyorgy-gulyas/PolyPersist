@@ -87,7 +87,8 @@ namespace PolyPersist.Net.Tests
         public Task Update(TDocument document) => Task.CompletedTask;
         public Task Delete(string partitionKey, string id) => Task.CompletedTask;
         public Task<TDocument> Find(string partitionKey, string id) => Task.FromResult(default(TDocument)!);
-        public IQueryable<TDocument> Query() => _nullQuery ? null! : Enumerable.Empty<TDocument>().AsQueryable();
+        public IQueryable<TDocument> Query(string partitionKey) => QueryCrossPartition();
+        public IQueryable<TDocument> QueryCrossPartition() => _nullQuery ? null! : Enumerable.Empty<TDocument>().AsQueryable();
         public object GetUnderlyingImplementation() => this;
     }
 
@@ -124,7 +125,8 @@ namespace PolyPersist.Net.Tests
         public Task Update(TRow row) => Task.CompletedTask;
         public Task Delete(string partitionKey, string id) => Task.CompletedTask;
         public Task<TRow> Find(string partitionKey, string id) => Task.FromResult(default(TRow)!);
-        public IQueryable<TRow> Query() => _nullQuery ? null! : Enumerable.Empty<TRow>().AsQueryable();
+        public IQueryable<TRow> Query(string partitionKey) => QueryCrossPartition();
+        public IQueryable<TRow> QueryCrossPartition() => _nullQuery ? null! : Enumerable.Empty<TRow>().AsQueryable();
         public object GetUnderlyingImplementation() => this;
     }
 

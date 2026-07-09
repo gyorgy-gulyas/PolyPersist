@@ -32,10 +32,17 @@ namespace PolyPersist
 		/// The 'id' parameter is the unique identifier of the row, and 'partitionKey' is used to partition data.
 		/// Returns the row if found, or null if not found.
 		public Task<TRow> Find( string partitionKey, string id );
-		/// Getting the query interface for table
-		/// the return value is generic, so the implementation can define what are the real types
+		/// Query interface SCOPED to one partition: the returned queryable is already filtered to
+		/// rows whose PartitionKey == partitionKey. A caller cannot widen it back (a .Where is
+		/// additive; a different partitionKey yields an empty result, not a leak), which keeps ad-hoc
+		/// queries partition-safe by default - mirroring Find(partitionKey, id). On Cassandra this is
+		/// a single-partition query (no ALLOW FILTERING).
 		/// Language-mapped: .NET IQueryable<TRow>, Java Stream<TRow>, Python Iterable[TRow].
-		public System.Linq.IQueryable<TRow> Query();
+		public System.Linq.IQueryable<TRow> Query( string partitionKey );
+		/// Explicit CROSS-PARTITION query: an unfiltered queryable spanning every partition. Use it
+		/// deliberately for admin / reporting / migration scans; it is the opt-out from the
+		/// partition-scoped default and can full-scan (multi-tenant leakage is the caller's concern).
+		public System.Linq.IQueryable<TRow> QueryCrossPartition();
 		/// getting the underlying implementation
 		/// please use this method carefully, because the returned value is different in every implementation
 		public object GetUnderlyingImplementation();
