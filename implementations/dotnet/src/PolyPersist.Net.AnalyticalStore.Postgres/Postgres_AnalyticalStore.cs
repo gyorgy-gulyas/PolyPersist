@@ -8,8 +8,7 @@ namespace PolyPersist.Net.AnalyticalStore.Postgres
     /// Analytical (OLAP) store on PostgreSQL, built on linq2db. Writing is batch-first
     /// (<see cref="IAnalyticalTable{TRecord}"/>.InsertBatch via linq2db BulkCopy = PostgreSQL COPY);
     /// the read side is LINQ (linq2db), so aggregations run in the database. PostgreSQL serves the
-    /// analytical role at moderate scale (Redshift is Postgres-wire-compatible and largely reuses
-    /// this). Raw SQL is reachable via GetUnderlyingImplementation().
+    /// analytical role at moderate scale. Raw SQL is reachable via GetUnderlyingImplementation().
     /// </summary>
     public class Postgres_AnalyticalStore : IAnalyticalStore
     {

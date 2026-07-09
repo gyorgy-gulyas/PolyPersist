@@ -41,7 +41,7 @@ namespace PolyPersist.Net.ColumnStore.Cassandra.Linq
                 ? " ALLOW FILTERING "
                 : string.Empty;
 
-            var cql = $"SELECT {distinctClause} {selectClause} FROM {_table._tableName}{whereClause}{allowFiltering}{orderByClause}{limitClause};";
+            var cql = $"SELECT {distinctClause} {selectClause} FROM {_table._session.Keyspace}.{_table._tableName}{whereClause}{allowFiltering}{orderByClause}{limitClause};";
 
             return new Cassandra_Query()
             {

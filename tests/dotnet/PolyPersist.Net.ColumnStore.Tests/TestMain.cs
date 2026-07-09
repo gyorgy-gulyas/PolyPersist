@@ -91,7 +91,7 @@ namespace PolyPersist.Net.ColumnStore.Tests
                     using var session = cluster.Connect();
                     session.Execute($"CREATE KEYSPACE IF NOT EXISTS {testname} WITH replication = {{'class': 'SimpleStrategy', 'replication_factor': 1}};");
 
-                    string connectionString = $"type=minIO;host={hostName};port={hostPort};username=cassandra;password=cassandra;keyspace={testname}";
+                    string connectionString = $"type=cassandra;host={hostName};port={hostPort};username=cassandra;password=cassandra;keyspace={testname}";
                     return new Cassandra_ColumnStore(connectionString);
                 })
             };
@@ -139,7 +139,7 @@ namespace PolyPersist.Net.ColumnStore.Tests
                     using var session = cluster.Connect();
                     session.Execute($"CREATE KEYSPACE IF NOT EXISTS {testname} WITH replication = {{'class': 'SimpleStrategy', 'replication_factor': 1}};");
 
-                    string connectionString = $"type=minIO;host={hostName};port={hostPort};username=cassandra;password=cassandra;keyspace={testname}";
+                    string connectionString = $"type=cassandra;host={hostName};port={hostPort};username=cassandra;password=cassandra;keyspace={testname}";
                     return new Cassandra_ColumnStore(connectionString);
                 })
             };

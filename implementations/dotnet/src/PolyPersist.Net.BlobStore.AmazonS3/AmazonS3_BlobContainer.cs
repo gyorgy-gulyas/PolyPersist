@@ -58,8 +58,9 @@ namespace PolyPersist.Net.BlobStore.AmazonS3
         {
             try
             {
+                // HEAD (metadata only) - do not download the object body just to test existence.
                 await _amazonS3Client
-                    .GetObjectAsync(_bucketName, id)
+                    .GetObjectMetadataAsync(_bucketName, id)
                     .ConfigureAwait(false);
             }
             catch (AmazonS3Exception ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
@@ -169,38 +170,24 @@ namespace PolyPersist.Net.BlobStore.AmazonS3
 
             CollectionCommon.CheckEtagMatch(BlobMetadata.Deserialize<TBlob>(metadata.Metadata[BlobMetadata.Key]), blob);
 
-            // 2. Download the existing object content
-            var originalStream = new MemoryStream();
-            await _amazonS3Client.GetObjectAsync(new GetObjectRequest
-            {
-                BucketName = _bucketName,
-                Key = blob.id
-            }).ContinueWith(async task =>
-            {
-                using var response = await task;
-                await response.ResponseStream.CopyToAsync(originalStream);
-            }).Unwrap();
-
-            originalStream.Position = 0;
-
-            // 3. Re-upload the object with the same content and updated metadata
-            var request = new PutObjectRequest
-            {
-                BucketName = _bucketName,
-                Key = blob.id,
-                InputStream = originalStream,
-                ContentType = blob.contentType ?? metadata.Headers.ContentType ?? "application/octet-stream"
-            };
-
             blob.etag = Guid.NewGuid().ToString();
             blob.LastUpdate = DateTime.UtcNow;
-
-            // 4. Apply the new user-defined metadata from the blob
             string meta_json = BlobMetadata.Serialize(blob);
-            request.Metadata[BlobMetadata.Key] = meta_json;
 
-            // 5. Upload the updated object back to S3
-            await _amazonS3Client.PutObjectAsync(request).ConfigureAwait(false);
+            // Server-side self-copy with REPLACE: updates the object's metadata without downloading
+            // and re-uploading its body.
+            var copy = new CopyObjectRequest
+            {
+                SourceBucket = _bucketName,
+                SourceKey = blob.id,
+                DestinationBucket = _bucketName,
+                DestinationKey = blob.id,
+                MetadataDirective = S3MetadataDirective.REPLACE,
+                ContentType = blob.contentType ?? metadata.Headers.ContentType ?? "application/octet-stream",
+            };
+            copy.Metadata[BlobMetadata.Key] = meta_json;
+
+            await _amazonS3Client.CopyObjectAsync(copy).ConfigureAwait(false);
         }
 
         object IBlobContainer<TBlob>.GetUnderlyingImplementation()

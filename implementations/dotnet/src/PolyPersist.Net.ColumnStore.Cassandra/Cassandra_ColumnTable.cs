@@ -34,7 +34,6 @@ namespace PolyPersist.Net.ColumnStore.Cassandra
         async Task IColumnTable<TRow>.Insert(TRow row)
         {
             CollectionCommon.CheckBeforeInsert(row);
-            row.etag = Guid.NewGuid().ToString();
 
             if (string.IsNullOrEmpty(row.id) == true)
                 row.id = Guid.NewGuid().ToString();
@@ -55,7 +54,7 @@ namespace PolyPersist.Net.ColumnStore.Cassandra
             var applied = rs.FirstOrDefault()?.GetValue<bool>("[applied]") ?? false;
 
             if (applied == false )
-                throw new Exception($"Blob '{typeof(TRow).Name}' {row.id} cannot be uploaded, beacuse of duplicate key");
+                throw new Exception($"Row '{typeof(TRow).Name}' {row.id} cannot be inserted, because of duplicate key");
         }
 
         private PreparedStatement? _insertStatemant;
@@ -117,7 +116,7 @@ namespace PolyPersist.Net.ColumnStore.Cassandra
             var applied = rs.FirstOrDefault()?.GetValue<bool>("[applied]") ?? false;
 
             if (applied == false)
-                throw new Exception($"Blob '{typeof(TRow).Name}' {row.id} can not updated, because it is does not exist of already changed");
+                throw new Exception($"Row '{typeof(TRow).Name}' {row.id} can not be updated, because it does not exist or was already changed");
         }
 
         private PreparedStatement? _updateStatemant;
@@ -154,12 +153,13 @@ namespace PolyPersist.Net.ColumnStore.Cassandra
         /// <inheritdoc/>
         async Task IColumnTable<TRow>.Delete(string partitionKey, string id)
         {
-            var original_etag = await _FindInternal(partitionKey, id).ConfigureAwait(false);
-            if (original_etag == null)
+            // Single conditional statement (IF EXISTS) instead of SELECT-then-DELETE: atomic (no
+            // TOCTOU) and one round-trip. 'applied' is false when the row was already gone.
+            var ps = await _PrepareOrGetAsync($"DELETE FROM {_session.Keyspace}.{_tableName} WHERE partitionkey = ? AND id = ? IF EXISTS").ConfigureAwait(false);
+            var rs = await _session.ExecuteAsync(ps.Bind(partitionKey, id)).ConfigureAwait(false);
+            var applied = rs.FirstOrDefault()?.GetValue<bool>("[applied]") ?? false;
+            if (applied == false)
                 throw new Exception($"Row '{typeof(TRow).Name}' {id} can not be deleted because it is already removed.");
-
-            var ps = await _PrepareOrGetAsync($"DELETE FROM {_session.Keyspace}.{_tableName} WHERE partitionkey = ? AND id = ?").ConfigureAwait(false);
-            await _session.ExecuteAsync(ps.Bind(partitionKey, id));
         }
 
         async Task<TRow> IColumnTable<TRow>.Find(string partitionKey, string id)
@@ -180,7 +180,6 @@ namespace PolyPersist.Net.ColumnStore.Cassandra
                 if (memberAccessor.Setter != null)
                 {
                     var value = valueGetter(row, fieldIndex);
-                    Console.WriteLine($"{_session.Keyspace}:{value}");
                     memberAccessor.Setter(result, value);
                 }
             }
@@ -233,20 +232,6 @@ namespace PolyPersist.Net.ColumnStore.Cassandra
 
         /// <inheritdoc/>
         object IColumnTable<TRow>.GetUnderlyingImplementation() => _session;
-
-        private async Task<string?> _FindInternal(string partitionKey, string id)
-        {
-            var cql = $"SELECT * FROM {_session.Keyspace}.{_tableName} WHERE partitionkey = ? AND id = ? LIMIT 1;";
-            var ps = await _PrepareOrGetAsync(cql);
-            var bound = ps.Bind(partitionKey, id);
-            var rs = await _session.ExecuteAsync(bound).ConfigureAwait(false);
-
-            var row = rs.FirstOrDefault();
-            if (row == null)
-                return default;
-
-            return row.GetValue<string>("etag");
-        }
 
         private async Task<PreparedStatement> _PrepareOrGetAsync(string cql)
         {
