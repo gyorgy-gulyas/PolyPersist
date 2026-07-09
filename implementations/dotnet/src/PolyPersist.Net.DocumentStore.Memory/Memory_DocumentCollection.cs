@@ -93,7 +93,11 @@ namespace PolyPersist.Net.DocumentStore.Memory
         }
 
         /// <inheritdoc/>
-        System.Linq.IQueryable<TDocument> IDocumentCollection<TDocument>.Query()
+        System.Linq.IQueryable<TDocument> IDocumentCollection<TDocument>.Query(string partitionKey)
+            => ((IDocumentCollection<TDocument>)this).QueryCrossPartition().Where(d => d.PartitionKey == partitionKey);
+
+        /// <inheritdoc/>
+        System.Linq.IQueryable<TDocument> IDocumentCollection<TDocument>.QueryCrossPartition()
         {
             return _collectionData
                 .ListOfDocments

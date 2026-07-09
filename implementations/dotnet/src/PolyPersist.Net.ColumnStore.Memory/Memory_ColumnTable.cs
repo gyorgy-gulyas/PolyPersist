@@ -95,7 +95,22 @@ namespace PolyPersist.Net.ColumnStore.Memory
         }
 
         /// <inheritdoc/>
-        System.Linq.IQueryable<TRow> IColumnTable<TRow>.Query()
+        System.Linq.IQueryable<TRow> IColumnTable<TRow>.Query(string partitionKey)
+        {
+            // Pre-filtered to one partition (in-memory) before the restricted Memory_Queryable
+            // provider wraps it, so a caller's further .Where clauses still see the same operator
+            // restrictions the Cassandra provider enforces.
+            var queryable = _tableData
+                .ListOfDocments
+                .Select(data => JsonSerializer.Deserialize<TRow>(data.Value, JsonOptionsProvider.Options())!)
+                .Where(row => row.PartitionKey == partitionKey)
+                .AsQueryable();
+
+            return new Memory_Queryable<TRow>(queryable);
+        }
+
+        /// <inheritdoc/>
+        System.Linq.IQueryable<TRow> IColumnTable<TRow>.QueryCrossPartition()
         {
             var queryable = _tableData
                 .ListOfDocments

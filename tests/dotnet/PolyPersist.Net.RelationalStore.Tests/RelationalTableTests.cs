@@ -183,12 +183,35 @@ namespace PolyPersist.Net.RelationalStore.Tests
             await table.Insert(Sample(pk: "p1", name: "mid", age: 40));
             await table.Insert(Sample(pk: "p1", name: "old", age: 60));
 
-            var query = table.Query();
+            var query = table.Query("p1");
             var adults = query.Where(r => r.Age >= 40).OrderBy(r => r.Age).ToList();
 
             Assert.AreEqual(2, adults.Count);
             Assert.AreEqual("mid", adults[0].Name);
             Assert.AreEqual("old", adults[1].Name);
+        }
+
+        // PP-55: Query(partitionKey) is pre-filtered to that partition (a caller cannot widen it
+        // back); QueryCrossPartition() spans every partition. Proves the partition-safe default.
+        [DataTestMethod]
+        [DynamicData(nameof(TestMain.StoreInstances), typeof(TestMain), DynamicDataSourceType.Property)]
+        public async Task Query_ScopedToPartition_Ok(Func<string, Task<IRelationalStore>> factory)
+        {
+            var table = await NewTable(factory);
+            await table.Insert(Sample(pk: "p1", name: "a1"));
+            await table.Insert(Sample(pk: "p1", name: "a2"));
+            await table.Insert(Sample(pk: "p2", name: "b1"));
+
+            // scoped: only the requested partition is visible, even without an explicit .Where
+            var p1 = table.Query("p1").ToList();
+            Assert.AreEqual(2, p1.Count);
+            CollectionAssert.AreEquivalent(new[] { "a1", "a2" }, p1.Select(r => r.Name).ToList());
+
+            // a foreign partition filter on top of a scoped query yields nothing, not a leak
+            Assert.AreEqual(0, table.Query("p1").Where(r => r.PartitionKey == "p2").Count());
+
+            // explicit cross-partition spans everything
+            Assert.AreEqual(3, table.QueryCrossPartition().Count());
         }
 
         [DataTestMethod]

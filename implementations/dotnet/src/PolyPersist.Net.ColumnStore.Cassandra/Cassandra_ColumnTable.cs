@@ -2,6 +2,7 @@
 using PolyPersist.Net.ColumnStore.Cassandra.Linq;
 using PolyPersist.Net.Common;
 using System.Collections.Concurrent;
+using System.Linq;
 
 namespace PolyPersist.Net.ColumnStore.Cassandra
 {
@@ -225,10 +226,13 @@ namespace PolyPersist.Net.ColumnStore.Cassandra
         }
 
         /// <inheritdoc/>
-        System.Linq.IQueryable<TRow> IColumnTable<TRow>.Query()
-        {
-            return new Cassandra_Queryable<TRow,TRow>(this);
-        }
+        System.Linq.IQueryable<TRow> IColumnTable<TRow>.Query(string partitionKey)
+            // A single-partition CQL query (WHERE partitionkey = ?): efficient, no ALLOW FILTERING.
+            => new Cassandra_Queryable<TRow, TRow>(this).Where(row => row.PartitionKey == partitionKey);
+
+        /// <inheritdoc/>
+        System.Linq.IQueryable<TRow> IColumnTable<TRow>.QueryCrossPartition()
+            => new Cassandra_Queryable<TRow, TRow>(this);
 
         /// <inheritdoc/>
         object IColumnTable<TRow>.GetUnderlyingImplementation() => _session;

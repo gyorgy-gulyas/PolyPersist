@@ -34,8 +34,16 @@ namespace PolyPersist
 		/// Asynchronous method to find a row by its PartitionKey and id.
 		/// Returns the row if found, or null if not found.
 		public Task<TRecord> Find( string partitionKey, string id );
-		/// Portable, single-table query. Language-mapped: .NET IQueryable<TRecord>, Java Stream<TRecord>, ...
-		public System.Linq.IQueryable<TRecord> Query();
+		/// Portable, single-table query SCOPED to one partition: the returned queryable is already
+		/// filtered to rows whose PartitionKey == partitionKey. A caller cannot widen it back
+		/// (a .Where is additive; a different partitionKey yields an empty result, not a leak), which
+		/// keeps ad-hoc queries partition-safe by default - mirroring Find(partitionKey, id).
+		/// Language-mapped: .NET IQueryable<TRecord>, Java Stream<TRecord>, ...
+		public System.Linq.IQueryable<TRecord> Query( string partitionKey );
+		/// Explicit CROSS-PARTITION query: an unfiltered queryable spanning every partition. Use it
+		/// deliberately for admin / reporting / migration scans; it is the opt-out from the
+		/// partition-scoped default and can full-scan (multi-tenant leakage is the caller's concern).
+		public System.Linq.IQueryable<TRecord> QueryCrossPartition();
 		/// Getting the underlying implementation.
 		/// Please use this method carefully, because the returned value is different in every
 		/// implementation (e.g. the linq2db DataConnection, or the raw DbConnection for Dapper).

@@ -85,7 +85,11 @@ namespace PolyPersist.Net.DocumentStore.MongoDB
         }
 
         /// <inheritdoc/>
-        System.Linq.IQueryable<TDocument> IDocumentCollection<TDocument>.Query()
+        System.Linq.IQueryable<TDocument> IDocumentCollection<TDocument>.Query(string partitionKey)
+            => ((IDocumentCollection<TDocument>)this).QueryCrossPartition().Where(d => d.PartitionKey == partitionKey);
+
+        /// <inheritdoc/>
+        System.Linq.IQueryable<TDocument> IDocumentCollection<TDocument>.QueryCrossPartition()
         {
             return _mongoCollection.OfType<TDocument>().AsQueryable();
         }

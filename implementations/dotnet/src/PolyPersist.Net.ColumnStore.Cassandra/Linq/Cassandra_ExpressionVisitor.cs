@@ -404,13 +404,26 @@ namespace PolyPersist.Net.ColumnStore.Cassandra.Linq
         // (the closure), so it is NOT a column - it is a value evaluated by TryEvaluateConstans.
         private static bool _IsColumnMember(Expression e)
         {
+            // Unwrap Convert nodes: a generic TRow whose column lives on the IRow/IEntity interface
+            // (e.g. PartitionKey) is accessed through a Convert(row -> IEntity), so the member's inner
+            // expression is the Convert, not the bare parameter. Without unwrapping, such a column
+            // would be misread as a value (and a column-to-value compare would fail).
+            e = _UnwrapConvert(e);
             while (e is MemberExpression m)
             {
-                if (m.Expression is ParameterExpression)
+                var inner = _UnwrapConvert(m.Expression!);
+                if (inner is ParameterExpression)
                     return true;
-                e = m.Expression!;
+                e = inner;
             }
             return false;
+        }
+
+        private static Expression _UnwrapConvert(Expression? e)
+        {
+            while (e is UnaryExpression u && (u.NodeType == ExpressionType.Convert || u.NodeType == ExpressionType.ConvertChecked))
+                e = u.Operand;
+            return e!;
         }
 
         // Flips a comparison operator when the operands are swapped (column moved to the left).

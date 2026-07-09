@@ -142,7 +142,8 @@ namespace PolyPersist.Net.Transactions.Tests
             public Task Update(TDoc document) => Task.CompletedTask;
             public Task Delete(string partitionKey, string id) { DeleteOrder.Add(id); return Task.CompletedTask; }
             public Task<TDoc> Find(string partitionKey, string id) => Task.FromResult(default(TDoc))!;
-            public System.Linq.IQueryable<TDoc> Query() => null!;
+            public System.Linq.IQueryable<TDoc> Query(string partitionKey) => null!;
+            public System.Linq.IQueryable<TDoc> QueryCrossPartition() => null!;
             public object GetUnderlyingImplementation() => null!;
         }
     }
