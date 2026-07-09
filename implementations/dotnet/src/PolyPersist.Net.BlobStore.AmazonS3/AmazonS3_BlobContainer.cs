@@ -96,6 +96,10 @@ namespace PolyPersist.Net.BlobStore.AmazonS3
                 string meta_json = @object.Metadata[BlobMetadata.Key];
                 var blob = BlobMetadata.Deserialize<TBlob>(meta_json);
 
+                // (partitionKey, id) identifies the blob: a matching id in another partition is not it.
+                if (blob.PartitionKey != partitionKey)
+                    return default(TBlob)!;
+
                 return blob;
             }
             catch (AmazonS3Exception ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
@@ -106,14 +110,19 @@ namespace PolyPersist.Net.BlobStore.AmazonS3
 
         async Task IBlobContainer<TBlob>.Delete(string partitionKey, string id)
         {
+            GetObjectMetadataResponse meta;
             try
             {
-                await _amazonS3Client.GetObjectMetadataAsync(_bucketName, id).ConfigureAwait(false);
+                meta = await _amazonS3Client.GetObjectMetadataAsync(_bucketName, id).ConfigureAwait(false);
             }
             catch (AmazonS3Exception ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
             {
                 throw new Exception($"Blob '{typeof(TBlob).Name}' {id} can not be deleted because it does not exist.");
             }
+
+            // Only delete within the requested partition: a matching id in another partition is not it.
+            if (BlobMetadata.Deserialize<TBlob>(meta.Metadata[BlobMetadata.Key]).PartitionKey != partitionKey)
+                throw new Exception($"Blob '{typeof(TBlob).Name}' {id} can not be deleted because it does not exist.");
 
             await _amazonS3Client.DeleteObjectAsync(_bucketName, id).ConfigureAwait(false);
         }
@@ -135,7 +144,11 @@ namespace PolyPersist.Net.BlobStore.AmazonS3
                 throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not upload, because it is does not exist");
             }
 
-            CollectionCommon.CheckEtagMatch(BlobMetadata.Deserialize<TBlob>(response.Metadata[BlobMetadata.Key]), blob);
+            var stored = BlobMetadata.Deserialize<TBlob>(response.Metadata[BlobMetadata.Key]);
+            // A matching id in another partition is not this blob - refuse to write across it.
+            if (stored.PartitionKey != blob.PartitionKey)
+                throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not upload, because it is does not exist");
+            CollectionCommon.CheckEtagMatch(stored, blob);
 
             var request = new PutObjectRequest
             {
@@ -168,7 +181,11 @@ namespace PolyPersist.Net.BlobStore.AmazonS3
                 throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not upload, because it is does not exist");
             }
 
-            CollectionCommon.CheckEtagMatch(BlobMetadata.Deserialize<TBlob>(metadata.Metadata[BlobMetadata.Key]), blob);
+            var stored = BlobMetadata.Deserialize<TBlob>(metadata.Metadata[BlobMetadata.Key]);
+            // A matching id in another partition is not this blob - refuse to write across it.
+            if (stored.PartitionKey != blob.PartitionKey)
+                throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not upload, because it is does not exist");
+            CollectionCommon.CheckEtagMatch(stored, blob);
 
             blob.etag = Guid.NewGuid().ToString();
             blob.LastUpdate = DateTime.UtcNow;

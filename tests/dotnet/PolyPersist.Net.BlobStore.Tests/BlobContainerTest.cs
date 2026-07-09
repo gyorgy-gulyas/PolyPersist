@@ -576,6 +576,56 @@ namespace PolyPersist.Net.BlobStore.Tests
             Assert.IsTrue(found.LastUpdate > origUpdate);
         }
 
+        // PP-31 (proves PP-19): a blob is scoped to its partition. A caller who knows the id but
+        // supplies the wrong partitionKey must not be able to read, delete, or overwrite it - even
+        // though the underlying object key is id-only in the cloud providers. Must hold on every
+        // store (Memory/FileSystem/GridFS already isolate; the cloud providers were the gap).
+        [DataTestMethod]
+        [DynamicData(nameof(TestMain.StoreInstances), typeof(TestMain), DynamicDataSourceType.Property)]
+        public async Task BlobStore_CrossPartition_IsIsolated(Func<Task<IBlobStore>> factory)
+        {
+            var testName = MethodBase.GetCurrentMethod().GetAsyncMethodName().MakeStorageConformName();
+            var store = await factory();
+            var container = await store.CreateContainer<SampleBlob>(testName);
+
+            var owner = new SampleBlob { PartitionKey = "owner_pk", fileName = "secret.txt", str_value = "owned" };
+            using (var s = new MemoryStream(Encoding.UTF8.GetBytes("owner content")))
+                await container.Upload(owner, s);
+
+            const string otherPk = "attacker_pk";
+
+            // 1. Find under the wrong partition must not surface the blob.
+            Assert.IsNull(await container.Find(otherPk, owner.id),
+                "Find with a foreign partitionKey must not return another partition's blob");
+
+            // 2. Delete under the wrong partition must fail and must NOT remove the blob.
+            var delEx = await Assert.ThrowsExceptionAsync<Exception>(async () =>
+                await container.Delete(otherPk, owner.id));
+            Assert.IsTrue(delEx.Message.Contains("does not exist"));
+            Assert.IsNotNull(await container.Find(owner.PartitionKey, owner.id),
+                "a cross-partition Delete must leave the owner's blob intact");
+
+            // 3. UpdateContent/UpdateMetadata forged with the real id+etag but a foreign partition
+            //    must be rejected (no cross-partition overwrite).
+            var forged = new SampleBlob { id = owner.id, PartitionKey = otherPk, etag = owner.etag, fileName = "secret.txt" };
+            using (var s = new MemoryStream(Encoding.UTF8.GetBytes("tampered")))
+            {
+                var upEx = await Assert.ThrowsExceptionAsync<Exception>(async () =>
+                    await container.UpdateContent(forged, s));
+                Assert.IsTrue(upEx.Message.Contains("does not exist"));
+            }
+            forged.str_value = "tampered meta";
+            var metaEx = await Assert.ThrowsExceptionAsync<Exception>(async () =>
+                await container.UpdateMetadata(forged));
+            Assert.IsTrue(metaEx.Message.Contains("does not exist"));
+
+            // 4. The owner's blob is untouched: same content, same etag.
+            var still = await container.Find(owner.PartitionKey, owner.id);
+            Assert.IsNotNull(still);
+            Assert.AreEqual(owner.etag, still.etag, "the owner's blob must be unchanged after the foreign attempts");
+            Assert.AreEqual("owned", still.str_value);
+        }
+
         [DataTestMethod]
         [DynamicData(nameof(TestMain.StoreInstances), typeof(TestMain), DynamicDataSourceType.Property)]
         public async Task BlobStore_Upload_AssignsUniqueEtagPerBlob(Func<Task<IBlobStore>> factory)

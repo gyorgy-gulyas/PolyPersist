@@ -118,6 +118,10 @@ namespace PolyPersist.Net.BlobStore.GCPStorage
                 string meta_json = obj.Metadata[BlobMetadata.Key];
                 var blob = BlobMetadata.Deserialize<TBlob>(meta_json);
 
+                // (partitionKey, id) identifies the blob: a matching id in another partition is not it.
+                if (blob.PartitionKey != partitionKey)
+                    return default!;
+
                 return blob;
             }
             catch (Google.GoogleApiException ex) when (ex.HttpStatusCode == System.Net.HttpStatusCode.NotFound)
@@ -129,9 +133,10 @@ namespace PolyPersist.Net.BlobStore.GCPStorage
         /// <inheritdoc/>
         public async Task Delete(string partitionKey, string id)
         {
+            Google.Apis.Storage.v1.Data.Object existingObject;
             try
             {
-                await _storageService.Objects.Delete(_bucketName, id)
+                existingObject = await _storageService.Objects.Get(_bucketName, id)
                     .ExecuteAsync()
                     .ConfigureAwait(false);
             }
@@ -139,6 +144,14 @@ namespace PolyPersist.Net.BlobStore.GCPStorage
             {
                 throw new Exception($"Blob '{typeof(TBlob).Name}' {id} can not be deleted because it does not exist.");
             }
+
+            // Only delete within the requested partition: a matching id in another partition is not it.
+            if (BlobMetadata.Deserialize<TBlob>(existingObject.Metadata[BlobMetadata.Key]).PartitionKey != partitionKey)
+                throw new Exception($"Blob '{typeof(TBlob).Name}' {id} can not be deleted because it does not exist.");
+
+            await _storageService.Objects.Delete(_bucketName, id)
+                .ExecuteAsync()
+                .ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
@@ -162,7 +175,11 @@ namespace PolyPersist.Net.BlobStore.GCPStorage
                 throw new Exception($"Blob '{blob.id}' does not exist in bucket '{_bucketName}'", ex);
             }
 
-            CollectionCommon.CheckEtagMatch(BlobMetadata.Deserialize<TBlob>(existingObject.Metadata[BlobMetadata.Key]), blob);
+            var stored = BlobMetadata.Deserialize<TBlob>(existingObject.Metadata[BlobMetadata.Key]);
+            // A matching id in another partition is not this blob - refuse to write across it.
+            if (stored.PartitionKey != blob.PartitionKey)
+                throw new Exception($"Blob '{blob.id}' does not exist in bucket '{_bucketName}'");
+            CollectionCommon.CheckEtagMatch(stored, blob);
 
             blob.etag = Guid.NewGuid().ToString();
             blob.LastUpdate = DateTime.UtcNow;
@@ -205,7 +222,11 @@ namespace PolyPersist.Net.BlobStore.GCPStorage
                 throw new Exception($"Cannot update metadata because the object '{blob.id}' does not exist in bucket '{_bucketName}'", ex);
             }
 
-            CollectionCommon.CheckEtagMatch(BlobMetadata.Deserialize<TBlob>(existingObject.Metadata[BlobMetadata.Key]), blob);
+            var stored = BlobMetadata.Deserialize<TBlob>(existingObject.Metadata[BlobMetadata.Key]);
+            // A matching id in another partition is not this blob - refuse to write across it.
+            if (stored.PartitionKey != blob.PartitionKey)
+                throw new Exception($"Cannot update metadata because the object '{blob.id}' does not exist in bucket '{_bucketName}'");
+            CollectionCommon.CheckEtagMatch(stored, blob);
 
             blob.etag = Guid.NewGuid().ToString();
             blob.LastUpdate = DateTime.UtcNow;

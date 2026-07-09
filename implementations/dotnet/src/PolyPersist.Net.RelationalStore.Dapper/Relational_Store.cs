@@ -40,6 +40,11 @@ namespace PolyPersist.Net.RelationalStore.Dapper
         // underlying ADO connection is pooled.
         internal DataConnection CreateConnection() => new(Options());
 
+        // Connection bound to a caller-supplied mapping schema (used by CreateTable, which must carry
+        // the table name + primary key in the mapping instead of a runtime name override).
+        internal DataConnection CreateConnection(MappingSchema schema)
+            => new(new DataOptions().UseConnectionString(_provider, _connectionString).UseMappingSchema(schema));
+
         private bool _IsTableExists(string tableName)
         {
             // Probe the table directly: a SELECT against a missing table throws. This is reliable

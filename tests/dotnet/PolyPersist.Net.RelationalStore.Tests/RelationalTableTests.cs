@@ -2,6 +2,7 @@ using System.Data.Common;
 using Dapper;
 using LinqToDB;
 using LinqToDB.Data;
+using PolyPersist.Net.RelationalStore.Dapper;
 
 namespace PolyPersist.Net.RelationalStore.Tests
 {
@@ -57,6 +58,26 @@ namespace PolyPersist.Net.RelationalStore.Tests
             var rec = Sample();
             rec.etag = Guid.NewGuid().ToString(); // pretend it is already stored
             await Assert.ThrowsExceptionAsync<Exception>(() => table.Insert(rec));
+        }
+
+        [DataTestMethod]
+        [DynamicData(nameof(TestMain.StoreInstances), typeof(TestMain), DynamicDataSourceType.Property)]
+        public async Task Insert_DuplicateId_Throws(Func<string, Task<IRelationalStore>> factory)
+        {
+            var table = await NewTable(factory);
+            var rec = Sample();
+            await table.Insert(rec); // id assigned here
+
+            // Reusing the same id must be rejected by the id uniqueness constraint (PP-36); without
+            // it the row would just be inserted a second time. The DB raises a provider-specific
+            // exception (SqliteException / PostgresException), so accept any.
+            var dup = Sample(name: "Bob");
+            dup.id = rec.id;
+
+            bool threw = false;
+            try { await table.Insert(dup); }
+            catch { threw = true; }
+            Assert.IsTrue(threw, "inserting a duplicate id must be rejected by the id uniqueness constraint");
         }
 
         [DataTestMethod]

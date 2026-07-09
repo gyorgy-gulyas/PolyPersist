@@ -99,8 +99,12 @@ namespace PolyPersist.Net.BlobStore.FileSystem
             if (File.Exists(path) == false || File.Exists(metaPath) == false)
                 throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not upload, because it is does not exist");
 
+            var stored = BlobMetadata.Deserialize<TBlob>(File.ReadAllText(metaPath));
+            // a matching id in another partition is not this blob - refuse to write across it
+            if (stored.PartitionKey != blob.PartitionKey)
+                throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not upload, because it is does not exist");
             // optimistic concurrency: the stored etag must still match
-            CollectionCommon.CheckEtagMatch(BlobMetadata.Deserialize<TBlob>(File.ReadAllText(metaPath)), blob);
+            CollectionCommon.CheckEtagMatch(stored, blob);
 
             // write to a temp file then replace atomically, so a failed write does not truncate
             // (lose) the existing content
@@ -126,7 +130,11 @@ namespace PolyPersist.Net.BlobStore.FileSystem
             if (File.Exists(path) == false || File.Exists(metaPath) == false)
                 throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not upload, because it is does not exist");
 
-            CollectionCommon.CheckEtagMatch(BlobMetadata.Deserialize<TBlob>(File.ReadAllText(metaPath)), blob);
+            var stored = BlobMetadata.Deserialize<TBlob>(File.ReadAllText(metaPath));
+            // a matching id in another partition is not this blob - refuse to write across it
+            if (stored.PartitionKey != blob.PartitionKey)
+                throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} can not upload, because it is does not exist");
+            CollectionCommon.CheckEtagMatch(stored, blob);
 
             blob.etag = Guid.NewGuid().ToString();
             blob.LastUpdate = DateTime.UtcNow;
