@@ -26,13 +26,25 @@ namespace PolyPersist.Net.ColumnStore.Tests
         }
 
         [TestMethod]
-        public async Task Where_ConstantOnLeft_NotSupported()
+        public async Task Where_ConstantOnLeft_OK()
         {
             var table = await _seededTable();
 
-            var ex = Assert.ThrowsException<NotSupportedException>(() =>
-                table.AsQueryable().Where(r => "A" == r.str_value).ToList());
-            Assert.IsTrue(ex.Message.Contains("Left side"));
+            // The column may be written on the right of the comparison ("A" == r.str_value),
+            // which means the same as r.str_value == "A".
+            var list = table.AsQueryable().Where(r => "A" == r.str_value).ToList();
+            Assert.AreEqual(1, list.Count);
+            Assert.AreEqual("q1", list[0].id);
+        }
+
+        [TestMethod]
+        public async Task Where_ConstantOnLeft_Inequality_OK()
+        {
+            var table = await _seededTable();
+
+            // "15 < r.int_value" means "r.int_value > 15" (the operator flips with the operands).
+            var list = table.AsQueryable().Where(r => 15 < r.int_value).ToList();
+            CollectionAssert.AreEquivalent(new[] { "q2", "q3" }, list.Select(r => r.id).ToArray());
         }
 
         [TestMethod]

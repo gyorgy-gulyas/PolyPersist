@@ -109,31 +109,54 @@ namespace PolyPersist.Net.ColumnStore.Cassandra.Linq
                 return node;
             }
 
-            string left;
-            string memberName;
-            if (node.Left is MemberExpression leftMember)
-            {
-                if (leftMember.Member.Name == "Length" && leftMember.Expression is MemberExpression strMember)
-                {
-                    left = $"length({strMember.Member.Name.ToLower()})";
-                    memberName = strMember.Member.Name.ToLower();
+            // A "column" is a member access rooted at the lambda parameter (x.Col / x.Col.Length); a
+            // captured local (closure field) is ALSO a MemberExpression but is a VALUE, evaluated by
+            // TryEvaluateConstans. Normalise so the column is on the left; the query may write it on
+            // either side (e.g. "x.Age > 5" or "5 < x.Age", operator flipped).
+            bool leftIsColumn = _IsColumnMember(node.Left);
+            bool rightIsColumn = _IsColumnMember(node.Right);
 
-                    _allowFiltering = true;
-                    Trace.TraceWarning($" using 'length' on {_tableName}.{memberName}. Can be very slow!");
-                }
-                else
-                {
-                    left = leftMember.Member.Name.ToLower();
-                    memberName = leftMember.Member.Name.ToLower();
-                }
-            }
-            else if (node.Left is MethodCallExpression methodCall)
+            MemberExpression memberExpr;
+            Expression valueExpr;
+            ExpressionType op;
+            if (leftIsColumn && rightIsColumn == false)
             {
-                throw new NotSupportedException($"Unsupported method call on left side: {methodCall.Method.Name}");
+                memberExpr = (MemberExpression)node.Left;
+                valueExpr = node.Right;
+                op = node.NodeType;
+            }
+            else if (rightIsColumn && leftIsColumn == false)
+            {
+                memberExpr = (MemberExpression)node.Right;
+                valueExpr = node.Left;
+                op = _FlipOperator(node.NodeType);
+            }
+            else if (leftIsColumn && rightIsColumn)
+            {
+                throw new NotSupportedException("Cassandra CQL cannot compare two columns in a WHERE clause; compare a column to a value.");
             }
             else
             {
-                throw new NotSupportedException($"Left side of binary expression must be a member, not a {node.Left.NodeType}");
+                var badMethod = (node.Left as MethodCallExpression) ?? (node.Right as MethodCallExpression);
+                if (badMethod != null)
+                    throw new NotSupportedException($"Cassandra CQL does not support a method call ('{badMethod.Method.Name}') as a WHERE operand.");
+                throw new NotSupportedException($"One side of the comparison must be a column (member); got {node.Left.NodeType} and {node.Right.NodeType}.");
+            }
+
+            string left;
+            string memberName;
+            if (memberExpr.Member.Name == "Length" && memberExpr.Expression is MemberExpression strMember)
+            {
+                left = $"length({strMember.Member.Name.ToLower()})";
+                memberName = strMember.Member.Name.ToLower();
+
+                _allowFiltering = true;
+                Trace.TraceWarning($" using 'length' on {_tableName}.{memberName}. Can be very slow!");
+            }
+            else
+            {
+                left = memberExpr.Member.Name.ToLower();
+                memberName = memberExpr.Member.Name.ToLower();
             }
 
             if (IsColumnFilterable(memberName) == false && _allowFiltering == false)
@@ -142,8 +165,8 @@ namespace PolyPersist.Net.ColumnStore.Cassandra.Linq
                 Trace.TraceWarning($" Member name {_tableName}.{memberName} is used in condition, but it is not indexed field. Can be very slow!");
             }
 
-            object? right = TryEvaluateConstans(node.Right);
-            string opSymbol = node.NodeType switch
+            object? right = TryEvaluateConstans(valueExpr);
+            string opSymbol = op switch
             {
                 ExpressionType.Equal => "=",
                 ExpressionType.NotEqual => throw new NotSupportedException("Cassandra CQL does not support '!=' in a WHERE clause."),
@@ -375,6 +398,30 @@ namespace PolyPersist.Net.ColumnStore.Cassandra.Linq
             }
             return e;
         }
+
+        // True when the expression is a column reference: a member access rooted at the lambda
+        // parameter (x.Col, x.Col.Length). A captured local renders as a member rooted at a constant
+        // (the closure), so it is NOT a column - it is a value evaluated by TryEvaluateConstans.
+        private static bool _IsColumnMember(Expression e)
+        {
+            while (e is MemberExpression m)
+            {
+                if (m.Expression is ParameterExpression)
+                    return true;
+                e = m.Expression!;
+            }
+            return false;
+        }
+
+        // Flips a comparison operator when the operands are swapped (column moved to the left).
+        private static ExpressionType _FlipOperator(ExpressionType op) => op switch
+        {
+            ExpressionType.LessThan => ExpressionType.GreaterThan,
+            ExpressionType.LessThanOrEqual => ExpressionType.GreaterThanOrEqual,
+            ExpressionType.GreaterThan => ExpressionType.LessThan,
+            ExpressionType.GreaterThanOrEqual => ExpressionType.LessThanOrEqual,
+            _ => op, // Equal / NotEqual are symmetric
+        };
 
         private static object? TryEvaluateConstans(Expression expr)
         {

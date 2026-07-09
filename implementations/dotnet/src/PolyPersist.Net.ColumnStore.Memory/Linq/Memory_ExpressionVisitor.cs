@@ -14,28 +14,15 @@ namespace PolyPersist.Net.ColumnStore.Memory.Linq
                 return node;
             }
 
-            if (node.Left is MemberExpression leftMember)
-            {
-                // ok
-            }
-            else if (node.Left is MethodCallExpression methodCall)
-            {
-                throw new NotSupportedException($"Unsupported method call on left side: {methodCall.Method.Name}");
-            }
-            else
-            {
-                throw new NotSupportedException($"Left side of binary expression must be a member, not a {node.Left.NodeType}");
-            }
+            if (node.Left is MethodCallExpression leftCall)
+                throw new NotSupportedException($"Unsupported method call on left side: {leftCall.Method.Name}");
+            if (node.Right is MethodCallExpression rightCall)
+                throw new NotSupportedException($"Unsupported method call on right side: {rightCall.Method.Name}");
 
-            switch(node.Right)
-            {
-                case ConstantExpression c:
-                case MemberExpression m:
-                    // ok
-                    break;
-                default:
-                    throw new NotSupportedException("Expression type not supported");
-            };
+            // A comparison needs a column (member) on one side and a value on the other; the column may
+            // be written on either side (e.g. "x.Age > 5" or "5 < x.Age").
+            if (node.Left is not MemberExpression && node.Right is not MemberExpression)
+                throw new NotSupportedException($"One side of the comparison must be a member, not {node.Left.NodeType} and {node.Right.NodeType}");
 
             switch (node.NodeType)
             {
