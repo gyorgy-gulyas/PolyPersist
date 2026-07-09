@@ -21,7 +21,7 @@ namespace PolyPersist.Net.AnalyticalStore.Tests
         private static async Task<(IAnalyticalStore store, IAnalyticalTable<Sale> table, string name)> NewTable(
             Func<string, Task<IAnalyticalStore>> factory)
         {
-            var store = await factory(null);
+            var store = await factory(null!);
             var name = TestMain.NewTableName();
             var table = await store.CreateTable<Sale>(name);
             return (store, table, name);
@@ -33,7 +33,7 @@ namespace PolyPersist.Net.AnalyticalStore.Tests
         [DynamicData(nameof(TestMain.StoreInstances), typeof(TestMain), DynamicDataSourceType.Property)]
         public async Task StorageModel_And_ProviderName(Func<string, Task<IAnalyticalStore>> factory)
         {
-            var store = await factory(null);
+            var store = await factory(null!);
             Assert.AreEqual(IStore.StorageModels.Analytical, store.StorageModel);
             Assert.IsFalse(string.IsNullOrWhiteSpace(store.ProviderName));
         }
@@ -63,7 +63,7 @@ namespace PolyPersist.Net.AnalyticalStore.Tests
         [DynamicData(nameof(TestMain.StoreInstances), typeof(TestMain), DynamicDataSourceType.Property)]
         public async Task GetTableByName_Missing_Throws(Func<string, Task<IAnalyticalStore>> factory)
         {
-            var store = await factory(null);
+            var store = await factory(null!);
             await Assert.ThrowsExceptionAsync<Exception>(() => store.GetTableByName<Sale>(TestMain.NewTableName()));
         }
 
@@ -89,7 +89,7 @@ namespace PolyPersist.Net.AnalyticalStore.Tests
         [DynamicData(nameof(TestMain.StoreInstances), typeof(TestMain), DynamicDataSourceType.Property)]
         public async Task DropTable_Missing_Throws(Func<string, Task<IAnalyticalStore>> factory)
         {
-            var store = await factory(null);
+            var store = await factory(null!);
             await Assert.ThrowsExceptionAsync<Exception>(() => store.DropTable(TestMain.NewTableName()));
         }
 

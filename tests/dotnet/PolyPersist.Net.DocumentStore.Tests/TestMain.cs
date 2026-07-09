@@ -30,7 +30,7 @@ namespace PolyPersist.Net.DocumentStore.Tests
             {
                 await _mongoContainer.StopAsync();
                 await _mongoContainer.DisposeAsync();
-                _mongoContainer = null;
+                _mongoContainer = null!;
             }
         }
 
@@ -45,7 +45,7 @@ namespace PolyPersist.Net.DocumentStore.Tests
             StoreInstances.Add(functor);
         }
 
-        private static MongoDbContainer _mongoContainer;
+        private static MongoDbContainer _mongoContainer = null!;
         private static readonly SemaphoreSlim _mongoInitLock = new(1, 1);
         private static void _Setup_Mongo_DocumentStore()
         {

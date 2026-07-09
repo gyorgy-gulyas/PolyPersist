@@ -9,7 +9,7 @@ namespace PolyPersist.Net.Transactions.Tests
     // Uses the in-memory document store, so it needs no external database / Docker.
     public class TxDoc : Entity, IDocument
     {
-        public string str_value { get; set; }
+        public string str_value { get; set; } = null!;
     }
 
     [TestClass]
@@ -136,14 +136,14 @@ namespace PolyPersist.Net.Transactions.Tests
         private sealed class RecordingCollection<TDoc> : IDocumentCollection<TDoc> where TDoc : IDocument, new()
         {
             public readonly List<string> DeleteOrder = new();
-            public IStore ParentStore => null;
+            public IStore ParentStore => null!;
             public string Name => "spy";
             public Task Insert(TDoc document) => Task.CompletedTask;
             public Task Update(TDoc document) => Task.CompletedTask;
             public Task Delete(string partitionKey, string id) { DeleteOrder.Add(id); return Task.CompletedTask; }
-            public Task<TDoc> Find(string partitionKey, string id) => Task.FromResult(default(TDoc));
-            public System.Linq.IQueryable<TDoc> Query() => null;
-            public object GetUnderlyingImplementation() => null;
+            public Task<TDoc> Find(string partitionKey, string id) => Task.FromResult(default(TDoc))!;
+            public System.Linq.IQueryable<TDoc> Query() => null!;
+            public object GetUnderlyingImplementation() => null!;
         }
     }
 }

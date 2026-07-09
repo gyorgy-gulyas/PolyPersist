@@ -1,7 +1,7 @@
 using System.Reflection;
 using Google.Cloud.BigQuery.V2;
 
-namespace PolyPersist.Net.AnalyticalStore.BigQuery
+namespace PolyPersist.Net.AnalyticalStore.GCPBigQuery
 {
     /// <summary>
     /// Analytical (OLAP) store on Google BigQuery. BigQuery has no linq2db provider, so this backend

@@ -161,7 +161,7 @@ namespace PolyPersist.Net.Transactions
 
             _rollBackActions.Enqueue(async () =>
             {
-                TDocument original = JsonSerializer.Deserialize<TDocument>(_deepCloneOfEntities[key].Json);
+                TDocument original = JsonSerializer.Deserialize<TDocument>(_deepCloneOfEntities[key].Json)!;
                 original.etag = document.etag;   // adopt the current etag so the optimistic-concurrency check passes
                 await collection.Update(original).ConfigureAwait(false);
             });
@@ -189,7 +189,7 @@ namespace PolyPersist.Net.Transactions
 
             _rollBackActions.Enqueue(async () =>
             {
-                TRow original = JsonSerializer.Deserialize<TRow>(_deepCloneOfEntities[key].Json);
+                TRow original = JsonSerializer.Deserialize<TRow>(_deepCloneOfEntities[key].Json)!;
                 original.etag = row.etag;   // adopt the current etag so the optimistic-concurrency check passes
                 await table.Update(original).ConfigureAwait(false);
             });
@@ -273,7 +273,7 @@ namespace PolyPersist.Net.Transactions
 
             _rollBackActions.Enqueue(async () =>
             {
-                TBlob original = JsonSerializer.Deserialize<TBlob>(_deepCloneOfEntities[key].Json);
+                TBlob original = JsonSerializer.Deserialize<TBlob>(_deepCloneOfEntities[key].Json)!;
                 original.etag = blob.etag;   // adopt the current etag so the optimistic-concurrency check passes
                 await container.UpdateMetadata(original).ConfigureAwait(false);
             });
@@ -301,7 +301,7 @@ namespace PolyPersist.Net.Transactions
 
             _rollBackActions.Enqueue(async () =>
             {
-                TDocument original = JsonSerializer.Deserialize<TDocument>(_deepCloneOfEntities[key].Json);
+                TDocument original = JsonSerializer.Deserialize<TDocument>(_deepCloneOfEntities[key].Json)!;
                 original.etag = null;   // Insert requires an empty etag; it assigns a fresh one
                 await collection.Insert(original).ConfigureAwait(false);
             });
@@ -329,7 +329,7 @@ namespace PolyPersist.Net.Transactions
 
             _rollBackActions.Enqueue(async () =>
             {
-                TRow original = JsonSerializer.Deserialize<TRow>(_deepCloneOfEntities[key].Json);
+                TRow original = JsonSerializer.Deserialize<TRow>(_deepCloneOfEntities[key].Json)!;
                 original.etag = null;   // Insert requires an empty etag; it assigns a fresh one
                 await table.Insert(original).ConfigureAwait(false);
             });
@@ -357,7 +357,7 @@ namespace PolyPersist.Net.Transactions
 
             _rollBackActions.Enqueue(async () =>
             {
-                TBlob original = JsonSerializer.Deserialize<TBlob>(_deepCloneOfEntities[key].Json);
+                TBlob original = JsonSerializer.Deserialize<TBlob>(_deepCloneOfEntities[key].Json)!;
                 original.etag = null;   // Upload requires an empty etag; it assigns a fresh one
                 var originalContent = _deepCloneOfEntities[key].Content;
                 using var ms = new MemoryStream(originalContent.Span.ToArray(), writable: false);
@@ -416,7 +416,7 @@ namespace PolyPersist.Net.Transactions
 
             _rollBackActions.Enqueue(async () =>
             {
-                TRecord original = JsonSerializer.Deserialize<TRecord>(_deepCloneOfEntities[key].Json);
+                TRecord original = JsonSerializer.Deserialize<TRecord>(_deepCloneOfEntities[key].Json)!;
                 original.etag = record.etag;   // adopt the current etag so the optimistic-concurrency check passes
                 await table.Update(original).ConfigureAwait(false);
             });
@@ -437,7 +437,7 @@ namespace PolyPersist.Net.Transactions
 
             _rollBackActions.Enqueue(async () =>
             {
-                TRecord original = JsonSerializer.Deserialize<TRecord>(_deepCloneOfEntities[key].Json);
+                TRecord original = JsonSerializer.Deserialize<TRecord>(_deepCloneOfEntities[key].Json)!;
                 original.etag = null;   // Insert requires an empty etag; it assigns a fresh one
                 await table.Insert(original).ConfigureAwait(false);
             });

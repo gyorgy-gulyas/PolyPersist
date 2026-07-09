@@ -34,7 +34,7 @@
         /// the same etag the caller last read. One place for the "does not exist" / "already
         /// changed" semantics so every store behaves identically.
         /// </summary>
-        public static void CheckEtagMatch<TEntity>(TEntity stored, TEntity incoming)
+        public static void CheckEtagMatch<TEntity>(TEntity? stored, TEntity incoming)
             where TEntity : IEntity
         {
             if (stored is null)

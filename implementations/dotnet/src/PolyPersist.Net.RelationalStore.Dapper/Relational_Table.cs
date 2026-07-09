@@ -68,7 +68,7 @@ namespace PolyPersist.Net.RelationalStore.Dapper
             using var db = _store.CreateConnection();
 
             // Read-check first for clear error messages (does-not-exist vs already-changed).
-            TRecord stored = await db.GetTable<TRecord>().TableName(_name)
+            TRecord? stored = await db.GetTable<TRecord>().TableName(_name)
                 .FirstOrDefaultAsync(r => r.id == record.id && r.PartitionKey == record.PartitionKey)
                 .ConfigureAwait(false);
             CollectionCommon.CheckEtagMatch(stored, record);
@@ -114,9 +114,9 @@ namespace PolyPersist.Net.RelationalStore.Dapper
             using var db = _store.CreateConnection();
 
             // (partitionKey, id) identifies the row: a matching id in another partition is not it.
-            return await db.GetTable<TRecord>().TableName(_name)
+            return (await db.GetTable<TRecord>().TableName(_name)
                 .FirstOrDefaultAsync(r => r.id == id && r.PartitionKey == partitionKey)
-                .ConfigureAwait(false);
+                .ConfigureAwait(false))!;
         }
 
         /// <inheritdoc/>

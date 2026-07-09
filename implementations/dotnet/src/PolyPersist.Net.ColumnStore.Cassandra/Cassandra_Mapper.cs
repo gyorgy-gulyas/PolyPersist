@@ -38,7 +38,7 @@ namespace PolyPersist.Net.ColumnStore.Cassandra
 
         internal static object MapToCassandra(object value)
         {
-            if (value == null) return null;
+            if (value == null) return null!;
 
             var t = value.GetType();
             var converter = _toCassandraConverters.GetOrAdd(t, _CreateToConverter);
@@ -57,7 +57,7 @@ namespace PolyPersist.Net.ColumnStore.Cassandra
                 return v => ((TimeOnly)v).ToString("HH:mm:ss.fff");
 
             if (t.IsEnum)
-                return v => Enum.GetName(t, v);
+                return v => Enum.GetName(t, v)!;
 
             return v => v; // Default: no conversion
         }

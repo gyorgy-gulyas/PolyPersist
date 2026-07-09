@@ -44,8 +44,8 @@ namespace PolyPersist.Net.ColumnStore.Tests
 
         internal class SomeDTO
         {
-            public string value1 { get; set; }
-            public string value2 { get; set; }
+            public string value1 { get; set; } = null!;
+            public string value2 { get; set; } = null!;
         }
 
         [DataTestMethod]

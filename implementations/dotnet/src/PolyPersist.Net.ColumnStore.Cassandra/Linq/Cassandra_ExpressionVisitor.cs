@@ -142,7 +142,7 @@ namespace PolyPersist.Net.ColumnStore.Cassandra.Linq
                 Trace.TraceWarning($" Member name {_tableName}.{memberName} is used in condition, but it is not indexed field. Can be very slow!");
             }
 
-            object right = TryEvaluateConstans(node.Right);
+            object? right = TryEvaluateConstans(node.Right);
             string opSymbol = node.NodeType switch
             {
                 ExpressionType.Equal => "=",
@@ -171,7 +171,7 @@ namespace PolyPersist.Net.ColumnStore.Cassandra.Linq
                     TimeOnly t => ((long)(t.ToTimeSpan().TotalMilliseconds * 1_000_000)).ToString(),
                     Guid g => $"'{g}'",
                     bool b => b.ToString().ToLower(),
-                    _ => right.ToString()
+                    _ => right?.ToString() ?? string.Empty
                 };
                 _conditions.Add($"{left} {opSymbol} {valStr}");
             }
@@ -268,7 +268,7 @@ namespace PolyPersist.Net.ColumnStore.Cassandra.Linq
                     var inList = new List<string>();
                     foreach (var val in values)
                     {
-                        inList.Add(val is string s ? $"'{s}'" : val.ToString());
+                        inList.Add(val is string s ? $"'{s}'" : val.ToString() ?? string.Empty);
                     }
                     _conditions.Add($"{column} IN ({string.Join(", ", inList)})");
 
@@ -284,7 +284,7 @@ namespace PolyPersist.Net.ColumnStore.Cassandra.Linq
 
             if (node.Method.Name == "Take" && node.Arguments.Count == 2)
             {
-                var count = (int)TryEvaluateConstans(node.Arguments[1]);
+                var count = (int)TryEvaluateConstans(node.Arguments[1])!;
                 _limit = count;
                 Visit(node.Arguments[0]);
                 return node;
@@ -347,13 +347,13 @@ namespace PolyPersist.Net.ColumnStore.Cassandra.Linq
             return node;
         }
 
-        internal NewExpression _projectionAnonymousCtor = null;
+        internal NewExpression? _projectionAnonymousCtor = null;
 
         protected override Expression VisitNew(NewExpression node)
         {
             _projectionAnonymousCtor = node;
 
-            for (int i = 0; i < node.Members.Count; i++)
+            for (int i = 0; i < node.Members!.Count; i++)
             {
                 if (node.Arguments[i] is MemberExpression memberExpr)
                 {
@@ -376,7 +376,7 @@ namespace PolyPersist.Net.ColumnStore.Cassandra.Linq
             return e;
         }
 
-        private static object TryEvaluateConstans(Expression expr)
+        private static object? TryEvaluateConstans(Expression expr)
         {
             return expr switch
             {

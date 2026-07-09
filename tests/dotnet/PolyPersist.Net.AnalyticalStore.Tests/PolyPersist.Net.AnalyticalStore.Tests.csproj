@@ -3,6 +3,7 @@
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
   </PropertyGroup>
@@ -20,7 +21,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\..\implementations\dotnet\src\PolyPersist.Net.AnalyticalStore.Postgres\PolyPersist.Net.AnalyticalStore.Postgres.csproj" />
     <ProjectReference Include="..\..\..\implementations\dotnet\src\PolyPersist.Net.AnalyticalStore.ClickHouse\PolyPersist.Net.AnalyticalStore.ClickHouse.csproj" />
-    <ProjectReference Include="..\..\..\implementations\dotnet\src\PolyPersist.Net.AnalyticalStore.BigQuery\PolyPersist.Net.AnalyticalStore.BigQuery.csproj" />
+    <ProjectReference Include="..\..\..\implementations\dotnet\src\PolyPersist.Net.AnalyticalStore.GCPBigQuery\PolyPersist.Net.AnalyticalStore.GCPBigQuery.csproj" />
     <ProjectReference Include="..\..\..\interfaces\dotnet\PolyPersist\PolyPersist.Net.csproj" />
   </ItemGroup>
 

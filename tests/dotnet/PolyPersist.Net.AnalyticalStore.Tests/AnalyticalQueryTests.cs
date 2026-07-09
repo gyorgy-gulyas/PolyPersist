@@ -34,7 +34,7 @@ namespace PolyPersist.Net.AnalyticalStore.Tests
 
         private static async Task<IAnalyticalTable<Sale>> WithSales(Func<string, Task<IAnalyticalStore>> factory)
         {
-            var store = await factory(null);
+            var store = await factory(null!);
             var table = await store.CreateTable<Sale>(TestMain.NewTableName());
             await table.InsertBatch(Sales());
             return table;
@@ -42,7 +42,7 @@ namespace PolyPersist.Net.AnalyticalStore.Tests
 
         private static async Task<IAnalyticalTable<Metric>> WithMetrics(Func<string, Task<IAnalyticalStore>> factory)
         {
-            var store = await factory(null);
+            var store = await factory(null!);
             var table = await store.CreateTable<Metric>(TestMain.NewTableName());
             await table.InsertBatch(Metrics());
             return table;
@@ -123,7 +123,7 @@ namespace PolyPersist.Net.AnalyticalStore.Tests
         [DynamicData(nameof(TestMain.StoreInstances), typeof(TestMain), DynamicDataSourceType.Property)]
         public async Task FirstOrDefault_Empty_ReturnsNull(Func<string, Task<IAnalyticalStore>> factory)
         {
-            var store = await factory(null);
+            var store = await factory(null!);
             var table = await store.CreateTable<Sale>(TestMain.NewTableName());
             Assert.IsNull(table.Query().FirstOrDefault());
         }

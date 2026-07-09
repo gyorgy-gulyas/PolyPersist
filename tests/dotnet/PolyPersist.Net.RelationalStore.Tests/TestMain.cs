@@ -9,19 +9,19 @@ namespace PolyPersist.Net.RelationalStore.Tests
 
     public class SampleRecord : Entity, IRecord
     {
-        public string Name { get; set; }
+        public string Name { get; set; } = null!;
         public int Age { get; set; }
         public decimal Balance { get; set; }
     }
 
     public class Customer : Entity, IRecord
     {
-        public string Name { get; set; }
+        public string Name { get; set; } = null!;
     }
 
     public class Order : Entity, IRecord
     {
-        public string CustomerId { get; set; }
+        public string CustomerId { get; set; } = null!;
         public decimal Total { get; set; }
     }
 
@@ -38,7 +38,7 @@ namespace PolyPersist.Net.RelationalStore.Tests
 
         private static readonly List<string> _sqliteFiles = [];
 
-        private static PostgreSqlContainer _pg;
+        private static PostgreSqlContainer _pg = null!;
         private static readonly SemaphoreSlim _pgLock = new(1, 1);
 
         static TestMain()

@@ -4,7 +4,7 @@ using MongoDB.Driver;
 using PolyPersist.Net.BlobStore.AmazonS3;
 using PolyPersist.Net.BlobStore.AzureStorage;
 using PolyPersist.Net.BlobStore.FileSystem;
-using PolyPersist.Net.BlobStore.GoogleCloudStorage;
+using PolyPersist.Net.BlobStore.GCPStorage;
 using PolyPersist.Net.BlobStore.GridFS;
 using PolyPersist.Net.BlobStore.Memory;
 using PolyPersist.Net.BlobStore.MinIO;
@@ -18,7 +18,7 @@ namespace PolyPersist.Net.BlobStore.Tests
     [ExcludeFromCodeCoverage]
     class SampleBlob : Blob
     {
-        public string str_value { get; set; }
+        public string str_value { get; set; } = null!;
         public int int_value { get; set; }
         public decimal decimal_value { get; set; }
         public bool bool_value { get; set; }
@@ -57,35 +57,35 @@ namespace PolyPersist.Net.BlobStore.Tests
             {
                 await _mongoContainer.StopAsync();
                 await _mongoContainer.DisposeAsync();
-                _mongoContainer = null;
+                _mongoContainer = null!;
             }
 
             if (_minIOContainer != null)
             {
                 await _minIOContainer.StopAsync();
                 await _minIOContainer.DisposeAsync();
-                _minIOContainer = null;
+                _minIOContainer = null!;
             }
 
             if (_amazonS3Container != null)
             {
                 await _amazonS3Container.StopAsync();
                 await _amazonS3Container.DisposeAsync();
-                _amazonS3Container = null;
+                _amazonS3Container = null!;
             }
 
             if (_gcsContainer != null)
             {
                 await _gcsContainer.StopAsync();
                 await _gcsContainer.DisposeAsync();
-                _gcsContainer = null;
+                _gcsContainer = null!;
             }
 
             if (_azureitContainer != null)
             {
                 await _azureitContainer.StopAsync();
                 await _azureitContainer.DisposeAsync();
-                _azureitContainer = null;
+                _azureitContainer = null!;
             }
         }
 
@@ -111,7 +111,7 @@ namespace PolyPersist.Net.BlobStore.Tests
             StoreInstances.Add(functor);
         }
 
-        private static MongoDbContainer _mongoContainer;
+        private static MongoDbContainer _mongoContainer = null!;
         private static readonly SemaphoreSlim _mongoInitLock = new(1, 1);
         private static void _Setup_GridFS_BlobStore()
         {
@@ -153,7 +153,7 @@ namespace PolyPersist.Net.BlobStore.Tests
             StoreInstances.Add(functor);
         }
 
-        public static IContainer _minIOContainer;
+        public static IContainer _minIOContainer = null!;
         private static readonly SemaphoreSlim _minIOInitLock = new(1, 1);
         private static void _Setup_MinIO_BlobStore()
         {
@@ -195,7 +195,7 @@ namespace PolyPersist.Net.BlobStore.Tests
             StoreInstances.Add(functor);
         }
 
-        public static IContainer _amazonS3Container;
+        public static IContainer _amazonS3Container = null!;
         private static readonly SemaphoreSlim _amazonS3InitLock = new(1, 1);
         private static void _Setup_AmazonS3_BlobStore()
         {
@@ -237,7 +237,7 @@ namespace PolyPersist.Net.BlobStore.Tests
             StoreInstances.Add(functor);
         }
 
-        public static IContainer _gcsContainer;
+        public static IContainer _gcsContainer = null!;
         private static readonly SemaphoreSlim _gcsInitLock = new(1, 1);
         private static void _Setup_GoogleCloudStorage_BlobStore()
         {
@@ -282,7 +282,7 @@ namespace PolyPersist.Net.BlobStore.Tests
             StoreInstances.Add(functor);
         }
 
-        public static IContainer _azureitContainer;
+        public static IContainer _azureitContainer = null!;
         private static readonly SemaphoreSlim _azureitInitLock = new(1, 1);
         private static void _Setup_AzureStorage()
         {

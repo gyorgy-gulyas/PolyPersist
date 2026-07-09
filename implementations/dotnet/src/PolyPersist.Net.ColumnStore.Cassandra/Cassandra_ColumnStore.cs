@@ -19,7 +19,7 @@ namespace PolyPersist.Net.ColumnStore.Cassandra
                 .Build();
 
             _session = cluster.Connect(config.Keyspace);
-            _keyspace = config.Keyspace;
+            _keyspace = config.Keyspace!;
         }
 
         IStore.StorageModels IStore.StorageModel => IStore.StorageModels.ColumnStore;
@@ -54,7 +54,7 @@ namespace PolyPersist.Net.ColumnStore.Cassandra
             var clusteringProps = properties
                 .Select(p => new { Property = p, Attribute = p.GetCustomAttribute<ClusteringColumnAttribute>() })
                 .Where(x => x.Attribute != null)
-                .OrderBy(x => x.Attribute._clusteringOrder)
+                .OrderBy(x => x.Attribute!._clusteringOrder)
                 .Select(x => x.Property.Name.ToLowerInvariant())
                 .ToList();
 
@@ -104,11 +104,11 @@ namespace PolyPersist.Net.ColumnStore.Cassandra
 
     public class CassandraConnectionInfo
     {
-        public string Host { get; set; }
+        public string? Host { get; set; }
         public int Port { get; set; }
-        public string Username { get; set; }
-        public string Password { get; set; }
-        public string Keyspace { get; set; }
+        public string? Username { get; set; }
+        public string? Password { get; set; }
+        public string? Keyspace { get; set; }
     }
 
     public static class CassandraConnectionStringParser

@@ -94,19 +94,19 @@ namespace PolyPersist.Net.ColumnStore.Tests
         public partial class LoginAuditEventLog
         {
             #region IBaseEntity
-            public string id { get; set; }
-            public string etag { get; set; }
+            public string id { get; set; } = null!;
+            public string etag { get; set; } = null!;
             public DateTime LastUpdate { get; set; }
             #endregion IBaseEntity
 
             #region IAuditLog
-            public string operation { get; set; }
+            public string operation { get; set; } = null!;
             [ClusteringColumn(1)]
             public DateTime timestamp { get; set; }
-            public string idenityId { get; set; }
-            public string idenityName { get; set; }
-            public string correlationId { get; set; }
-            public string payload { get; set; }
+            public string idenityId { get; set; } = null!;
+            public string idenityName { get; set; } = null!;
+            public string correlationId { get; set; } = null!;
+            public string payload { get; set; } = null!;
             #endregion IAuditLog
 
             public Account.Types AccountType { get; set; }

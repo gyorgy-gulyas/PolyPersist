@@ -54,7 +54,7 @@ namespace PolyPersist.Net.DocumentStore.Memory
         {
             CollectionCommon.CheckBeforeUpdate(document);
 
-            if (_collectionData.MapOfDocments.TryGetValue(document.id, out _RowData row) == false)
+            if (_collectionData.MapOfDocments.TryGetValue(document.id, out _RowData? row) == false)
                 throw new Exception($"Document '{typeof(TDocument).Name}' {document.id} can not be updated because does not exist");
 
             if (row.etag != document.etag)
@@ -74,7 +74,7 @@ namespace PolyPersist.Net.DocumentStore.Memory
         {
             // only delete when the document exists in the requested partition (Find already
             // checks this; Delete used to match on id alone)
-            if (_collectionData.MapOfDocments.TryGetValue(id, out _RowData row) == false || row.partitionKey != partitionKey)
+            if (_collectionData.MapOfDocments.TryGetValue(id, out _RowData? row) == false || row.partitionKey != partitionKey)
                 throw new Exception($"Document '{typeof(TDocument).Name}' {id} can not be removed because it is already removed");
 
             _collectionData.MapOfDocments.Remove(id);
@@ -86,10 +86,10 @@ namespace PolyPersist.Net.DocumentStore.Memory
         /// <inheritdoc/>
         Task<TDocument> IDocumentCollection<TDocument>.Find(string partitionKey, string id)
         {
-            if (_collectionData.MapOfDocments.TryGetValue(id, out _RowData row) == true && row.partitionKey == partitionKey )
-                return Task.FromResult(JsonSerializer.Deserialize<TDocument>(row.Value, JsonOptionsProvider.Options()));
+            if (_collectionData.MapOfDocments.TryGetValue(id, out _RowData? row) == true && row.partitionKey == partitionKey )
+                return Task.FromResult(JsonSerializer.Deserialize<TDocument>(row.Value, JsonOptionsProvider.Options())!);
 
-            return Task.FromResult(default(TDocument));
+            return Task.FromResult(default(TDocument)!);
         }
 
         /// <inheritdoc/>

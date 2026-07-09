@@ -31,7 +31,7 @@ namespace PolyPersist.Net.ColumnStore.Tests
             {
                 await _cassandraContainer.StopAsync();
                 await _cassandraContainer.DisposeAsync();
-                _cassandraContainer = null;
+                _cassandraContainer = null!;
             }
         }
 
@@ -46,7 +46,7 @@ namespace PolyPersist.Net.ColumnStore.Tests
             StoreInstances.Add(functor);
         }
 
-        private static IContainer _cassandraContainer;
+        private static IContainer _cassandraContainer = null!;
         private static readonly SemaphoreSlim _cassandraInitLock = new(1, 1);
         private static void _Setup_Cassandra_ColumnStore()
         {
@@ -98,7 +98,7 @@ namespace PolyPersist.Net.ColumnStore.Tests
             StoreInstances.Add(functor);
         }
 
-        private static IContainer _scyllaContainer;
+        private static IContainer _scyllaContainer = null!;
         private static readonly SemaphoreSlim _scyllaInitLock = new(1, 1);
         private static void _Setup_Scylla_ColumnStore()
         {

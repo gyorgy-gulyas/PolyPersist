@@ -75,7 +75,7 @@ namespace PolyPersist.Net.EventStore.Dapper
             Volatile.Write(ref _ensured, 1);
         }
 
-        private async Task<int> _CurrentVersionAsync(DbConnection conn, string streamId, DbTransaction tx = null)
+        private async Task<int> _CurrentVersionAsync(DbConnection conn, string streamId, DbTransaction? tx = null)
         {
             long? max = await conn.ExecuteScalarAsync<long?>(
                 $@"SELECT MAX(""version"") FROM ""{_table}"" WHERE ""streamId"" = @s",

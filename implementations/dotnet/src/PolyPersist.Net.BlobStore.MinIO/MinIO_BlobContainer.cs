@@ -107,7 +107,7 @@ namespace PolyPersist.Net.BlobStore.MinIO
             }
             catch (ObjectNotFoundException)
             {
-                return default(TBlob);
+                return default(TBlob)!;
             }
 
             string meta_json = stat.MetaData[BlobMetadata.Key];

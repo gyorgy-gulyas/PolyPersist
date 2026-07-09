@@ -36,7 +36,7 @@ namespace PolyPersist.Net.BlobStore.FileSystem
             if (File.Exists(path))
                 throw new Exception($"Blob '{typeof(TBlob).Name}' {blob.id} cannot be uploaded, beacuse of duplicate key");
 
-            Directory.CreateDirectory(Path.GetDirectoryName(path));
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
             using var fs = File.Create(path);
             content.CopyTo(fs);
             File.WriteAllText(path + ".meta.json", BlobMetadata.Serialize(blob));
@@ -61,12 +61,12 @@ namespace PolyPersist.Net.BlobStore.FileSystem
             var path = _makeFilePath(id);
             var metadataPath = path + ".meta.json";
             if (File.Exists(path) == false || File.Exists(metadataPath) == false)
-                return Task.FromResult<TBlob>(default);
+                return Task.FromResult<TBlob>(default!);
 
             var blob = BlobMetadata.Deserialize<TBlob>(File.ReadAllText(metadataPath));
             // the blob is identified by (partitionKey, id): a different partition is not it
             if (blob.PartitionKey != partitionKey)
-                return Task.FromResult<TBlob>(default);
+                return Task.FromResult<TBlob>(default!);
 
             return Task.FromResult(blob);
         }

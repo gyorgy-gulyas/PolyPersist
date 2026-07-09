@@ -10,7 +10,7 @@ namespace PolyPersist.Net.AnalyticalStore.Tests
     {
         private static async Task<IAnalyticalTable<Sale>> Table()
         {
-            var store = await TestMain.BigQueryFactory(null);
+            var store = await TestMain.BigQueryFactory(null!);
             var table = await store.CreateTable<Sale>(TestMain.NewTableName());
             await table.InsertBatch(
             [

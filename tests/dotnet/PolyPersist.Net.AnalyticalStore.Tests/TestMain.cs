@@ -2,7 +2,7 @@ using DotNet.Testcontainers.Builders;
 using DotNet.Testcontainers.Containers;
 using Google.Apis.Auth.OAuth2;
 using Google.Cloud.BigQuery.V2;
-using PolyPersist.Net.AnalyticalStore.BigQuery;
+using PolyPersist.Net.AnalyticalStore.GCPBigQuery;
 using PolyPersist.Net.AnalyticalStore.ClickHouse;
 using PolyPersist.Net.AnalyticalStore.Postgres;
 using Testcontainers.ClickHouse;
@@ -15,8 +15,8 @@ namespace PolyPersist.Net.AnalyticalStore.Tests
     /// <summary>A sales fact row: dimensions (Region, Product, SoldAt) + measures (Quantity, Amount).</summary>
     public class Sale : IAnalyticalRecord
     {
-        public string Region { get; set; }
-        public string Product { get; set; }
+        public string Region { get; set; } = null!;
+        public string Product { get; set; } = null!;
         public int Quantity { get; set; }
         public decimal Amount { get; set; }
         public DateTime SoldAt { get; set; }
@@ -25,7 +25,7 @@ namespace PolyPersist.Net.AnalyticalStore.Tests
     /// <summary>A fact row exercising the remaining column types (bool, double, long, nullable, Guid).</summary>
     public class Metric : IAnalyticalRecord
     {
-        public string Name { get; set; }
+        public string Name { get; set; } = null!;
         public bool Flag { get; set; }
         public double Ratio { get; set; }
         public long Big { get; set; }
@@ -47,7 +47,7 @@ namespace PolyPersist.Net.AnalyticalStore.Tests
         // Each entry is a factory: (unused) -> a fresh IAnalyticalStore on the shared backend.
         public static List<object[]> StoreInstances { get; } = [];
 
-        private static PostgreSqlContainer _pg;
+        private static PostgreSqlContainer _pg = null!;
         private static readonly SemaphoreSlim _pgLock = new(1, 1);
 
         static TestMain()
@@ -95,7 +95,7 @@ namespace PolyPersist.Net.AnalyticalStore.Tests
             }
         }
 
-        private static ClickHouseContainer _ch;
+        private static ClickHouseContainer _ch = null!;
         private static readonly SemaphoreSlim _chLock = new(1, 1);
 
         private static void _Setup_ClickHouse()
@@ -132,13 +132,13 @@ namespace PolyPersist.Net.AnalyticalStore.Tests
             }
         }
 
-        private static IContainer _bq;
-        private static BigQueryClient _bqClient;
+        private static IContainer _bq = null!;
+        private static BigQueryClient _bqClient = null!;
         private static readonly SemaphoreSlim _bqLock = new(1, 1);
         private const string _bqDataset = "ds";
 
         // Exposed so BigQuery-provider-specific tests (e.g. unsupported operators) can target it directly.
-        public static Func<string, Task<IAnalyticalStore>> BigQueryFactory { get; private set; }
+        public static Func<string, Task<IAnalyticalStore>> BigQueryFactory { get; private set; } = null!;
 
         private static void _Setup_BigQuery()
         {

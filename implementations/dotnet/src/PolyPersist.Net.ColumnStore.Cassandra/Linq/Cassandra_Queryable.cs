@@ -29,7 +29,7 @@ namespace PolyPersist.Net.ColumnStore.Cassandra.Linq
         public IEnumerator<TResult> GetEnumerator()
         {
             var result = Provider.Execute(Expression);
-            var enumerable = (IEnumerable<TResult>)result;
+            var enumerable = (IEnumerable<TResult>)result!;
 
             return enumerable.GetEnumerator();
         }

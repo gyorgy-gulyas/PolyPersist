@@ -25,7 +25,7 @@
         /// <inheritdoc/>
         Task<IBlobContainer<TBlob>> IBlobStore.GetContainerByName<TBlob>(string containerName)
         {
-            _ContainerData containerData = _Containers.Find(c => c.Name == containerName);
+            _ContainerData? containerData = _Containers.Find(c => c.Name == containerName);
             if (containerData == null)
                 throw new Exception($"Container '{containerName}' does not exist in Memory Blob Strore");
 
@@ -36,7 +36,7 @@
         /// <inheritdoc/>
         Task<IBlobContainer<TBlob>> IBlobStore.CreateContainer<TBlob>(string containerName)
         {
-            _ContainerData containerData = _Containers.Find(c => c.Name == containerName);
+            _ContainerData? containerData = _Containers.Find(c => c.Name == containerName);
             if (containerData != null)
                 throw new Exception($"Container '{containerName}' is already exist");
 
@@ -50,7 +50,7 @@
         /// <inheritdoc/>
         Task IBlobStore.DropContainer(string containerName)
         {
-            _ContainerData containerData = _Containers.Find(c => c.Name == containerName);
+            _ContainerData? containerData = _Containers.Find(c => c.Name == containerName);
             if (containerData == null)
                 throw new Exception($"Container '{containerName}' does not exist in Memory Blob Strore");
 
@@ -72,10 +72,10 @@
 
     public class _BlobData
     {
-        internal string id;
-        internal string partitionKey;
-        internal string etag;
-        internal string MetadataJSON;
-        internal byte[] Content;
+        internal string id = null!;
+        internal string partitionKey = null!;
+        internal string etag = null!;
+        internal string MetadataJSON = null!;
+        internal byte[] Content = null!;
     }
 }

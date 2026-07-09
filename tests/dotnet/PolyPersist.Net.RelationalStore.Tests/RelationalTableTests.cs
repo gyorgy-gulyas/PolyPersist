@@ -45,7 +45,7 @@ namespace PolyPersist.Net.RelationalStore.Tests
         public async Task Insert_WithoutPartitionKey_Throws(Func<string, Task<IRelationalStore>> factory)
         {
             var table = await NewTable(factory);
-            var rec = Sample(pk: null);
+            var rec = Sample(pk: null!);
             await Assert.ThrowsExceptionAsync<Exception>(() => table.Insert(rec));
         }
 
