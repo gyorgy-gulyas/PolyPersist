@@ -208,19 +208,25 @@ namespace PolyPersist.Net.BlobStore.Tests
                         {
                             if (_amazonS3Container == null) // re check!
                             {
-                                // create amazon s3 container
-                                _amazonS3Container = new ContainerBuilder()
-                                    .WithImage("localstack/localstack:latest")
+                                // create amazon s3 container.
+                                // Pinned to 3.8.1: localstack ':latest' (and 's3-latest') now refuse to
+                                // start without a LOCALSTACK_AUTH_TOKEN (pro-only as of 2026-03), so the
+                                // free image must be a pre-gate community version.
+                                var container = new ContainerBuilder()
+                                    .WithImage("localstack/localstack:3.8.1")
                                     .WithCleanUp(true)
                                     .WithPortBinding(4566, true)
                                     .WithEnvironment("SERVICES", "s3")
                                     .WithEnvironment("AWS_ACCESS_KEY_ID", "amazons3")
                                     .WithEnvironment("AWS_SECRET_ACCESS_KEY", "amazons3")
-                                    .WithWaitStrategy(Wait.ForUnixContainer().UntilPortIsAvailable(4566))
+                                    .WithWaitStrategy(Wait.ForUnixContainer().UntilMessageIsLogged("Ready\\."))
                                     .Build();
 
-                                // Start container
-                                await _amazonS3Container.StartAsync();
+                                // Start first, publish to the shared field only after a successful start:
+                                // a failed start must not leave a non-null, unstarted container that would
+                                // make every subsequent S3 test throw at GetMappedPublicPort.
+                                await container.StartAsync();
+                                _amazonS3Container = container;
                             }
                         }
                         finally
