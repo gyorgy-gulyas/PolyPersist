@@ -40,6 +40,8 @@ namespace PolyPersist.Net.Common
                     DateOnly dateonly => dateonly.ToString(CultureInfo.InvariantCulture),
                     TimeOnly timeonly => timeonly.ToString(CultureInfo.InvariantCulture),
                     decimal _decimal => _decimal.ToString(CultureInfo.InvariantCulture),
+                    double _double => _double.ToString(CultureInfo.InvariantCulture),
+                    float _float => _float.ToString(CultureInfo.InvariantCulture),
                     _ => value.ToString() ?? string.Empty,
                 };
             }
