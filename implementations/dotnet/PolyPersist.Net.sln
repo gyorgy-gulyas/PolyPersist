@@ -88,8 +88,6 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PolyPersist.Net.AnalyticalS
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PolyPersist.Net.Tests", "..\..\tests\dotnet\PolyPersist.Net.Tests\PolyPersist.Net.Tests.csproj", "{9DED8B44-CC29-425C-9EBF-58DC432373E5}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{827E0CD3-B72D-47B6-A68D-7590B98EB39B}"
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PolyPersist.Net.SearchStore.Memory", "src\PolyPersist.Net.SearchStore.Memory\PolyPersist.Net.SearchStore.Memory.csproj", "{22E0284E-6B99-4F3C-9ECC-38FE4F44686A}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PolyPersist.Net.SearchStore.Tests", "..\..\tests\dotnet\PolyPersist.Net.SearchStore.Tests\PolyPersist.Net.SearchStore.Tests.csproj", "{E70AC47A-CAF9-4B25-A280-B36DC040A0B6}"
@@ -97,6 +95,14 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PolyPersist.Net.SearchStore.Postgres", "src\PolyPersist.Net.SearchStore.Postgres\PolyPersist.Net.SearchStore.Postgres.csproj", "{CB3B9832-320A-4026-B562-6EAEC847052A}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PolyPersist.Net.SearchStore.OpenSearch", "src\PolyPersist.Net.SearchStore.OpenSearch\PolyPersist.Net.SearchStore.OpenSearch.csproj", "{A12C02BE-9F7C-4C4F-944D-7613162AB145}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{827E0CD3-B72D-47B6-A68D-7590B98EB39B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PolyPersist.Net.CacheStore.Memory", "src\PolyPersist.Net.CacheStore.Memory\PolyPersist.Net.CacheStore.Memory.csproj", "{1C6429D3-EAFD-4C02-8CF3-9D82DC4C2DF6}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PolyPersist.Net.CacheStore.RespProtocol", "src\PolyPersist.Net.CacheStore.RespProtocol\PolyPersist.Net.CacheStore.RespProtocol.csproj", "{29CD0F1F-BDC6-4582-B70A-DAA802A233D6}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PolyPersist.Net.CacheStore.Tests", "..\..\tests\dotnet\PolyPersist.Net.CacheStore.Tests\PolyPersist.Net.CacheStore.Tests.csproj", "{81E113EC-9ACE-4944-B6CB-0458AA5B6564}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -516,6 +522,42 @@ Global
 		{A12C02BE-9F7C-4C4F-944D-7613162AB145}.Release|x64.Build.0 = Release|Any CPU
 		{A12C02BE-9F7C-4C4F-944D-7613162AB145}.Release|x86.ActiveCfg = Release|Any CPU
 		{A12C02BE-9F7C-4C4F-944D-7613162AB145}.Release|x86.Build.0 = Release|Any CPU
+		{1C6429D3-EAFD-4C02-8CF3-9D82DC4C2DF6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1C6429D3-EAFD-4C02-8CF3-9D82DC4C2DF6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1C6429D3-EAFD-4C02-8CF3-9D82DC4C2DF6}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{1C6429D3-EAFD-4C02-8CF3-9D82DC4C2DF6}.Debug|x64.Build.0 = Debug|Any CPU
+		{1C6429D3-EAFD-4C02-8CF3-9D82DC4C2DF6}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{1C6429D3-EAFD-4C02-8CF3-9D82DC4C2DF6}.Debug|x86.Build.0 = Debug|Any CPU
+		{1C6429D3-EAFD-4C02-8CF3-9D82DC4C2DF6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1C6429D3-EAFD-4C02-8CF3-9D82DC4C2DF6}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1C6429D3-EAFD-4C02-8CF3-9D82DC4C2DF6}.Release|x64.ActiveCfg = Release|Any CPU
+		{1C6429D3-EAFD-4C02-8CF3-9D82DC4C2DF6}.Release|x64.Build.0 = Release|Any CPU
+		{1C6429D3-EAFD-4C02-8CF3-9D82DC4C2DF6}.Release|x86.ActiveCfg = Release|Any CPU
+		{1C6429D3-EAFD-4C02-8CF3-9D82DC4C2DF6}.Release|x86.Build.0 = Release|Any CPU
+		{29CD0F1F-BDC6-4582-B70A-DAA802A233D6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{29CD0F1F-BDC6-4582-B70A-DAA802A233D6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{29CD0F1F-BDC6-4582-B70A-DAA802A233D6}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{29CD0F1F-BDC6-4582-B70A-DAA802A233D6}.Debug|x64.Build.0 = Debug|Any CPU
+		{29CD0F1F-BDC6-4582-B70A-DAA802A233D6}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{29CD0F1F-BDC6-4582-B70A-DAA802A233D6}.Debug|x86.Build.0 = Debug|Any CPU
+		{29CD0F1F-BDC6-4582-B70A-DAA802A233D6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{29CD0F1F-BDC6-4582-B70A-DAA802A233D6}.Release|Any CPU.Build.0 = Release|Any CPU
+		{29CD0F1F-BDC6-4582-B70A-DAA802A233D6}.Release|x64.ActiveCfg = Release|Any CPU
+		{29CD0F1F-BDC6-4582-B70A-DAA802A233D6}.Release|x64.Build.0 = Release|Any CPU
+		{29CD0F1F-BDC6-4582-B70A-DAA802A233D6}.Release|x86.ActiveCfg = Release|Any CPU
+		{29CD0F1F-BDC6-4582-B70A-DAA802A233D6}.Release|x86.Build.0 = Release|Any CPU
+		{81E113EC-9ACE-4944-B6CB-0458AA5B6564}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{81E113EC-9ACE-4944-B6CB-0458AA5B6564}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{81E113EC-9ACE-4944-B6CB-0458AA5B6564}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{81E113EC-9ACE-4944-B6CB-0458AA5B6564}.Debug|x64.Build.0 = Debug|Any CPU
+		{81E113EC-9ACE-4944-B6CB-0458AA5B6564}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{81E113EC-9ACE-4944-B6CB-0458AA5B6564}.Debug|x86.Build.0 = Debug|Any CPU
+		{81E113EC-9ACE-4944-B6CB-0458AA5B6564}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{81E113EC-9ACE-4944-B6CB-0458AA5B6564}.Release|Any CPU.Build.0 = Release|Any CPU
+		{81E113EC-9ACE-4944-B6CB-0458AA5B6564}.Release|x64.ActiveCfg = Release|Any CPU
+		{81E113EC-9ACE-4944-B6CB-0458AA5B6564}.Release|x64.Build.0 = Release|Any CPU
+		{81E113EC-9ACE-4944-B6CB-0458AA5B6564}.Release|x86.ActiveCfg = Release|Any CPU
+		{81E113EC-9ACE-4944-B6CB-0458AA5B6564}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -525,6 +567,9 @@ Global
 		{E70AC47A-CAF9-4B25-A280-B36DC040A0B6} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{CB3B9832-320A-4026-B562-6EAEC847052A} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{A12C02BE-9F7C-4C4F-944D-7613162AB145} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
+		{1C6429D3-EAFD-4C02-8CF3-9D82DC4C2DF6} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
+		{29CD0F1F-BDC6-4582-B70A-DAA802A233D6} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
+		{81E113EC-9ACE-4944-B6CB-0458AA5B6564} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {F7D5AE71-3A12-4F64-9BD7-1263ABD6D3BF}
