@@ -30,13 +30,11 @@ namespace PolyPersist.Net.BlobStore.AzureStorage
 
             CollectionCommon.CheckBeforeInsert(blob);
 
-            if (string.IsNullOrEmpty(blob.id) == true)
-                blob.id = Guid.NewGuid().ToString();
-            else if (await _FindInternal(blob.id).ConfigureAwait(false) == true)
+            // Only a caller-supplied id can already be taken; a generated one cannot.
+            if (string.IsNullOrEmpty(blob.id) == false && await _FindInternal(blob.id).ConfigureAwait(false) == true)
                 throw new DuplicateKeyException($"Blob '{typeof(TBlob).Name}' {blob.id} cannot be uploaded, beacuse of duplicate key");
 
-            blob.etag = Guid.NewGuid().ToString();
-            blob.LastUpdate = DateTime.UtcNow;
+            CollectionCommon.StampForInsert(blob);
 
             // create blob client
             BlobClient blobClient = _containerClient.GetBlobClient(blob.id);
@@ -131,8 +129,7 @@ namespace PolyPersist.Net.BlobStore.AzureStorage
                 throw new NotFoundException($"Blob '{typeof(TBlob).Name}' {blob.id} can not be updated because it does not exist.");
             CollectionCommon.CheckEtagMatch(stored, blob);
 
-            blob.etag = Guid.NewGuid().ToString();
-            blob.LastUpdate = DateTime.UtcNow;
+            CollectionCommon.StampForUpdate(blob);
 
             string meta_json = BlobMetadata.Serialize(blob);
             var metadata = new Dictionary<string, string>
@@ -164,8 +161,7 @@ namespace PolyPersist.Net.BlobStore.AzureStorage
                 throw new NotFoundException($"Blob '{typeof(TBlob).Name}' {blob.id} can not be updated because it does not exist.");
             CollectionCommon.CheckEtagMatch(stored, blob);
 
-            blob.etag = Guid.NewGuid().ToString();
-            blob.LastUpdate = DateTime.UtcNow;
+            CollectionCommon.StampForUpdate(blob);
 
             // set metadata
             string meta_json = BlobMetadata.Serialize(blob);

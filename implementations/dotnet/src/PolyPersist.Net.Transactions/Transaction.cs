@@ -1,28 +1,59 @@
 using System.Collections.Concurrent;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
+using PolyPersist.Net.Common;
 
 namespace PolyPersist.Net.Transactions
 {
     /// <summary>
-    /// Represents a transactional context for document, row, and blob operations.
-    /// Tracks changes, supports rollback and commit semantics, and provides deep clones of entities for recovery.
+    /// A unit of work over document, row, record and blob operations.
+    /// <para>
+    /// Nothing is written until <see cref="Commit"/>: every operation is queued, in order, and
+    /// replayed there. That makes a rollback before the commit free and exact - no compensation runs,
+    /// because nothing ever reached a store and no reader ever saw a half-finished change.
+    /// </para>
+    /// <para>
+    /// Inside <see cref="Commit"/> a store that can offer a native database transaction
+    /// (<see cref="ITransactionParticipant"/>, today the relational store) gets one, shared by all of
+    /// its tables, and it commits LAST - after every compensation-only store has succeeded. So a
+    /// failure anywhere costs that store a free ROLLBACK instead of a compensation, and only the
+    /// stores that cannot do better are compensated. With more than one native participant the
+    /// guarantee degrades to "all but one commit atomically"; there is no two-phase commit.
+    /// </para>
+    /// <para>
+    /// A store used WITHOUT a transaction writes immediately, as it always did.
+    /// </para>
     /// </summary>
     public class Transaction : ITransaction, IAsyncDisposable, IDisposable
     {
-        // Holds deep clone JSON and optional blob content
-        private readonly record struct _EntityData(string Json, ReadOnlyMemory<byte> Content);
+        // Blob content larger than this is spilled to a temp file instead of being held in memory
+        // until the commit. A transaction may buffer several uploads at once, so the cap is per blob
+        // and deliberately small.
+        private const int _MaxInMemoryContentBytes = 1024 * 1024;
+
+        // A queued operation, plus the store it belongs to: the store decides whether the operation
+        // can run inside a native transaction scope at commit time.
+        private readonly record struct _PendingOperation(IStore Store, Func<ITransactionScope?, Task> Execute);
+
+        // Queued operations, in call order. Commit() replays them in exactly this order.
+        // Concurrent enqueue is supported (eg. Task.WhenAll over several entities).
+        private readonly ConcurrentQueue<_PendingOperation> _pendingOperations = new();
+
+        // Holds deep clone JSON and, for blobs, the original content
+        private readonly record struct _EntityData(string Json, _ContentBuffer? Content);
         // Holds deep-cloned state of tracked entities (JSON + blob content)
         // Reason: multiple threads might AddOriginal concurrently in rare cases. eg: Task.WhenAll( ... ) for multiple objects
         private readonly ConcurrentDictionary<string, _EntityData> _deepCloneOfEntities = [];
-        // List of rollback actions to revert state if the transaction is aborted.
-        // A queue (not a bag) so insertion order is preserved: rollback runs them in reverse
+        // Content captured for a queued Upload / UpdateContent, released when the transaction ends.
+        private readonly ConcurrentQueue<_ContentBuffer> _queuedContents = new();
+        // Compensations for operations that were already applied during a commit to a store that has
+        // no native transaction. Empty until Commit() starts, and empty again unless a commit failed
+        // halfway. A queue (not a bag) so insertion order is preserved: rollback runs them in reverse
         // (LIFO) so later operations are compensated before the ones they may depend on.
-        // ConcurrentQueue is still thread-safe for concurrent Enqueue (eg. Task.WhenAll).
         private readonly ConcurrentQueue<Func<ValueTask>> _rollBackActions = new();
-        // List of commit actions to finalize state when the transaction succeeds
-        // Reason: commit actions might be added from different threads. eg: Task.WhenAll( ... ) for multiple objects
-        private readonly ConcurrentBag<Func<ValueTask>> _commitActions = [];
+        // Actions to run once the data is durably committed - the place to dispatch events from.
+        // A queue, not a bag: the order in which they were registered is the order they run in.
+        private readonly ConcurrentQueue<Func<ValueTask>> _commitActions = new();
         // Tracks executed operations for auditing or diagnostics
         // Reason: multiple threads might Update/Insert concurrently in rare cases. eg: Task.WhenAll( ... ) for multiple objects
         private readonly ConcurrentBag<(ITransaction.Operations, IEntity)> _executedOperations = [];
@@ -31,8 +62,8 @@ namespace PolyPersist.Net.Transactions
         private int _disposed;
         // Tracks whether a Commit() has started (guards against double/concurrent commit).
         private int _commitStarted;
-        // Tracks whether Commit() succeeded. Volatile for lock-free checks. Set only AFTER
-        // the commit actions ran, so a failed commit does not block Rollback().
+        // Tracks whether the DATA was committed. Volatile for lock-free checks. Set only after the
+        // stores have committed, so a failed commit does not block Rollback().
         private int _committed;
 
         /// <summary>
@@ -52,7 +83,7 @@ namespace PolyPersist.Net.Transactions
 
             string key = _getEntityKey(document);
 
-            if (_deepCloneOfEntities.TryAdd(key, new _EntityData(JsonSerializer.Serialize(document), ReadOnlyMemory<byte>.Empty)) == false)
+            if (_deepCloneOfEntities.TryAdd(key, new _EntityData(JsonSerializer.Serialize(document), null)) == false)
                 throw new InvalidOperationException($"Document: '{document.GetType().FullName}' already added. Id: '{document.id}'");
         }
 
@@ -72,8 +103,22 @@ namespace PolyPersist.Net.Transactions
                 throw new InvalidOperationException($"Row: '{row.GetType().FullName}' is a new entity, cannot be added as Original. Id: '{row.id}'");
 
             string key = _getEntityKey(row);
-            if (_deepCloneOfEntities.TryAdd(key, new _EntityData(JsonSerializer.Serialize(row), ReadOnlyMemory<byte>.Empty)) == false)
+            if (_deepCloneOfEntities.TryAdd(key, new _EntityData(JsonSerializer.Serialize(row), null)) == false)
                 throw new InvalidOperationException($"Row: '{row.GetType().FullName}' already added. Id: '{row.id}'");
+        }
+
+        /// <summary>
+        /// Adds an existing relational row to the transaction for change tracking.
+        /// </summary>
+        public void AddOriginal<TRecord>(ITable<TRecord> table, TRecord record)
+            where TRecord : IRecord, new()
+        {
+            if (string.IsNullOrWhiteSpace(record.etag))
+                throw new InvalidOperationException($"Record: '{record.GetType().FullName}' is a new entity, cannot be added as Original. Id: '{record.id}'");
+
+            string key = _getEntityKey(record);
+            if (_deepCloneOfEntities.TryAdd(key, new _EntityData(JsonSerializer.Serialize(record), null)) == false)
+                throw new InvalidOperationException($"Record: '{record.GetType().FullName}' already added. Id: '{record.id}'");
         }
 
         /// <summary>
@@ -88,366 +133,363 @@ namespace PolyPersist.Net.Transactions
         /// Thrown if the blob is a new entity (no etag) or already tracked.
         /// </exception>
         public async Task AddOriginal<TBlob>(IBlobContainer<TBlob> container, TBlob blob)
-            where TBlob: IBlob, new()
+            where TBlob : IBlob, new()
         {
             if (string.IsNullOrWhiteSpace(blob.etag))
                 throw new InvalidOperationException($"Blob: '{blob.GetType().FullName}' is a new entity, cannot be added as Original. Id: '{blob.id}'");
 
             string key = _getEntityKey(blob);
             using var stream = await container.Download(blob).ConfigureAwait(false);
-            var buffer = await _readAllBytesAsync(stream).ConfigureAwait(false);
+            var content = await _ContentBuffer.Capture(stream).ConfigureAwait(false);
 
-            if (_deepCloneOfEntities.TryAdd(key, new _EntityData(JsonSerializer.Serialize(blob), buffer)) == false)
+            if (_deepCloneOfEntities.TryAdd(key, new _EntityData(JsonSerializer.Serialize(blob), content)) == false)
+            {
+                await content.DisposeAsync().ConfigureAwait(false);
                 throw new InvalidOperationException($"Blob: '{blob.GetType().FullName}' already added. Id: '{blob.id}'");
+            }
         }
 
         /// <summary>
-        /// Inserts a new document and registers a rollback action to delete it if needed.
+        /// Queues the insert of a new document. The document receives its id right away; the write
+        /// itself, and the rollback action that would delete it, happen at Commit().
         /// </summary>
-        /// <typeparam name="TDocument">The type of the document entity.</typeparam>
-        /// <param name="collection">The document collection to insert into.</param>
-        /// <param name="document">The document instance to insert.</param>
-        /// <returns>A task that represents the asynchronous operation.</returns>
-        public async Task Insert<TDocument>(IDocumentCollection<TDocument> collection, TDocument document)
+        public Task Insert<TDocument>(IDocumentCollection<TDocument> collection, TDocument document)
             where TDocument : IDocument, new()
         {
-            await collection.Insert(document).ConfigureAwait(false);
-            _executedOperations.Add((ITransaction.Operations.Insert, document));
+            CollectionCommon.CheckBeforeInsert(document);
+            CollectionCommon.AssignIdIfMissing(document);
 
-            _rollBackActions.Enqueue(async () =>
+            _Enqueue(collection.ParentStore, async _ =>
             {
-                await collection.Delete(document.PartitionKey, document.id).ConfigureAwait(false);
+                await collection.Insert(document).ConfigureAwait(false);
+                _executedOperations.Add((ITransaction.Operations.Insert, document));
+
+                _rollBackActions.Enqueue(async () =>
+                {
+                    await collection.Delete(document.PartitionKey, document.id).ConfigureAwait(false);
+                });
             });
+
+            return Task.CompletedTask;
         }
 
         /// <summary>
-        /// Inserts a new row and registers a rollback action to delete it if needed.
+        /// Queues the insert of a new row. The row receives its id right away; the write itself, and
+        /// the rollback action that would delete it, happen at Commit().
         /// </summary>
-        /// <typeparam name="TRow">The type of the row entity.</typeparam>
-        /// <param name="table">The table to insert into.</param>
-        /// <param name="row">The row instance to insert.</param>
-        /// <returns>A task that represents the asynchronous operation.</returns>
-        public async Task Insert<TRow>(IColumnTable<TRow> table, TRow row)
+        public Task Insert<TRow>(IColumnTable<TRow> table, TRow row)
             where TRow : IRow, new()
         {
-            await table.Insert(row).ConfigureAwait(false);
-            _executedOperations.Add((ITransaction.Operations.Insert, row));
+            CollectionCommon.CheckBeforeInsert(row);
+            CollectionCommon.AssignIdIfMissing(row);
 
-            _rollBackActions.Enqueue(async () =>
+            _Enqueue(table.ParentStore, async _ =>
             {
-                await table.Delete(row.PartitionKey, row.id).ConfigureAwait(false);
+                await table.Insert(row).ConfigureAwait(false);
+                _executedOperations.Add((ITransaction.Operations.Insert, row));
+
+                _rollBackActions.Enqueue(async () =>
+                {
+                    await table.Delete(row.PartitionKey, row.id).ConfigureAwait(false);
+                });
             });
+
+            return Task.CompletedTask;
         }
 
         /// <summary>
-        /// Updates an existing document and registers a rollback action to restore its original state if needed.
+        /// Queues the insert of a new relational row. No compensation is registered: the row is
+        /// written inside the store's native transaction, which a failure simply rolls back.
         /// </summary>
-        /// <typeparam name="TDocument">The type of the document entity.</typeparam>
-        /// <param name="collection">The document collection containing the entity.</param>
-        /// <param name="document">The updated document instance.</param>
-        /// <returns>A task that represents the asynchronous operation.</returns>
-        /// <exception cref="InvalidOperationException">
-        /// Thrown if the document was not added as Original before update.
-        /// </exception>
-        public async Task Update<TDocument>(IDocumentCollection<TDocument> collection, TDocument document)
-            where TDocument : IDocument, new()
+        public Task Insert<TRecord>(ITable<TRecord> table, TRecord record)
+            where TRecord : IRecord, new()
         {
-            string key = _getEntityKey(document);
-            if (!_deepCloneOfEntities.ContainsKey(key))
-                throw new InvalidOperationException($"Document: '{document.GetType().FullName}' not added as Original. Id: '{document.id}'");
+            CollectionCommon.CheckBeforeInsert(record);
+            CollectionCommon.AssignIdIfMissing(record);
 
-            await collection.Update(document).ConfigureAwait(false);
-            _executedOperations.Add((ITransaction.Operations.Update, document));
-
-            _rollBackActions.Enqueue(async () =>
+            _Enqueue(table.ParentStore, async scope =>
             {
-                TDocument original = JsonSerializer.Deserialize<TDocument>(_deepCloneOfEntities[key].Json)!;
-                original.etag = document.etag;   // adopt the current etag so the optimistic-concurrency check passes
-                await collection.Update(original).ConfigureAwait(false);
+                await _Bind(scope, table).Insert(record).ConfigureAwait(false);
+                _executedOperations.Add((ITransaction.Operations.Insert, record));
             });
+
+            return Task.CompletedTask;
         }
 
         /// <summary>
-        /// Updates an existing row and registers a rollback action to restore its original state if needed.
+        /// Queues the upload of a new blob. The content is captured now - the caller may close the
+        /// stream as soon as this returns - and replayed at Commit().
         /// </summary>
-        /// <typeparam name="TRow">The type of the row entity.</typeparam>
-        /// <param name="table">The table containing the entity.</param>
-        /// <param name="row">The updated row instance.</param>
-        /// <returns>A task that represents the asynchronous operation.</returns>
-        /// <exception cref="InvalidOperationException">
-        /// Thrown if the row was not added as Original before update.
-        /// </exception>
-        public async Task Update<TRow>(IColumnTable<TRow> table, TRow row)
-            where TRow : IRow, new()
-        {
-            string key = _getEntityKey(row);
-            if (!_deepCloneOfEntities.ContainsKey(key))
-                throw new InvalidOperationException($"Row: '{row.GetType().FullName}' not added as Original. Id: '{row.id}'");
-
-            await table.Update(row).ConfigureAwait(false);
-            _executedOperations.Add((ITransaction.Operations.Update, row));
-
-            _rollBackActions.Enqueue(async () =>
-            {
-                TRow original = JsonSerializer.Deserialize<TRow>(_deepCloneOfEntities[key].Json)!;
-                original.etag = row.etag;   // adopt the current etag so the optimistic-concurrency check passes
-                await table.Update(original).ConfigureAwait(false);
-            });
-        }
-
-        /// <summary>
-        /// Uploads a new blob and registers a rollback action to delete it if needed.
-        /// </summary>
-        /// <typeparam name="TBlob">The type of the blob entity.</typeparam>
-        /// <param name="container">The blob container to upload into.</param>
-        /// <param name="blob">The blob metadata.</param>
-        /// <param name="content">The content stream of the blob.</param>
-        /// <returns>A task that represents the asynchronous operation.</returns>
         public async Task Upload<TBlob>(IBlobContainer<TBlob> container, TBlob blob, Stream content)
             where TBlob : IBlob, new()
         {
             // Upload is the blob counterpart of Insert: it creates a NEW blob, so there is no
-            // original to track (AddOriginal would even be impossible — a new blob has no etag and
+            // original to track (AddOriginal would even be impossible - a new blob has no etag and
             // cannot be downloaded). Rollback simply deletes what was uploaded.
-            await container.Upload(blob, content).ConfigureAwait(false);
-            _executedOperations.Add((ITransaction.Operations.Insert, blob));
+            CollectionCommon.CheckBeforeInsert(blob);
+            CollectionCommon.AssignIdIfMissing(blob);
 
-            _rollBackActions.Enqueue(async () =>
+            var captured = await _CaptureContent(content).ConfigureAwait(false);
+
+            _Enqueue(container.ParentStore, async _ =>
             {
-                await container.Delete(blob.PartitionKey, blob.id).ConfigureAwait(false);
+                using var stream = captured.OpenRead();
+                await container.Upload(blob, stream).ConfigureAwait(false);
+                _executedOperations.Add((ITransaction.Operations.Insert, blob));
+
+                _rollBackActions.Enqueue(async () =>
+                {
+                    await container.Delete(blob.PartitionKey, blob.id).ConfigureAwait(false);
+                });
             });
         }
 
         /// <summary>
-        /// Updates the content of an existing blob and registers a rollback action to restore its original content if needed.
+        /// Queues an update of an existing document; the rollback action restores the tracked original.
         /// </summary>
-        /// <typeparam name="TBlob">The type of the blob entity.</typeparam>
-        /// <param name="container">The blob container containing the entity.</param>
-        /// <param name="blob">The blob metadata.</param>
-        /// <param name="content">The new content stream for the blob.</param>
-        /// <returns>A task that represents the asynchronous operation.</returns>
+        /// <exception cref="InvalidOperationException">
+        /// Thrown if the document was not added as Original before update.
+        /// </exception>
+        public Task Update<TDocument>(IDocumentCollection<TDocument> collection, TDocument document)
+            where TDocument : IDocument, new()
+        {
+            string key = _RequireOriginal(document, "Document");
+            CollectionCommon.CheckBeforeUpdate(document);
+
+            _Enqueue(collection.ParentStore, async _ =>
+            {
+                await collection.Update(document).ConfigureAwait(false);
+                _executedOperations.Add((ITransaction.Operations.Update, document));
+
+                _rollBackActions.Enqueue(async () =>
+                {
+                    TDocument original = JsonSerializer.Deserialize<TDocument>(_deepCloneOfEntities[key].Json)!;
+                    original.etag = document.etag;   // adopt the current etag so the optimistic-concurrency check passes
+                    await collection.Update(original).ConfigureAwait(false);
+                });
+            });
+
+            return Task.CompletedTask;
+        }
+
+        /// <summary>
+        /// Queues an update of an existing row; the rollback action restores the tracked original.
+        /// </summary>
+        /// <exception cref="InvalidOperationException">
+        /// Thrown if the row was not added as Original before update.
+        /// </exception>
+        public Task Update<TRow>(IColumnTable<TRow> table, TRow row)
+            where TRow : IRow, new()
+        {
+            string key = _RequireOriginal(row, "Row");
+            CollectionCommon.CheckBeforeUpdate(row);
+
+            _Enqueue(table.ParentStore, async _ =>
+            {
+                await table.Update(row).ConfigureAwait(false);
+                _executedOperations.Add((ITransaction.Operations.Update, row));
+
+                _rollBackActions.Enqueue(async () =>
+                {
+                    TRow original = JsonSerializer.Deserialize<TRow>(_deepCloneOfEntities[key].Json)!;
+                    original.etag = row.etag;   // adopt the current etag so the optimistic-concurrency check passes
+                    await table.Update(original).ConfigureAwait(false);
+                });
+            });
+
+            return Task.CompletedTask;
+        }
+
+        /// <summary>
+        /// Queues an update of an existing relational row. No compensation: the native transaction
+        /// rolls the row back to exactly its previous state, etag included.
+        /// </summary>
+        /// <exception cref="InvalidOperationException">
+        /// Thrown if the record was not added as Original before update.
+        /// </exception>
+        public Task Update<TRecord>(ITable<TRecord> table, TRecord record)
+            where TRecord : IRecord, new()
+        {
+            _RequireOriginal(record, "Record");
+            CollectionCommon.CheckBeforeUpdate(record);
+
+            _Enqueue(table.ParentStore, async scope =>
+            {
+                await _Bind(scope, table).Update(record).ConfigureAwait(false);
+                _executedOperations.Add((ITransaction.Operations.Update, record));
+            });
+
+            return Task.CompletedTask;
+        }
+
+        /// <summary>
+        /// Queues a content update of an existing blob. The new content is captured now; the rollback
+        /// action restores the original content snapshot taken by AddOriginal.
+        /// </summary>
         /// <exception cref="InvalidOperationException">
         /// Thrown if the blob was not added as Original before content update.
         /// </exception>
         public async Task UpdateContent<TBlob>(IBlobContainer<TBlob> container, TBlob blob, Stream content)
             where TBlob : IBlob, new()
         {
-            string key = _getEntityKey(blob);
-            if (!_deepCloneOfEntities.ContainsKey(key))
-                throw new InvalidOperationException($"Blob: '{blob.GetType().FullName}' not added as Original. Id: '{blob.id}'");
+            string key = _RequireOriginal(blob, "Blob");
 
-            await container.UpdateContent(blob, content).ConfigureAwait(false);
-            _executedOperations.Add((ITransaction.Operations.Update, blob));
+            var captured = await _CaptureContent(content).ConfigureAwait(false);
 
-            _rollBackActions.Enqueue(async () =>
+            _Enqueue(container.ParentStore, async _ =>
             {
-                var originalContent = _deepCloneOfEntities[key].Content;
-                using var ms = new MemoryStream(originalContent.ToArray(), writable: false);
-                await container.UpdateContent(blob, ms).ConfigureAwait(false);
+                using var stream = captured.OpenRead();
+                await container.UpdateContent(blob, stream).ConfigureAwait(false);
+                _executedOperations.Add((ITransaction.Operations.Update, blob));
+
+                _rollBackActions.Enqueue(async () =>
+                {
+                    using var original = _deepCloneOfEntities[key].Content!.OpenRead();
+                    await container.UpdateContent(blob, original).ConfigureAwait(false);
+                });
             });
         }
 
         /// <summary>
-        /// Updates the metadata of an existing blob and registers a rollback action to restore its original metadata if needed.
+        /// Queues a metadata update of an existing blob; the rollback action restores the original.
         /// </summary>
-        /// <typeparam name="TBlob">The type of the blob entity.</typeparam>
-        /// <param name="container">The blob container containing the entity.</param>
-        /// <param name="blob">The updated blob metadata.</param>
-        /// <returns>A task that represents the asynchronous operation.</returns>
         /// <exception cref="InvalidOperationException">
         /// Thrown if the blob was not added as Original before metadata update.
         /// </exception>
-        public async Task UpdateMetadata<TBlob>(IBlobContainer<TBlob> container, TBlob blob)
+        public Task UpdateMetadata<TBlob>(IBlobContainer<TBlob> container, TBlob blob)
             where TBlob : IBlob, new()
         {
-            string key = _getEntityKey(blob);
-            if (!_deepCloneOfEntities.ContainsKey(key))
-                throw new InvalidOperationException($"Blob: '{blob.GetType().FullName}' not added as Original. Id: '{blob.id}'");
+            string key = _RequireOriginal(blob, "Blob");
 
-            await container.UpdateMetadata(blob).ConfigureAwait(false);
-            _executedOperations.Add((ITransaction.Operations.Update, blob));
-
-            _rollBackActions.Enqueue(async () =>
+            _Enqueue(container.ParentStore, async _ =>
             {
-                TBlob original = JsonSerializer.Deserialize<TBlob>(_deepCloneOfEntities[key].Json)!;
-                original.etag = blob.etag;   // adopt the current etag so the optimistic-concurrency check passes
-                await container.UpdateMetadata(original).ConfigureAwait(false);
+                await container.UpdateMetadata(blob).ConfigureAwait(false);
+                _executedOperations.Add((ITransaction.Operations.Update, blob));
+
+                _rollBackActions.Enqueue(async () =>
+                {
+                    TBlob original = JsonSerializer.Deserialize<TBlob>(_deepCloneOfEntities[key].Json)!;
+                    original.etag = blob.etag;   // adopt the current etag so the optimistic-concurrency check passes
+                    await container.UpdateMetadata(original).ConfigureAwait(false);
+                });
             });
+
+            return Task.CompletedTask;
         }
 
         /// <summary>
-        /// Deletes an existing document and registers a rollback action to re-insert its original state if needed.
+        /// Queues the delete of an existing document; the rollback action re-inserts the original.
         /// </summary>
-        /// <typeparam name="TDocument">The type of the document entity.</typeparam>
-        /// <param name="collection">The document collection containing the entity.</param>
-        /// <param name="document">The document instance to delete.</param>
-        /// <returns>A task that represents the asynchronous operation.</returns>
         /// <exception cref="InvalidOperationException">
         /// Thrown if the document was not added as Original before deletion.
         /// </exception>
-        public async Task Delete<TDocument>(IDocumentCollection<TDocument> collection, TDocument document)
+        public Task Delete<TDocument>(IDocumentCollection<TDocument> collection, TDocument document)
             where TDocument : IDocument, new()
         {
-            string key = _getEntityKey(document);
-            if (!_deepCloneOfEntities.ContainsKey(key))
-                throw new InvalidOperationException($"Document: '{document.GetType().FullName}' not added as Original. Id: '{document.id}'");
+            string key = _RequireOriginal(document, "Document");
 
-            await collection.Delete(document.PartitionKey, document.id).ConfigureAwait(false);
-            _executedOperations.Add((ITransaction.Operations.Delete, document));
-
-            _rollBackActions.Enqueue(async () =>
+            _Enqueue(collection.ParentStore, async _ =>
             {
-                TDocument original = JsonSerializer.Deserialize<TDocument>(_deepCloneOfEntities[key].Json)!;
-                original.etag = null;   // Insert requires an empty etag; it assigns a fresh one
-                await collection.Insert(original).ConfigureAwait(false);
+                await collection.Delete(document.PartitionKey, document.id).ConfigureAwait(false);
+                _executedOperations.Add((ITransaction.Operations.Delete, document));
+
+                _rollBackActions.Enqueue(async () =>
+                {
+                    TDocument original = JsonSerializer.Deserialize<TDocument>(_deepCloneOfEntities[key].Json)!;
+                    original.etag = null;   // Insert requires an empty etag; it assigns a fresh one
+                    await collection.Insert(original).ConfigureAwait(false);
+                });
             });
+
+            return Task.CompletedTask;
         }
 
         /// <summary>
-        /// Deletes an existing row and registers a rollback action to re-insert its original state if needed.
+        /// Queues the delete of an existing row; the rollback action re-inserts the original.
         /// </summary>
-        /// <typeparam name="TRow">The type of the row entity.</typeparam>
-        /// <param name="table">The table containing the entity.</param>
-        /// <param name="row">The row instance to delete.</param>
-        /// <returns>A task that represents the asynchronous operation.</returns>
         /// <exception cref="InvalidOperationException">
         /// Thrown if the row was not added as Original before deletion.
         /// </exception>
-        public async Task Delete<TRow>(IColumnTable<TRow> table, TRow row)
+        public Task Delete<TRow>(IColumnTable<TRow> table, TRow row)
             where TRow : IRow, new()
         {
-            string key = _getEntityKey(row);
-            if (!_deepCloneOfEntities.ContainsKey(key))
-                throw new InvalidOperationException($"Row: '{row.GetType().FullName}' not added as Original. Id: '{row.id}'");
+            string key = _RequireOriginal(row, "Row");
 
-            await table.Delete(row.PartitionKey, row.id).ConfigureAwait(false);
-            _executedOperations.Add((ITransaction.Operations.Delete, row));
-
-            _rollBackActions.Enqueue(async () =>
+            _Enqueue(table.ParentStore, async _ =>
             {
-                TRow original = JsonSerializer.Deserialize<TRow>(_deepCloneOfEntities[key].Json)!;
-                original.etag = null;   // Insert requires an empty etag; it assigns a fresh one
-                await table.Insert(original).ConfigureAwait(false);
+                await table.Delete(row.PartitionKey, row.id).ConfigureAwait(false);
+                _executedOperations.Add((ITransaction.Operations.Delete, row));
+
+                _rollBackActions.Enqueue(async () =>
+                {
+                    TRow original = JsonSerializer.Deserialize<TRow>(_deepCloneOfEntities[key].Json)!;
+                    original.etag = null;   // Insert requires an empty etag; it assigns a fresh one
+                    await table.Insert(original).ConfigureAwait(false);
+                });
             });
+
+            return Task.CompletedTask;
         }
 
         /// <summary>
-        /// Deletes an existing blob and registers a rollback action to re-upload its original state if needed.
+        /// Queues the delete of an existing relational row. No compensation: the native transaction
+        /// restores the row exactly, so its etag survives a rollback.
         /// </summary>
-        /// <typeparam name="TBlob">The type of the blob entity.</typeparam>
-        /// <param name="container">The blob container containing the entity.</param>
-        /// <param name="blob">The blob metadata to delete.</param>
-        /// <returns>A task that represents the asynchronous operation.</returns>
+        /// <exception cref="InvalidOperationException">
+        /// Thrown if the record was not added as Original before deletion.
+        /// </exception>
+        public Task Delete<TRecord>(ITable<TRecord> table, TRecord record)
+            where TRecord : IRecord, new()
+        {
+            _RequireOriginal(record, "Record");
+
+            _Enqueue(table.ParentStore, async scope =>
+            {
+                await _Bind(scope, table).Delete(record.PartitionKey, record.id).ConfigureAwait(false);
+                _executedOperations.Add((ITransaction.Operations.Delete, record));
+            });
+
+            return Task.CompletedTask;
+        }
+
+        /// <summary>
+        /// Queues the delete of an existing blob; the rollback action re-uploads the original.
+        /// </summary>
         /// <exception cref="InvalidOperationException">
         /// Thrown if the blob was not added as Original before deletion.
         /// </exception>
-        public async Task Delete<TBlob>(IBlobContainer<TBlob> container, TBlob blob)
+        public Task Delete<TBlob>(IBlobContainer<TBlob> container, TBlob blob)
             where TBlob : IBlob, new()
         {
-            string key = _getEntityKey(blob);
-            if (!_deepCloneOfEntities.ContainsKey(key))
-                throw new InvalidOperationException($"Blob: '{blob.GetType().FullName}' not added as Original. Id: '{blob.id}'");
+            string key = _RequireOriginal(blob, "Blob");
 
-            await container.Delete(blob.PartitionKey, blob.id).ConfigureAwait(false);
-            _executedOperations.Add((ITransaction.Operations.Delete, blob));
-
-            _rollBackActions.Enqueue(async () =>
+            _Enqueue(container.ParentStore, async _ =>
             {
-                TBlob original = JsonSerializer.Deserialize<TBlob>(_deepCloneOfEntities[key].Json)!;
-                original.etag = null;   // Upload requires an empty etag; it assigns a fresh one
-                var originalContent = _deepCloneOfEntities[key].Content;
-                using var ms = new MemoryStream(originalContent.Span.ToArray(), writable: false);
-                await container.Upload(original, ms).ConfigureAwait(false);
+                await container.Delete(blob.PartitionKey, blob.id).ConfigureAwait(false);
+                _executedOperations.Add((ITransaction.Operations.Delete, blob));
+
+                _rollBackActions.Enqueue(async () =>
+                {
+                    TBlob original = JsonSerializer.Deserialize<TBlob>(_deepCloneOfEntities[key].Json)!;
+                    original.etag = null;   // Upload requires an empty etag; it assigns a fresh one
+                    using var content = _deepCloneOfEntities[key].Content!.OpenRead();
+                    await container.Upload(original, content).ConfigureAwait(false);
+                });
             });
-        }
 
-        // ------------------------------------------------------------------
-        // Relational table (ITable<TRecord>) overloads.
-        // The relational store also offers native ACID transactions; these overloads let a
-        // relational table participate in the same cross-store compensation unit of work as the
-        // document / column / blob stores (mirrors the IColumnTable behaviour).
-        // ------------------------------------------------------------------
-
-        /// <summary>
-        /// Adds an existing relational row to the transaction for change tracking.
-        /// </summary>
-        public void AddOriginal<TRecord>(ITable<TRecord> table, TRecord record)
-            where TRecord : IRecord, new()
-        {
-            if (string.IsNullOrWhiteSpace(record.etag))
-                throw new InvalidOperationException($"Record: '{record.GetType().FullName}' is a new entity, cannot be added as Original. Id: '{record.id}'");
-
-            string key = _getEntityKey(record);
-            if (_deepCloneOfEntities.TryAdd(key, new _EntityData(JsonSerializer.Serialize(record), ReadOnlyMemory<byte>.Empty)) == false)
-                throw new InvalidOperationException($"Record: '{record.GetType().FullName}' already added. Id: '{record.id}'");
+            return Task.CompletedTask;
         }
 
         /// <summary>
-        /// Inserts a new relational row and registers a rollback action to delete it if needed.
+        /// Adds an action to run once the data has been durably committed - the place to dispatch
+        /// events from. A failing commit action surfaces as an exception but never undoes the data,
+        /// which is already committed by then.
         /// </summary>
-        public async Task Insert<TRecord>(ITable<TRecord> table, TRecord record)
-            where TRecord : IRecord, new()
-        {
-            await table.Insert(record).ConfigureAwait(false);
-            _executedOperations.Add((ITransaction.Operations.Insert, record));
-
-            _rollBackActions.Enqueue(async () =>
-            {
-                await table.Delete(record.PartitionKey, record.id).ConfigureAwait(false);
-            });
-        }
+        /// <param name="action">The asynchronous action to perform after the commit.</param>
+        public void AddCommitAction(Func<ValueTask> action) => _commitActions.Enqueue(action);
 
         /// <summary>
-        /// Updates an existing relational row and registers a rollback action to restore its original state if needed.
-        /// </summary>
-        public async Task Update<TRecord>(ITable<TRecord> table, TRecord record)
-            where TRecord : IRecord, new()
-        {
-            string key = _getEntityKey(record);
-            if (!_deepCloneOfEntities.ContainsKey(key))
-                throw new InvalidOperationException($"Record: '{record.GetType().FullName}' not added as Original. Id: '{record.id}'");
-
-            await table.Update(record).ConfigureAwait(false);
-            _executedOperations.Add((ITransaction.Operations.Update, record));
-
-            _rollBackActions.Enqueue(async () =>
-            {
-                TRecord original = JsonSerializer.Deserialize<TRecord>(_deepCloneOfEntities[key].Json)!;
-                original.etag = record.etag;   // adopt the current etag so the optimistic-concurrency check passes
-                await table.Update(original).ConfigureAwait(false);
-            });
-        }
-
-        /// <summary>
-        /// Deletes an existing relational row and registers a rollback action to re-insert its original state if needed.
-        /// </summary>
-        public async Task Delete<TRecord>(ITable<TRecord> table, TRecord record)
-            where TRecord : IRecord, new()
-        {
-            string key = _getEntityKey(record);
-            if (!_deepCloneOfEntities.ContainsKey(key))
-                throw new InvalidOperationException($"Record: '{record.GetType().FullName}' not added as Original. Id: '{record.id}'");
-
-            await table.Delete(record.PartitionKey, record.id).ConfigureAwait(false);
-            _executedOperations.Add((ITransaction.Operations.Delete, record));
-
-            _rollBackActions.Enqueue(async () =>
-            {
-                TRecord original = JsonSerializer.Deserialize<TRecord>(_deepCloneOfEntities[key].Json)!;
-                original.etag = null;   // Insert requires an empty etag; it assigns a fresh one
-                await table.Insert(original).ConfigureAwait(false);
-            });
-        }
-
-        /// <summary>
-        /// Adds a custom commit action to the transaction.
-        /// </summary>
-        /// <param name="action">The asynchronous action to perform during commit.</param>
-        public void AddCommitAction(Func<ValueTask> action) => _commitActions.Add(action);
-
-
-        /// <summary>
-        /// Commits the transaction by executing all registered commit actions in parallel.
+        /// Writes everything the transaction has collected, then runs the commit actions.
         /// </summary>
         /// <returns>A task that represents the asynchronous commit operation.</returns>
         public async Task Commit()
@@ -456,13 +498,57 @@ namespace PolyPersist.Net.Transactions
             if (Interlocked.Exchange(ref _commitStarted, 1) == 1)
                 return;
 
-            // Run the commit actions FIRST and only mark the transaction committed if they
-            // all succeed. If a commit action throws, _committed stays 0, so Rollback() and
-            // Dispose() can still compensate the already-executed operations.
-            await _ExecuteSafely(_commitActions).ConfigureAwait(false);
+            // One native transaction per participating store, opened on first use and committed last.
+            var scopes = new Dictionary<IStore, ITransactionScope>();
+            try
+            {
+                while (_pendingOperations.TryDequeue(out var operation))
+                {
+                    ITransactionScope? scope = await _ScopeFor(operation.Store, scopes).ConfigureAwait(false);
+                    await operation.Execute(scope).ConfigureAwait(false);
+                }
 
+                // Last-resource: by now every compensation-only store has succeeded, so the only thing
+                // that can still fail is a database COMMIT.
+                foreach (var scope in scopes.Values)
+                    await scope.Commit().ConfigureAwait(false);
+            }
+            catch (Exception commitError)
+            {
+                // A native participant rolls back for free and exactly; the rest must be compensated.
+                foreach (var scope in scopes.Values)
+                {
+                    try { await scope.Rollback().ConfigureAwait(false); }
+                    catch { /* best effort: the compensations below still have to run */ }
+                }
+
+                try
+                {
+                    await _ExecuteSafely(_rollBackActions.Reverse()).ConfigureAwait(false);
+                }
+                catch (Exception compensationError)
+                {
+                    // Surface both: the compensation failure alone would hide why the commit failed.
+                    throw new AggregateException(
+                        "The commit failed and one or more compensations failed as well.",
+                        commitError, compensationError);
+                }
+                finally
+                {
+                    await _DisposeScopes(scopes).ConfigureAwait(false);
+                    await _ClearAsync().ConfigureAwait(false);
+                }
+
+                throw;
+            }
+
+            await _DisposeScopes(scopes).ConfigureAwait(false);
+
+            // The data is durable from here on: nothing below may roll it back.
             Volatile.Write(ref _committed, 1);
-            _Clear();
+
+            try { await _ExecuteSafely(_commitActions).ConfigureAwait(false); }
+            finally { await _ClearAsync().ConfigureAwait(false); }
         }
 
         /// <summary>
@@ -472,7 +558,9 @@ namespace PolyPersist.Net.Transactions
         public void AddRollBackAction(Func<ValueTask> action) => _rollBackActions.Enqueue(action);
 
         /// <summary>
-        /// Rolls back the transaction by executing all registered rollback actions in parallel.
+        /// Abandons the transaction. Before a commit this only drops the queued operations - nothing
+        /// was written, so there is nothing to undo. After a commit failed halfway it compensates the
+        /// operations that had already been applied.
         /// </summary>
         /// <returns>A task that represents the asynchronous rollback operation.</returns>
         public async Task Rollback()
@@ -481,11 +569,64 @@ namespace PolyPersist.Net.Transactions
             if (Volatile.Read(ref _committed) == 1)
                 return;
 
-            await _ExecuteSafely(_rollBackActions.Reverse()).ConfigureAwait(false);
-            _Clear();
+            try { await _ExecuteSafely(_rollBackActions.Reverse()).ConfigureAwait(false); }
+            finally { await _ClearAsync().ConfigureAwait(false); }
         }
 
-        // _ExecuteSafely runs all actions concurrently and collects exceptions.
+        // Queues an operation together with the store that owns it.
+        private void _Enqueue(IStore store, Func<ITransactionScope?, Task> execute)
+            => _pendingOperations.Enqueue(new _PendingOperation(store, execute));
+
+        // Opens (once per store) the native transaction of a store that supports one.
+        private static async Task<ITransactionScope?> _ScopeFor(IStore store, Dictionary<IStore, ITransactionScope> scopes)
+        {
+            if (store is not ITransactionParticipant participant)
+                return null;
+
+            if (scopes.TryGetValue(store, out ITransactionScope? scope) == false)
+            {
+                scope = await participant.BeginScope().ConfigureAwait(false);
+                scopes.Add(store, scope);
+            }
+
+            return scope;
+        }
+
+        // Rebinds a relational table onto the scope's connection so its write joins the native
+        // transaction. Without a scope the table writes on its own connection, as it does outside a
+        // transaction.
+        private static ITable<TRecord> _Bind<TRecord>(ITransactionScope? scope, ITable<TRecord> table)
+            where TRecord : IRecord, new()
+            => scope is null ? table : scope.Bind(table);
+
+        private static async Task _DisposeScopes(Dictionary<IStore, ITransactionScope> scopes)
+        {
+            foreach (var scope in scopes.Values)
+                await scope.DisposeAsync().ConfigureAwait(false);
+
+            scopes.Clear();
+        }
+
+        // Every mutation demands that the caller first registered the entity's original state, so a
+        // compensating store has something to restore.
+        private string _RequireOriginal<TEntity>(TEntity entity, string kind)
+            where TEntity : IEntity
+        {
+            string key = _getEntityKey(entity);
+            if (_deepCloneOfEntities.ContainsKey(key) == false)
+                throw new InvalidOperationException($"{kind}: '{entity.GetType().FullName}' not added as Original. Id: '{entity.id}'");
+
+            return key;
+        }
+
+        private async Task<_ContentBuffer> _CaptureContent(Stream content)
+        {
+            var captured = await _ContentBuffer.Capture(content).ConfigureAwait(false);
+            _queuedContents.Enqueue(captured);
+            return captured;
+        }
+
+        // _ExecuteSafely runs all actions and collects exceptions.
         // Decision: aggregate all failures into AggregateException instead of failing fast.
         // Reason: Allows all rollback steps to be attempted even if some fail.
         private static async Task _ExecuteSafely(IEnumerable<Func<ValueTask>> actions, [CallerMemberName] string function = "")
@@ -510,28 +651,93 @@ namespace PolyPersist.Net.Transactions
                 throw new AggregateException($"One or more actions failed in {function}.", exceptions);
         }
 
-        // Reads all bytes from a stream into ReadOnlyMemory<byte>
-        private static async Task<ReadOnlyMemory<byte>> _readAllBytesAsync(Stream stream)
-        {
-            // Decision: _readAllBytesAsync uses MemoryStream.GetBuffer + AsMemory.
-            // Reason: efficient zero-copy of data; safe because we trim to actual length.
-            using var ms = new MemoryStream();
-            await stream.CopyToAsync(ms).ConfigureAwait(false);
-            var buffer = ms.GetBuffer();
-            return buffer.AsMemory(0, (int)ms.Length);
-        }
-
         // Generates a unique key for tracking an entity
         private static string _getEntityKey(IEntity entity)
             => $"{entity.GetType().Name}_{entity.id}";
 
-        // Clears all tracked state from the transaction
-        private void _Clear()
+        // Clears all tracked state, releasing any content spilled to disk.
+        private async Task _ClearAsync()
         {
+            _pendingOperations.Clear();
             _executedOperations.Clear();
-            _deepCloneOfEntities.Clear();
             _rollBackActions.Clear();
             _commitActions.Clear();
+
+            foreach (var data in _deepCloneOfEntities.Values)
+            {
+                if (data.Content is not null)
+                    await data.Content.DisposeAsync().ConfigureAwait(false);
+            }
+            _deepCloneOfEntities.Clear();
+
+            while (_queuedContents.TryDequeue(out var content))
+                await content.DisposeAsync().ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Blob content held until the commit. Small payloads stay in memory; anything larger spills
+        /// to a temp file, so buffering a big upload does not cost the process that much memory.
+        /// </summary>
+        private sealed class _ContentBuffer : IAsyncDisposable
+        {
+            private readonly byte[]? _bytes;
+            private readonly string? _path;
+
+            private _ContentBuffer(byte[]? bytes, string? path)
+            {
+                _bytes = bytes;
+                _path = path;
+            }
+
+            /// <summary>Reads the stream fully - the caller may close it as soon as this returns.</summary>
+            public static async Task<_ContentBuffer> Capture(Stream content)
+            {
+                var memory = new MemoryStream();
+                byte[] chunk = new byte[81920];
+
+                int read;
+                while ((read = await content.ReadAsync(chunk).ConfigureAwait(false)) > 0)
+                {
+                    memory.Write(chunk, 0, read);
+                    if (memory.Length <= _MaxInMemoryContentBytes)
+                        continue;
+
+                    // Too big to keep: move what we have to disk and stream the rest straight there.
+                    string path = Path.GetTempFileName();
+                    try
+                    {
+                        using (var file = new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.None, 81920, useAsync: true))
+                        {
+                            memory.Position = 0;
+                            await memory.CopyToAsync(file).ConfigureAwait(false);
+                            await content.CopyToAsync(file).ConfigureAwait(false);
+                        }
+                    }
+                    catch
+                    {
+                        File.Delete(path);
+                        throw;
+                    }
+
+                    return new _ContentBuffer(null, path);
+                }
+
+                return new _ContentBuffer(memory.ToArray(), null);
+            }
+
+            /// <summary>A fresh readable stream over the captured content; the caller disposes it.</summary>
+            public Stream OpenRead()
+                => _bytes is not null
+                    ? new MemoryStream(_bytes, writable: false)
+                    : new FileStream(_path!, FileMode.Open, FileAccess.Read, FileShare.Read, 81920, useAsync: true);
+
+            public ValueTask DisposeAsync()
+            {
+                if (_path is not null && File.Exists(_path))
+                    File.Delete(_path);
+
+                return ValueTask.CompletedTask;
+            }
         }
 
         #region IDisposable
@@ -541,41 +747,36 @@ namespace PolyPersist.Net.Transactions
         /// </summary>
         public async ValueTask DisposeAsync()
         {
-            // Decision: Dispose fallback to blocking rollback if not committed.
-            // Reason: ensures resources aren't leaked even if Dispose called synchronously.
-            // Known risk: potential deadlock if rollback involves async I/O on sync context.
-
-            // is already disposed ?
             // Decision: use Interlocked.Exchange to guard Commit() and Dispose() against double execution.
             // Reason: ensures idempotency even under race conditions.
             if (Interlocked.Exchange(ref _disposed, 1) == 1)
                 return;
 
-            if (Volatile.Read(ref _committed) == 0 && _executedOperations.Any())
-            {
+            // Only a commit that failed halfway leaves anything to compensate; a transaction dropped
+            // before its commit merely has queued operations, which _ClearAsync discards.
+            if (Volatile.Read(ref _committed) == 0 && _executedOperations.IsEmpty == false)
                 await (this as ITransaction).Rollback().ConfigureAwait(false);
-            }
+
+            await _ClearAsync().ConfigureAwait(false);
         }
+
         /// <summary>
         /// Disposes the transaction, clearing all state and suppressing finalization.
         /// </summary>
         public void Dispose()
         {
-            // is already disposed ?
-            // Decision: use Interlocked.Exchange to guard Commit() and Dispose() against double execution.
-            // Reason: ensures idempotency even under race conditions.
             if (Interlocked.Exchange(ref _disposed, 1) == 1)
                 return;
 
-            // Decision: Dispose fallback to blocking rollback if not committed.
-            // Reason: ensures resources aren't leaked even if Dispose called synchronously.
-            if (Volatile.Read(ref _committed) == 0 && _executedOperations.Any())
+            if (Volatile.Read(ref _committed) == 0 && _executedOperations.IsEmpty == false)
             {
                 // Blocking fallback (prefer `await using` / DisposeAsync). Offload to the
                 // thread pool so the async rollback does not capture a caller
                 // SynchronizationContext, which would deadlock this blocking wait.
                 Task.Run(async () => await (this as ITransaction).Rollback().ConfigureAwait(false)).GetAwaiter().GetResult();
             }
+
+            Task.Run(async () => await _ClearAsync().ConfigureAwait(false)).GetAwaiter().GetResult();
 
             GC.SuppressFinalize(this);
         }

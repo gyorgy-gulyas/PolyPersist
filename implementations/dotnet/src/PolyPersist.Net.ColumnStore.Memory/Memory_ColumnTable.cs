@@ -27,13 +27,9 @@ namespace PolyPersist.Net.ColumnStore.Memory
         Task IColumnTable<TRow>.Insert(TRow row)
         {
             CollectionCommon.CheckBeforeInsert(row);
+            CollectionCommon.StampForInsert(row);
 
-            row.etag = Guid.NewGuid().ToString();
-            row.LastUpdate = DateTime.UtcNow;
-
-            if (string.IsNullOrEmpty(row.id) == true)
-                row.id = Guid.NewGuid().ToString();
-            else if (_tableData.MapOfDocments.ContainsKey(row.id) == true)
+            if (_tableData.MapOfDocments.ContainsKey(row.id) == true)
                 throw new DuplicateKeyException($"Row '{typeof(TRow).Name}' {row.id} cannot be inserted, beacuse of duplicate key");
 
             _RowData data = new()
@@ -61,8 +57,7 @@ namespace PolyPersist.Net.ColumnStore.Memory
             if (data.etag != row.etag)
                 throw new ConcurrencyConflictException($"Row '{typeof(TRow).Name}' {row.id} can not be updated because it is already changed");
 
-            row.etag = Guid.NewGuid().ToString();
-            row.LastUpdate = DateTime.UtcNow;
+            CollectionCommon.StampForUpdate(row);
 
             data.etag = row.etag;
             data.Value = JsonSerializer.Serialize(row, typeof(TRow), JsonOptionsProvider.Options());

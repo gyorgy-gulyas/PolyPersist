@@ -26,13 +26,9 @@ namespace PolyPersist.Net.DocumentStore.Memory
         Task IDocumentCollection<TDocument>.Insert(TDocument document)
         {
             CollectionCommon.CheckBeforeInsert(document);
+            CollectionCommon.StampForInsert(document);
 
-            document.etag = Guid.NewGuid().ToString();
-            document.LastUpdate = DateTime.UtcNow;
-
-            if (string.IsNullOrEmpty(document.id) == true)
-                document.id = Guid.NewGuid().ToString();
-            else if (_collectionData.MapOfDocments.ContainsKey(document.id) == true)
+            if (_collectionData.MapOfDocments.ContainsKey(document.id) == true)
                 throw new DuplicateKeyException($"Document '{typeof(TDocument).Name}' {document.id} cannot be inserted, beacuse of duplicate key");
 
             _RowData row = new()
@@ -60,8 +56,7 @@ namespace PolyPersist.Net.DocumentStore.Memory
             if (row.etag != document.etag)
                 throw new ConcurrencyConflictException($"Document '{typeof(TDocument).Name}' {document.id} can not be updated because it is already changed");
 
-            document.etag = Guid.NewGuid().ToString();
-            document.LastUpdate = DateTime.UtcNow;
+            CollectionCommon.StampForUpdate(document);
 
             row.etag = document.etag;
             row.Value = JsonSerializer.Serialize(document, typeof(TDocument), JsonOptionsProvider.Options());

@@ -34,13 +34,11 @@ namespace PolyPersist.Net.BlobStore.GCPStorage
 
             CollectionCommon.CheckBeforeInsert(blob);
 
-            if (string.IsNullOrEmpty(blob.id) == true)
-                blob.id = Guid.NewGuid().ToString();
-            else if (await _IsExistsInternal(blob.id).ConfigureAwait(false) == true)
+            // Only a caller-supplied id can already be taken; a generated one cannot.
+            if (string.IsNullOrEmpty(blob.id) == false && await _IsExistsInternal(blob.id).ConfigureAwait(false) == true)
                 throw new DuplicateKeyException($"Blob '{typeof(TBlob).Name}' {blob.id} cannot be uploaded, beacuse of duplicate key");
 
-            blob.etag = Guid.NewGuid().ToString();
-            blob.LastUpdate = DateTime.UtcNow;
+            CollectionCommon.StampForInsert(blob);
 
             content.Seek(0, SeekOrigin.Begin);
 
@@ -181,8 +179,7 @@ namespace PolyPersist.Net.BlobStore.GCPStorage
                 throw new NotFoundException($"Blob '{blob.id}' does not exist in bucket '{_bucketName}'");
             CollectionCommon.CheckEtagMatch(stored, blob);
 
-            blob.etag = Guid.NewGuid().ToString();
-            blob.LastUpdate = DateTime.UtcNow;
+            CollectionCommon.StampForUpdate(blob);
             string meta_json = BlobMetadata.Serialize(blob);
 
             // 2. Upload new content (overwrites existing)
@@ -228,8 +225,7 @@ namespace PolyPersist.Net.BlobStore.GCPStorage
                 throw new NotFoundException($"Cannot update metadata because the object '{blob.id}' does not exist in bucket '{_bucketName}'");
             CollectionCommon.CheckEtagMatch(stored, blob);
 
-            blob.etag = Guid.NewGuid().ToString();
-            blob.LastUpdate = DateTime.UtcNow;
+            CollectionCommon.StampForUpdate(blob);
 
             // Patch metadata
             string meta_json = BlobMetadata.Serialize(blob);

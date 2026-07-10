@@ -30,13 +30,11 @@ namespace PolyPersist.Net.BlobStore.Memory
 
             CollectionCommon.CheckBeforeInsert(blob);
 
-            if (string.IsNullOrEmpty(blob.id) == true)
-                blob.id = Guid.NewGuid().ToString();
-            else if (_collectionData.MapOfBlobs.ContainsKey(blob.id) == true)
+            // Only a caller-supplied id can already be taken; a generated one cannot.
+            if (string.IsNullOrEmpty(blob.id) == false && _collectionData.MapOfBlobs.ContainsKey(blob.id) == true)
                 throw new DuplicateKeyException($"Blob '{typeof(TBlob).Name}' {blob.id} cannot be uploaded, beacuse of duplicate key");
 
-            blob.etag = Guid.NewGuid().ToString();
-            blob.LastUpdate = DateTime.UtcNow;
+            CollectionCommon.StampForInsert(blob);
 
             _BlobData blobData = new()
             {
@@ -102,8 +100,7 @@ namespace PolyPersist.Net.BlobStore.Memory
 
             CollectionCommon.CheckEtagMatch(blobData.etag, blob);
 
-            blob.etag = Guid.NewGuid().ToString();
-            blob.LastUpdate = DateTime.UtcNow;
+            CollectionCommon.StampForUpdate(blob);
             blobData.etag = blob.etag;
             blobData.MetadataJSON = BlobMetadata.Serialize(blob);
 
@@ -121,8 +118,7 @@ namespace PolyPersist.Net.BlobStore.Memory
 
             CollectionCommon.CheckEtagMatch(blobData.etag, blob);
 
-            blob.etag = Guid.NewGuid().ToString();
-            blob.LastUpdate = DateTime.UtcNow;
+            CollectionCommon.StampForUpdate(blob);
 
             blobData.etag = blob.etag;
             blobData.MetadataJSON = BlobMetadata.Serialize(blob);

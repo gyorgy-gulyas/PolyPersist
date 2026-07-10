@@ -30,6 +30,39 @@ namespace PolyPersist.Net.Common
         }
 
         /// <summary>
+        /// Assigns a client-generated id when the caller did not supply one.
+        /// A deferred transaction calls this when the operation is queued, so the caller holds a
+        /// usable id long before Commit() writes the entity; the store then finds it already set.
+        /// </summary>
+        public static void AssignIdIfMissing<TEntity>(TEntity entity)
+            where TEntity : IEntity
+        {
+            if (string.IsNullOrEmpty(entity.id) == true)
+                entity.id = Guid.NewGuid().ToString();
+        }
+
+        /// <summary>
+        /// Stamps an entity that is about to be written for the first time: id (if missing), a fresh
+        /// etag and LastUpdate. The etag is deliberately NOT assigned any earlier than the write,
+        /// because <see cref="CheckBeforeInsert"/> requires it to be empty until then.
+        /// </summary>
+        public static void StampForInsert<TEntity>(TEntity entity)
+            where TEntity : IEntity
+        {
+            AssignIdIfMissing(entity);
+            entity.etag = Guid.NewGuid().ToString();
+            entity.LastUpdate = DateTime.UtcNow;
+        }
+
+        /// <summary>Stamps a fresh etag and LastUpdate on an entity that is about to be overwritten.</summary>
+        public static void StampForUpdate<TEntity>(TEntity entity)
+            where TEntity : IEntity
+        {
+            entity.etag = Guid.NewGuid().ToString();
+            entity.LastUpdate = DateTime.UtcNow;
+        }
+
+        /// <summary>
         /// Optimistic-concurrency guard: the currently stored entity must still exist and carry
         /// the same etag the caller last read. One place for the "does not exist" / "already
         /// changed" semantics so every store behaves identically.

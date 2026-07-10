@@ -22,6 +22,8 @@
   <ItemGroup>
     <ProjectReference Include="..\..\..\implementations\dotnet\src\PolyPersist.Net.RelationalStore.Dapper\PolyPersist.Net.RelationalStore.Dapper.csproj" />
     <ProjectReference Include="..\..\..\implementations\dotnet\src\PolyPersist.Net.Transactions\PolyPersist.Net.Transactions.csproj" />
+    <!-- a compensation-only store, to prove a mixed unit of work rolls the relational side back natively -->
+    <ProjectReference Include="..\..\..\implementations\dotnet\src\PolyPersist.Net.DocumentStore.Memory\PolyPersist.Net.DocumentStore.Memory.csproj" />
     <ProjectReference Include="..\..\..\interfaces\dotnet\PolyPersist\PolyPersist.Net.csproj" />
     <ProjectReference Include="..\PolyPersist.Net.Test\PolyPersist.Net.Test.csproj" />
   </ItemGroup>

@@ -306,7 +306,8 @@ namespace PolyPersist.Net.Transactions.Tests
             var tx = new Transaction();
             await tx.AddOriginal(cnt, blob);
             await tx.UpdateContent(cnt, blob, S("v2"));
-            Assert.AreEqual("v2", await ReadContentAsync(cnt, blob));
+            // deferred: the new content is buffered, the store still holds the old one
+            Assert.AreEqual("v1", await ReadContentAsync(cnt, blob));
 
             await tx.Rollback();
             Assert.AreEqual("v1", await ReadContentAsync(cnt, blob));
@@ -371,7 +372,8 @@ namespace PolyPersist.Net.Transactions.Tests
             var tx = new Transaction();
             await tx.AddOriginal(cnt, blob);
             await tx.Delete(cnt, blob);
-            Assert.IsNull(await cnt.Find("pk", "a"));
+            // deferred: the delete is queued, the blob is still there
+            Assert.IsNotNull(await cnt.Find("pk", "a"));
 
             await tx.Rollback();
             var found = await cnt.Find("pk", "a");
@@ -392,6 +394,73 @@ namespace PolyPersist.Net.Transactions.Tests
             await tx.Commit();
 
             Assert.IsNull(await cnt.Find("pk", "a"));
+        }
+
+        // The upload is only written at Commit(), so the content must be captured when it is queued:
+        // the caller is free to close its stream as soon as Upload() returns.
+        [TestMethod]
+        public async Task Blob_Upload_CapturesContent_SoTheCallerMayCloseTheStream()
+        {
+            var cnt = await NewContainerAsync();
+            var tx = new Transaction();
+
+            var content = S("hello");
+            await tx.Upload(cnt, NewUploadBlob(), content);
+            await content.DisposeAsync();
+
+            await tx.Commit();
+
+            var found = await cnt.Find("pk", "a");
+            Assert.AreEqual("hello", await ReadContentAsync(cnt, found));
+        }
+
+        // Content above the in-memory cap spills to a temp file rather than being held in memory
+        // until the commit. 2 MiB is comfortably over the 1 MiB threshold.
+        [TestMethod]
+        public async Task Blob_Upload_LargeContent_SpillsToDisk_AndCommits()
+        {
+            var cnt = await NewContainerAsync();
+            byte[] payload = _LargePayload(2 * 1024 * 1024);
+
+            await using (var tx = new Transaction())
+            {
+                var content = new MemoryStream(payload);
+                await tx.Upload(cnt, NewUploadBlob(), content);
+                await content.DisposeAsync();
+                await tx.Commit();
+            }
+
+            var found = await cnt.Find("pk", "a");
+            using var stored = await cnt.Download(found);
+            using var buffer = new MemoryStream();
+            await stored.CopyToAsync(buffer);
+
+            CollectionAssert.AreEqual(payload, buffer.ToArray());
+        }
+
+        // A spilled upload that is never committed writes nothing, and disposing releases the temp file.
+        [TestMethod]
+        public async Task Blob_Upload_LargeContent_Rollback_WritesNothing()
+        {
+            var cnt = await NewContainerAsync();
+
+            await using (var tx = new Transaction())
+            {
+                using var content = new MemoryStream(_LargePayload(2 * 1024 * 1024));
+                await tx.Upload(cnt, NewUploadBlob(), content);
+                await tx.Rollback();
+            }
+
+            Assert.IsNull(await cnt.Find("pk", "a"));
+        }
+
+        private static byte[] _LargePayload(int size)
+        {
+            byte[] payload = new byte[size];
+            for (int i = 0; i < payload.Length; i++)
+                payload[i] = (byte)(i % 251);   // a prime, so the pattern does not align with the copy buffer
+
+            return payload;
         }
 
         [TestMethod]
