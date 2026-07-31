@@ -35,10 +35,7 @@ namespace PolyPersist.Net.BlobStore.GridFS
 
             CollectionCommon.CheckBeforeInsert(blob);
 
-            if (string.IsNullOrEmpty(blob.id) == true)
-                blob.id = Guid.NewGuid().ToString();
-            blob.etag = Guid.NewGuid().ToString();
-            blob.LastUpdate = DateTime.UtcNow;
+            CollectionCommon.StampForInsert(blob);
 
             try
             {
@@ -107,8 +104,7 @@ namespace PolyPersist.Net.BlobStore.GridFS
                 throw new NotFoundException($"Blob '{typeof(TBlob).Name}' {blob.id} can not upload, because it is does not exist");
 
             string oldETag = blob.etag;
-            blob.etag = Guid.NewGuid().ToString();
-            blob.LastUpdate = DateTime.UtcNow;
+            CollectionCommon.StampForUpdate(blob);
 
             // Update the metadata FIRST: FindOneAndReplace is the atomic etag guard, so a stale
             // update is rejected before the chunks are touched (otherwise the content would be
@@ -132,8 +128,7 @@ namespace PolyPersist.Net.BlobStore.GridFS
                 throw new NotFoundException($"Entity '{typeof(TBlob).Name}' {blob.id} can not be updated because it does not exist.");
 
             string oldETag = blob.etag;
-            blob.etag = Guid.NewGuid().ToString();
-            blob.LastUpdate = DateTime.UtcNow;
+            CollectionCommon.StampForUpdate(blob);
 
             var replaced = await _metadataCollection.FindOneAndReplaceAsync(e => e.id == blob.id && e.PartitionKey == blob.PartitionKey && e.etag == oldETag, blob).ConfigureAwait(false);
             if (replaced == null)

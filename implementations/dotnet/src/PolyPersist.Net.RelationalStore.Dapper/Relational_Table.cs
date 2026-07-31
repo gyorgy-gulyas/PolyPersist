@@ -13,6 +13,12 @@ namespace PolyPersist.Net.RelationalStore.Dapper
     /// query. Optimistic concurrency is enforced via the entity's <c>etag</c>. Joins are not here
     /// (not portable) - use <see cref="Relational_Store"/>.Query(). The <c>class</c> constraint is
     /// required by linq2db; the store bridges to it via reflection.
+    /// <para>
+    /// A table is either free-standing - every operation opens and closes its own pooled connection,
+    /// which is what happens outside a transaction - or bound to a transaction scope's connection,
+    /// in which case all its writes join that scope's native transaction and it never disposes the
+    /// connection it borrowed.
+    /// </para>
     /// </summary>
     internal class Relational_Table<TRecord> : ITable<TRecord>, IRelationalTableInternal
         where TRecord : class, IRecord, new()
@@ -25,13 +31,26 @@ namespace PolyPersist.Net.RelationalStore.Dapper
 
         private readonly string _name;
         private readonly Relational_Store _store;
+        // Non-null only inside a transaction scope; then it carries the open native transaction.
+        private readonly DataConnection? _bound;
 
         // Public so the store can build it via Activator.CreateInstance across the class-constraint gap.
-        public Relational_Table(string name, Relational_Store store)
+        public Relational_Table(string name, Relational_Store store, DataConnection? bound)
         {
             _name = name;
             _store = store;
+            _bound = bound;
         }
+
+        // A borrowed connection must outlive the operation; an own one must not.
+        private readonly struct Lease(DataConnection db, bool owned) : IDisposable
+        {
+            public DataConnection Db { get; } = db;
+            public void Dispose() { if (owned) Db.Dispose(); }
+        }
+
+        private Lease _Lease()
+            => _bound is null ? new Lease(_store.CreateConnection(), owned: true) : new Lease(_bound, owned: false);
 
         Task IRelationalTableInternal.CreateSchemaAsync() => _CreateSchemaAsync();
 
@@ -62,14 +81,10 @@ namespace PolyPersist.Net.RelationalStore.Dapper
         async Task ITable<TRecord>.Insert(TRecord record)
         {
             CollectionCommon.CheckBeforeInsert(record);
+            CollectionCommon.StampForInsert(record);
 
-            if (string.IsNullOrEmpty(record.id) == true)
-                record.id = Guid.NewGuid().ToString();
-
-            record.etag = Guid.NewGuid().ToString();
-            record.LastUpdate = DateTime.UtcNow;
-
-            using var db = _store.CreateConnection();
+            using var lease = _Lease();
+            var db = lease.Db;
             await db.InsertAsync(record, tableName: _name).ConfigureAwait(false);
         }
 
@@ -78,16 +93,18 @@ namespace PolyPersist.Net.RelationalStore.Dapper
         {
             CollectionCommon.CheckBeforeUpdate(record);
 
-            using var db = _store.CreateConnection();
+            using var lease = _Lease();
+            var db = lease.Db;
 
-            // Read-check first for clear error messages (does-not-exist vs already-changed).
+            // Read-check first for clear error messages (does-not-exist vs already-changed). Inside a
+            // scope this reads through the open transaction, so it sees rows the same unit of work
+            // has already written.
             TRecord? stored = await db.GetTable<TRecord>().TableName(_name)
                 .FirstOrDefaultAsync(r => r.id == record.id && r.PartitionKey == record.PartitionKey)
                 .ConfigureAwait(false);
             CollectionCommon.CheckEtagMatch(stored, record);
 
-            record.etag = Guid.NewGuid().ToString();
-            record.LastUpdate = DateTime.UtcNow;
+            CollectionCommon.StampForUpdate(record);
 
             // The actual write is a Dapper UPDATE. Identifiers are double-quoted (valid on both
             // SQLite and PostgreSQL) so the property-cased column names match what linq2db created;
@@ -100,7 +117,11 @@ namespace PolyPersist.Net.RelationalStore.Dapper
             foreach (var p in _props)
                 parameters.Add(p.Name, p.GetValue(record));
 
-            int affected = await ((DbConnection)db.Connection).ExecuteAsync(sql, parameters).ConfigureAwait(false);
+            // The transaction must be handed to Dapper explicitly: a raw command on a connection with
+            // an open transaction is not auto-enlisted by every provider. Outside a scope it is null.
+            int affected = await ((DbConnection)db.Connection)
+                .ExecuteAsync(sql, parameters, transaction: db.Transaction)
+                .ConfigureAwait(false);
             if (affected == 0)
                 throw new ConcurrencyConflictException($"Record '{typeof(TRecord).Name}' {record.id} can not be updated because it is already changed");
         }
@@ -110,7 +131,8 @@ namespace PolyPersist.Net.RelationalStore.Dapper
         /// <inheritdoc/>
         async Task ITable<TRecord>.Delete(string partitionKey, string id)
         {
-            using var db = _store.CreateConnection();
+            using var lease = _Lease();
+            var db = lease.Db;
 
             int affected = await db.GetTable<TRecord>().TableName(_name)
                 .Where(r => r.id == id && r.PartitionKey == partitionKey)
@@ -124,7 +146,8 @@ namespace PolyPersist.Net.RelationalStore.Dapper
         /// <inheritdoc/>
         async Task<TRecord> ITable<TRecord>.Find(string partitionKey, string id)
         {
-            using var db = _store.CreateConnection();
+            using var lease = _Lease();
+            var db = lease.Db;
 
             // (partitionKey, id) identifies the row: a matching id in another partition is not it.
             return (await db.GetTable<TRecord>().TableName(_name)

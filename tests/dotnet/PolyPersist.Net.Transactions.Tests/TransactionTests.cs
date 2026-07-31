@@ -100,26 +100,45 @@ namespace PolyPersist.Net.Transactions.Tests
             Assert.IsNotNull(await col.Find("pk", "a"));
         }
 
-        // PP-10: rollback must run the compensations sequentially in REVERSE order (LIFO),
-        // so a later operation is undone before the earlier one it may depend on.
+        // Writes are deferred to Commit(), so abandoning a transaction never reaches the store:
+        // there is nothing to compensate, and the spy sees neither an insert nor a delete.
         [TestMethod]
-        public async Task Rollback_RunsCompensationsInReverseOrder()
+        public async Task Rollback_BeforeCommit_TouchesNoStore()
         {
             var spy = new RecordingCollection<TxDoc>();
             var tx = new Transaction();
             await tx.Insert(spy, new TxDoc { PartitionKey = "pk", id = "A" });
             await tx.Insert(spy, new TxDoc { PartitionKey = "pk", id = "B" });
-            await tx.Insert(spy, new TxDoc { PartitionKey = "pk", id = "C" });
 
             await tx.Rollback();
 
+            CollectionAssert.AreEqual(Array.Empty<string>(), spy.InsertOrder);
+            CollectionAssert.AreEqual(Array.Empty<string>(), spy.DeleteOrder);
+        }
+
+        // PP-10: when a commit fails halfway, the operations that DID reach a compensation-only store
+        // must be undone sequentially in REVERSE order (LIFO), so a later operation is compensated
+        // before the earlier one it may depend on.
+        [TestMethod]
+        public async Task Commit_WhenAnOperationFails_RunsCompensationsInReverseOrder()
+        {
+            var spy = new RecordingCollection<TxDoc> { FailInsertOfId = "D" };
+            var tx = new Transaction();
+            await tx.Insert(spy, new TxDoc { PartitionKey = "pk", id = "A" });
+            await tx.Insert(spy, new TxDoc { PartitionKey = "pk", id = "B" });
+            await tx.Insert(spy, new TxDoc { PartitionKey = "pk", id = "C" });
+            await tx.Insert(spy, new TxDoc { PartitionKey = "pk", id = "D" });
+
+            await Assert.ThrowsExceptionAsync<InvalidOperationException>(() => tx.Commit());
+
+            CollectionAssert.AreEqual(new[] { "A", "B", "C" }, spy.InsertOrder);
             CollectionAssert.AreEqual(new[] { "C", "B", "A" }, spy.DeleteOrder);
         }
 
-        // PP-11: a failing commit action must NOT mark the transaction committed, so the
-        // already-executed operations can still be rolled back (compensation not blocked).
+        // A commit action runs only after the data is durably committed, so its failure surfaces as
+        // an exception but must NOT undo the data - and the follow-up Rollback() is a no-op.
         [TestMethod]
-        public async Task Commit_WhenCommitActionFails_StillAllowsRollback()
+        public async Task Commit_WhenCommitActionFails_DataStaysCommitted()
         {
             var col = await NewCollectionAsync();
             var tx = new Transaction();
@@ -128,17 +147,45 @@ namespace PolyPersist.Net.Transactions.Tests
 
             await Assert.ThrowsExceptionAsync<AggregateException>(() => tx.Commit());
 
-            await tx.Rollback(); // must still compensate the insert
-            Assert.IsNull(await col.Find("pk", "a"));
+            Assert.IsNotNull(await col.Find("pk", "a"));
+
+            await tx.Rollback(); // already committed -> must not undo the insert
+            Assert.IsNotNull(await col.Find("pk", "a"));
         }
 
-        // records the order of Delete calls (the Insert compensation); other members are no-ops
+        // Commit actions are the event-dispatch hook, so they must run in registration order.
+        [TestMethod]
+        public async Task Commit_RunsCommitActionsInRegistrationOrder()
+        {
+            var order = new List<string>();
+            var tx = new Transaction();
+            tx.AddCommitAction(() => { order.Add("first"); return ValueTask.CompletedTask; });
+            tx.AddCommitAction(() => { order.Add("second"); return ValueTask.CompletedTask; });
+            tx.AddCommitAction(() => { order.Add("third"); return ValueTask.CompletedTask; });
+
+            await tx.Commit();
+
+            CollectionAssert.AreEqual(new[] { "first", "second", "third" }, order);
+        }
+
+        // records the order of Insert and Delete calls (Delete is the Insert compensation)
         private sealed class RecordingCollection<TDoc> : IDocumentCollection<TDoc> where TDoc : IDocument, new()
         {
+            public readonly List<string> InsertOrder = new();
             public readonly List<string> DeleteOrder = new();
+            /// <summary>When set, inserting this id throws - to make a commit fail halfway.</summary>
+            public string? FailInsertOfId { get; init; }
+
             public IStore ParentStore => null!;
             public string Name => "spy";
-            public Task Insert(TDoc document) => Task.CompletedTask;
+            public Task Insert(TDoc document)
+            {
+                if (document.id == FailInsertOfId)
+                    throw new InvalidOperationException($"insert of '{document.id}' boom");
+
+                InsertOrder.Add(document.id);
+                return Task.CompletedTask;
+            }
             public Task Update(TDoc document) => Task.CompletedTask;
             public Task Delete(string partitionKey, string id) { DeleteOrder.Add(id); return Task.CompletedTask; }
             public Task<TDoc> Find(string partitionKey, string id) => Task.FromResult(default(TDoc))!;

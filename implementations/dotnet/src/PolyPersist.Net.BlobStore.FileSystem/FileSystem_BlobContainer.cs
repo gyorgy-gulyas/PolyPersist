@@ -27,10 +27,7 @@ namespace PolyPersist.Net.BlobStore.FileSystem
 
             CollectionCommon.CheckBeforeInsert(blob);
 
-            if (string.IsNullOrEmpty(blob.id) == true)
-                blob.id = Guid.NewGuid().ToString();
-            blob.etag = Guid.NewGuid().ToString();
-            blob.LastUpdate = DateTime.UtcNow;
+            CollectionCommon.StampForInsert(blob);
 
             var path = _makeFilePath(blob.id);
             if (File.Exists(path))
@@ -113,8 +110,7 @@ namespace PolyPersist.Net.BlobStore.FileSystem
                 content.CopyTo(fs);
             File.Move(tempPath, path, overwrite: true);
 
-            blob.etag = Guid.NewGuid().ToString();
-            blob.LastUpdate = DateTime.UtcNow;
+            CollectionCommon.StampForUpdate(blob);
             File.WriteAllText(metaPath, BlobMetadata.Serialize(blob));
 
             return Task.CompletedTask;
@@ -136,8 +132,7 @@ namespace PolyPersist.Net.BlobStore.FileSystem
                 throw new NotFoundException($"Blob '{typeof(TBlob).Name}' {blob.id} can not upload, because it is does not exist");
             CollectionCommon.CheckEtagMatch(stored, blob);
 
-            blob.etag = Guid.NewGuid().ToString();
-            blob.LastUpdate = DateTime.UtcNow;
+            CollectionCommon.StampForUpdate(blob);
             File.WriteAllText(metaPath, BlobMetadata.Serialize(blob));
 
             return Task.CompletedTask;

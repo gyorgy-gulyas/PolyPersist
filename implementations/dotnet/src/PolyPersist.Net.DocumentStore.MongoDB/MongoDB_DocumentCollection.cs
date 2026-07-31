@@ -24,8 +24,7 @@ namespace PolyPersist.Net.DocumentStore.MongoDB
         async Task IDocumentCollection<TDocument>.Insert(TDocument document)
         {
             CollectionCommon.CheckBeforeInsert(document);
-            document.etag = Guid.NewGuid().ToString();
-            document.LastUpdate = DateTime.UtcNow;
+            CollectionCommon.StampForInsert(document);
 
             try
             {
@@ -48,8 +47,7 @@ namespace PolyPersist.Net.DocumentStore.MongoDB
 
             string oldETag = document.etag;
             DateTime oldLastUpdate = document.LastUpdate;
-            document.etag = Guid.NewGuid().ToString();
-            document.LastUpdate = DateTime.UtcNow;
+            CollectionCommon.StampForUpdate(document);
 
             var result = await _mongoCollection.ReplaceOneAsync(e => e.id == document.id && e.PartitionKey == document.PartitionKey && e.etag == oldETag, document).ConfigureAwait(false);
             if (result.IsAcknowledged == false || result.ModifiedCount != 1)

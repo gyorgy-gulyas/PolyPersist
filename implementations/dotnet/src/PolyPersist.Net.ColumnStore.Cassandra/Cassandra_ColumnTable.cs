@@ -35,11 +35,7 @@ namespace PolyPersist.Net.ColumnStore.Cassandra
         async Task IColumnTable<TRow>.Insert(TRow row)
         {
             CollectionCommon.CheckBeforeInsert(row);
-
-            if (string.IsNullOrEmpty(row.id) == true)
-                row.id = Guid.NewGuid().ToString();
-            row.etag = Guid.NewGuid().ToString();
-            row.LastUpdate = DateTime.UtcNow;
+            CollectionCommon.StampForInsert(row);
 
             var ps = await _getPreparedInsertStatement().ConfigureAwait(false);
             var accessors = MetadataHelper.GetAccessors<TRow>(lowerCaseNames: true);
@@ -94,8 +90,7 @@ namespace PolyPersist.Net.ColumnStore.Cassandra
 
             var original_etag = row.etag;
 
-            row.etag = Guid.NewGuid().ToString();
-            row.LastUpdate = DateTime.UtcNow;
+            CollectionCommon.StampForUpdate(row);
 
             var ps = await _getPreparedUpdateStatement().ConfigureAwait(false);
             var accessors = MetadataHelper.GetAccessors<TRow>(lowerCaseNames: true);

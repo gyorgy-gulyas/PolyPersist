@@ -32,13 +32,11 @@ namespace PolyPersist.Net.BlobStore.AmazonS3
 
             CollectionCommon.CheckBeforeInsert(blob);
 
-            if (string.IsNullOrEmpty(blob.id) == true)
-                blob.id = Guid.NewGuid().ToString();
-            else if (await _IsExistsInternal(blob.id).ConfigureAwait(false) == true)
+            // Only a caller-supplied id can already be taken; a generated one cannot.
+            if (string.IsNullOrEmpty(blob.id) == false && await _IsExistsInternal(blob.id).ConfigureAwait(false) == true)
                 throw new DuplicateKeyException($"Blob '{typeof(TBlob).Name}' {blob.id} cannot be uploaded, beacuse of duplicate key");
 
-            blob.etag = Guid.NewGuid().ToString();
-            blob.LastUpdate = DateTime.UtcNow;
+            CollectionCommon.StampForInsert(blob);
 
             var request = new PutObjectRequest
             {
@@ -158,8 +156,7 @@ namespace PolyPersist.Net.BlobStore.AmazonS3
                 ContentType = blob.contentType
             };
 
-            blob.etag = Guid.NewGuid().ToString();
-            blob.LastUpdate = DateTime.UtcNow;
+            CollectionCommon.StampForUpdate(blob);
             string meta_json = BlobMetadata.Serialize(blob);
             request.Metadata[BlobMetadata.Key] = meta_json;
 
@@ -187,8 +184,7 @@ namespace PolyPersist.Net.BlobStore.AmazonS3
                 throw new NotFoundException($"Blob '{typeof(TBlob).Name}' {blob.id} can not upload, because it is does not exist");
             CollectionCommon.CheckEtagMatch(stored, blob);
 
-            blob.etag = Guid.NewGuid().ToString();
-            blob.LastUpdate = DateTime.UtcNow;
+            CollectionCommon.StampForUpdate(blob);
             string meta_json = BlobMetadata.Serialize(blob);
 
             // Server-side self-copy with REPLACE: updates the object's metadata without downloading
