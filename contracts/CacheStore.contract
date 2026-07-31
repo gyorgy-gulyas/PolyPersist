@@ -7,6 +7,23 @@ import Store
 
 namespace PolyPersist {
 
+    # ICacheEntry is the outcome of a TryGet lookup: whether the key was there, and what it held.
+    #
+    # Get returns the type default when a key is absent, which is unambiguous only for reference
+    # types. For a VALUE type it is not: a cached 0, false or DateTime.MinValue is indistinguishable
+    # from a miss, so the caller either recomputes a perfectly good cached value or has to call
+    # Exists first - two round trips, with a race in between. This carrier answers both questions in
+    # one call. It is deliberately a return value rather than an out-parameter, because out-parameters
+    # do not exist in every target language.
+    interface ICacheEntry<T> {
+
+        # True if the key was present and had not expired; false for a miss.
+        readonly property Found: boolean
+
+        # The cached value when Found is true; the type default otherwise.
+        readonly property Value: T
+    }
+
     # ICacheStore is a thin key-value cache with time-to-live. It is NOT a source of truth: values
     # are transient and may be evicted or expire at any time. It is a storage MODEL (key-value + TTL);
     # the caching STRATEGY (cache-aside, write-through, invalidation, repository decoration) is a
@@ -31,6 +48,17 @@ namespace PolyPersist {
         # @returns the cached value, or the type default (null for reference types) if the key is
         #          absent or has expired.
         async method Get<T>(key: string) => T
+
+        # Reads a value by key, reporting whether it was there at all.
+        #
+        # Prefer this over Get whenever T can be a value type, or whenever "absent" and "cached
+        # default" have to be told apart. It answers in a single round trip what Exists + Get would
+        # answer in two (and without the race between them).
+        #
+        # @param key - the cache key.
+        # @returns an entry whose Found is true and Value is the cached value, or whose Found is
+        #          false when the key is absent or has expired.
+        async method TryGet<T>(key: string) => ICacheEntry<T>
 
         # Checks whether a (non-expired) value exists for a key.
         async method Exists(key: string) => boolean

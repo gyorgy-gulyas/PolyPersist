@@ -156,7 +156,20 @@ namespace PolyPersist.Net.RelationalStore.Dapper
         /// <inheritdoc/>
         public async Task Commit()
         {
-            await _tx.CommitAsync().ConfigureAwait(false);
+            try
+            {
+                await _tx.CommitAsync().ConfigureAwait(false);
+            }
+            catch (Exception ex) when (SqlErrorTranslator.Classify(ex) != SqlErrorKind.Unknown)
+            {
+                // A deferred constraint is only evaluated at COMMIT, so a violation can surface here
+                // rather than at the statement that caused it (PP-57). _finished stays false, so the
+                // scope still tries to roll back on dispose, exactly as before.
+                throw SqlErrorTranslator.Classify(ex) == SqlErrorKind.DuplicateKey
+                    ? new DuplicateKeyException("The transaction can not be committed, because of duplicate key", ex)
+                    : new InvalidRequestException("The transaction can not be committed, because it violates a database constraint", ex);
+            }
+
             _finished = true;
         }
 

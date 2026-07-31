@@ -1,4 +1,5 @@
 using PolyPersist.Net.Common;
+using PolyPersist.Net.Core;
 using StackExchange.Redis;
 
 namespace PolyPersist.Net.CacheStore.RespProtocol
@@ -63,6 +64,20 @@ namespace PolyPersist.Net.CacheStore.RespProtocol
 
             // An absent OR expired key reads as a null RedisValue; both mean "not cached".
             return value.IsNull ? default! : CacheValue.Deserialize<T>(value!);
+        }
+
+        /// <inheritdoc/>
+        async Task<ICacheEntry<T>> ICacheStore.TryGet<T>(string key)
+        {
+            _CheckKey(key);
+
+            // One GET answers both questions: a null RedisValue is the miss, anything else is the
+            // hit. Asking EXISTS first and GET after would be two round trips with a race between.
+            RedisValue value = await _database.StringGetAsync(_Key(key)).ConfigureAwait(false);
+
+            return value.IsNull
+                ? CacheEntry<T>.Miss
+                : CacheEntry<T>.Hit(CacheValue.Deserialize<T>(value!));
         }
 
         /// <inheritdoc/>

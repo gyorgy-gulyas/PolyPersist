@@ -85,8 +85,27 @@ namespace PolyPersist.Net.RelationalStore.Dapper
 
             using var lease = _Lease();
             var db = lease.Db;
-            await db.InsertAsync(record, tableName: _name).ConfigureAwait(false);
+            try
+            {
+                await db.InsertAsync(record, tableName: _name).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (SqlErrorTranslator.Classify(ex) != SqlErrorKind.Unknown)
+            {
+                throw _AsContractError(ex, $"Record '{typeof(TRecord).Name}' {record.id} can not be inserted");
+            }
         }
+
+        // The id primary key (PP-36) and any other constraint are enforced by the database, so the
+        // failure arrives as the driver's own exception type. The contract promises the PolyPersist
+        // hierarchy (PP-21), so classify it and rethrow accordingly, keeping the native error as the
+        // inner exception. Unclassifiable faults never reach here - the catch filters them out - so
+        // they keep their original type and stack trace.
+        private Exception _AsContractError(Exception ex, string subject)
+            => SqlErrorTranslator.Classify(ex) switch
+            {
+                SqlErrorKind.DuplicateKey => new DuplicateKeyException($"{subject}, because of duplicate key", ex),
+                _ => new InvalidRequestException($"{subject}, because it violates a constraint of table '{_name}'", ex),
+            };
 
         /// <inheritdoc/>
         async Task ITable<TRecord>.Update(TRecord record)
@@ -119,9 +138,20 @@ namespace PolyPersist.Net.RelationalStore.Dapper
 
             // The transaction must be handed to Dapper explicitly: a raw command on a connection with
             // an open transaction is not auto-enlisted by every provider. Outside a scope it is null.
-            int affected = await ((DbConnection)db.Connection)
-                .ExecuteAsync(sql, parameters, transaction: db.Transaction)
-                .ConfigureAwait(false);
+            int affected;
+            try
+            {
+                affected = await ((DbConnection)db.Connection)
+                    .ExecuteAsync(sql, parameters, transaction: db.Transaction)
+                    .ConfigureAwait(false);
+            }
+            catch (Exception ex) when (SqlErrorTranslator.Classify(ex) != SqlErrorKind.Unknown)
+            {
+                // A unique index on some other column, a check or a foreign key can still reject the
+                // new values even though the etag check passed.
+                throw _AsContractError(ex, $"Record '{typeof(TRecord).Name}' {record.id} can not be updated");
+            }
+
             if (affected == 0)
                 throw new ConcurrencyConflictException($"Record '{typeof(TRecord).Name}' {record.id} can not be updated because it is already changed");
         }
@@ -134,10 +164,19 @@ namespace PolyPersist.Net.RelationalStore.Dapper
             using var lease = _Lease();
             var db = lease.Db;
 
-            int affected = await db.GetTable<TRecord>().TableName(_name)
-                .Where(r => r.id == id && r.PartitionKey == partitionKey)
-                .DeleteAsync()
-                .ConfigureAwait(false);
+            int affected;
+            try
+            {
+                affected = await db.GetTable<TRecord>().TableName(_name)
+                    .Where(r => r.id == id && r.PartitionKey == partitionKey)
+                    .DeleteAsync()
+                    .ConfigureAwait(false);
+            }
+            catch (Exception ex) when (SqlErrorTranslator.Classify(ex) != SqlErrorKind.Unknown)
+            {
+                // A foreign key still pointing at this row rejects the delete.
+                throw _AsContractError(ex, $"Record '{typeof(TRecord).Name}' {id} can not be removed");
+            }
 
             if (affected == 0)
                 throw new NotFoundException($"Record '{typeof(TRecord).Name}' {id} can not be removed because it is already removed");

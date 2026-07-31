@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
 using PolyPersist.Net.CacheStore.Memory;
 using PolyPersist.Net.CacheStore.RespProtocol;
+using PolyPersist.Net.Common;
 using StackExchange.Redis;
 
 namespace PolyPersist.Net.CacheStore.Tests
@@ -59,6 +60,67 @@ namespace PolyPersist.Net.CacheStore.Tests
                 await cache.Set($"live{i}", i, 0);
 
             Assert.AreEqual(256, table.Count, "only the live entries survive the sweep");
+        }
+
+        // Time is not a bound on its own: an entry written with ttl 0 never expires. Without a size
+        // limit those keys accumulate for the life of the process (PP-58).
+        [TestMethod]
+        public async Task LeastRecentlyUsedEntries_AreEvicted_WhenTheCacheIsFull()
+        {
+            ICacheStore cache = new Memory_CacheStore("", maxEntries: 10);
+            var table = (IDictionary)cache.GetUnderlyingImplementation();
+
+            for (int i = 0; i < 10; i++)
+                await cache.Set($"k{i}", i, 0);   // no expiration at all
+
+            await cache.Get<int>("k0");           // k0 becomes the most recently used
+
+            await cache.Set("k10", 10, 0);        // the eleventh key pushes the table over its bound
+
+            Assert.AreEqual(9, table.Count, "the table is cut back to nine tenths of the limit");
+            Assert.IsTrue(await cache.Exists("k0"), "a key read a moment ago must survive");
+            Assert.IsTrue(await cache.Exists("k10"), "the key just written must survive");
+            Assert.IsFalse(await cache.Exists("k1"), "the least recently used key is evicted first");
+            Assert.IsFalse(await cache.Exists("k2"));
+            Assert.IsTrue(await cache.Exists("k3"), "eviction stops at the low-water mark");
+        }
+
+        // Losing an expired entry costs nothing, losing a live one costs a recomputation - so the
+        // expired ones have to go first.
+        [TestMethod]
+        public async Task ExpiredEntries_AreEvictedBeforeLiveOnes()
+        {
+            var clock = new TestTimeProvider();
+            ICacheStore cache = new Memory_CacheStore("", clock, maxEntries: 10);
+
+            for (int i = 0; i < 5; i++)
+                await cache.Set($"expiring{i}", i, 10);
+
+            clock.Advance(TimeSpan.FromSeconds(11));
+
+            for (int i = 0; i < 6; i++)
+                await cache.Set($"live{i}", i, 0);
+
+            for (int i = 0; i < 6; i++)
+                Assert.IsTrue(await cache.Exists($"live{i}"), "reclaiming the expired keys is enough to stay under the bound");
+        }
+
+        [TestMethod]
+        public async Task MaxEntriesZero_MeansUnbounded()
+        {
+            ICacheStore cache = new Memory_CacheStore("", maxEntries: 0);
+            var table = (IDictionary)cache.GetUnderlyingImplementation();
+
+            for (int i = 0; i < 50; i++)
+                await cache.Set($"k{i}", i, 0);
+
+            Assert.AreEqual(50, table.Count);
+        }
+
+        [TestMethod]
+        public void NegativeMaxEntries_IsRejected()
+        {
+            Assert.ThrowsException<InvalidRequestException>(() => new Memory_CacheStore("", maxEntries: -1));
         }
 
         [TestMethod]
