@@ -70,15 +70,56 @@ namespace PolyPersist.Net.RelationalStore.Tests
             await table.Insert(rec); // id assigned here
 
             // Reusing the same id must be rejected by the id uniqueness constraint (PP-36); without
-            // it the row would just be inserted a second time. The DB raises a provider-specific
-            // exception (SqliteException / PostgresException), so accept any.
+            // it the row would just be inserted a second time. The database reports this in its own
+            // way (SqliteException / PostgresException), but the contract's type is what callers see
+            // (PP-57), and the native error is kept as the inner exception.
             var dup = Sample(name: "Bob");
             dup.id = rec.id;
 
-            bool threw = false;
-            try { await table.Insert(dup); }
-            catch { threw = true; }
-            Assert.IsTrue(threw, "inserting a duplicate id must be rejected by the id uniqueness constraint");
+            var ex = await Assert.ThrowsExceptionAsync<DuplicateKeyException>(() => table.Insert(dup));
+            Assert.IsNotNull(ex.InnerException, "the native provider error must be preserved");
+        }
+
+        [DataTestMethod]
+        [DynamicData(nameof(TestMain.StoreInstances), typeof(TestMain), DynamicDataSourceType.Property)]
+        public async Task Insert_ViolatingUniqueIndex_Throws_DuplicateKey(Func<string, Task<IRelationalStore>> factory)
+        {
+            var name = TestMain.NewTableName();
+            var store = await factory(name);
+            var table = await store.CreateTable<SampleRecord>(name);
+
+            // A unique index on a plain column: the collision is not on the primary key, so this
+            // exercises the classification itself rather than linq2db's own key handling.
+            using (var db = (DataConnection)table.GetUnderlyingImplementation())
+                await db.ExecuteAsync($"CREATE UNIQUE INDEX \"ux_{name}_name\" ON \"{name}\" (\"Name\")");
+
+            await table.Insert(Sample(name: "Alice"));
+
+            await Assert.ThrowsExceptionAsync<DuplicateKeyException>(() => table.Insert(Sample(name: "Alice")));
+        }
+
+        [DataTestMethod]
+        [DynamicData(nameof(TestMain.StoreInstances), typeof(TestMain), DynamicDataSourceType.Property)]
+        public async Task Insert_ViolatingCheckConstraint_Throws_InvalidRequest(Func<string, Task<IRelationalStore>> factory)
+        {
+            // Not every constraint failure is a duplicate key: a check violation must land on
+            // InvalidRequestException, not DuplicateKeyException. The table is created by hand
+            // because a CHECK cannot be expressed through the record type.
+            var name = TestMain.NewTableName();
+            var store = await factory(name);
+            var scratch = await store.CreateTable<SampleRecord>(TestMain.NewTableName());
+
+            using (var db = (DataConnection)scratch.GetUnderlyingImplementation())
+                await db.ExecuteAsync(
+                    $"CREATE TABLE \"{name}\" (" +
+                    "\"id\" varchar(100) NOT NULL PRIMARY KEY, \"PartitionKey\" varchar(100), " +
+                    "\"etag\" varchar(100), \"LastUpdate\" timestamp, \"Name\" varchar(100), " +
+                    "\"Age\" integer, \"Balance\" decimal(18,5), CHECK (\"Age\" >= 0))");
+
+            var table = await store.GetTableByName<SampleRecord>(name);
+
+            var ex = await Assert.ThrowsExceptionAsync<InvalidRequestException>(() => table.Insert(Sample(age: -1)));
+            Assert.IsNotNull(ex.InnerException, "the native provider error must be preserved");
         }
 
         [DataTestMethod]

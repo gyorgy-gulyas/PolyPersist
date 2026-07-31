@@ -292,20 +292,26 @@ namespace PolyPersist.Net.RelationalStore.Tests
             return (store, customers, orders);
         }
 
-        // A primary-key violation surfaces as a provider-specific exception (SqliteException /
-        // PostgresException), so the type is not asserted - only that the commit did not succeed.
+        // The primary-key violation reaches the caller as the contract's own DuplicateKeyException
+        // (PP-57), not as the driver's SqliteException / PostgresException. Commit() wraps a failed
+        // unit of work in an AggregateException when compensation also had something to say, so the
+        // duplicate may sit one level down.
         private static async Task AssertCommitFails(Transaction tx)
         {
             try
             {
                 await tx.Commit();
             }
-            catch (Exception)
+            catch (DuplicateKeyException)
+            {
+                return;
+            }
+            catch (AggregateException ex) when (ex.InnerExceptions.Any(e => e is DuplicateKeyException))
             {
                 return;
             }
 
-            Assert.Fail("Commit() was expected to fail");
+            Assert.Fail("Commit() was expected to fail with a DuplicateKeyException");
         }
     }
 }

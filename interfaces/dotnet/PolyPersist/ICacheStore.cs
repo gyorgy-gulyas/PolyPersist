@@ -34,6 +34,16 @@ namespace PolyPersist
 		/// @returns the cached value, or the type default (null for reference types) if the key is
 		///          absent or has expired.
 		public Task<T> Get<T>( string key );
+		/// Reads a value by key, reporting whether it was there at all.
+		///
+		/// Prefer this over Get whenever T can be a value type, or whenever "absent" and "cached
+		/// default" have to be told apart. It answers in a single round trip what Exists + Get would
+		/// answer in two (and without the race between them).
+		///
+		/// @param key - the cache key.
+		/// @returns an entry whose Found is true and Value is the cached value, or whose Found is
+		///          false when the key is absent or has expired.
+		public Task<ICacheEntry<T>> TryGet<T>( string key );
 		/// Checks whether a (non-expired) value exists for a key.
 		public Task<bool> Exists( string key );
 		/// Removes a value from the cache by key (a no-op if it is not present).

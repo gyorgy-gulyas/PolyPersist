@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using PolyPersist.Net.Common;
+using PolyPersist.Net.Core;
 
 namespace PolyPersist.Net.CacheStore.Memory
 {
@@ -15,12 +16,29 @@ namespace PolyPersist.Net.CacheStore.Memory
     /// <para>
     /// Expiration is lazy: an entry is dropped when it is next read. Writes additionally sweep the
     /// whole table every <see cref="_SweepEveryWrites"/> calls, so keys that are never read again do
-    /// not accumulate forever. There is no size-bounded (LRU) eviction.
+    /// not accumulate forever.
+    /// </para>
+    /// <para>
+    /// Time alone is not enough of a bound, because an entry written without a TTL never expires
+    /// (PP-58). The store therefore also holds at most <c>maxEntries</c> keys and evicts the least
+    /// recently used ones once it is full. Recency is approximate by design: reads only stamp a
+    /// counter on the entry, they take no lock, so under concurrency two entries stamped at nearly
+    /// the same moment may be evicted in either order. That is the standard trade in an LRU cache -
+    /// a wrong eviction costs one recomputation, never correctness. The RESP backends have no such
+    /// parameter: bounding a shared server is its own <c>maxmemory-policy</c> setting, not ours.
     /// </para>
     /// </summary>
     public class Memory_CacheStore : ICacheStore
     {
-        private readonly record struct _Entry(string Json, DateTimeOffset? ExpiresAt);
+        // A class, not a record struct: LastAccess is stamped in place on every read, and rewriting
+        // a whole struct back into the dictionary just to record a read would be both slower and
+        // racier (it could resurrect a value a concurrent Set had already replaced).
+        private sealed class _Entry(string json, DateTimeOffset? expiresAt, long lastAccess)
+        {
+            public string Json { get; } = json;
+            public DateTimeOffset? ExpiresAt { get; } = expiresAt;
+            public long LastAccess = lastAccess;
+        }
 
         private readonly ConcurrentDictionary<string, _Entry> _entries = new();
         private readonly TimeProvider _time;
@@ -29,11 +47,27 @@ namespace PolyPersist.Net.CacheStore.Memory
         private const int _SweepEveryWrites = 256;
         private int _writesSinceSweep;
 
+        /// <summary>Default upper bound on the number of cached keys; 0 would mean unbounded.</summary>
+        public const int DefaultMaxEntries = 10_000;
+
+        private readonly int _maxEntries;
+        // Monotonic tick used to order entries by recency. It only ever has to be comparable, so it
+        // is a counter rather than a clock (which could stand still or, in tests, be rewound).
+        private long _accessTick;
+
         /// <param name="connectionString">unused; kept for symmetry with the other stores.</param>
         /// <param name="timeProvider">the clock; injectable so expiration can be tested deterministically.</param>
-        public Memory_CacheStore(string connectionString, TimeProvider? timeProvider = null)
+        /// <param name="maxEntries">
+        /// the most keys to hold before least-recently-used eviction starts; pass 0 for an unbounded
+        /// cache (only sensible when the key space is known to be small and the process short-lived).
+        /// </param>
+        public Memory_CacheStore(string connectionString, TimeProvider? timeProvider = null, int maxEntries = DefaultMaxEntries)
         {
+            if (maxEntries < 0)
+                throw new InvalidRequestException("Cache maxEntries must not be negative (0 means unbounded)");
+
             _time = timeProvider ?? TimeProvider.System;
+            _maxEntries = maxEntries;
         }
 
         /// <inheritdoc/>
@@ -50,13 +84,15 @@ namespace PolyPersist.Net.CacheStore.Memory
                 ? _time.GetUtcNow().AddSeconds(ttlSeconds)
                 : null;   // ttlSeconds <= 0 means no expiration
 
-            _entries[key] = new _Entry(CacheValue.Serialize(value), expiresAt);
+            _entries[key] = new _Entry(CacheValue.Serialize(value), expiresAt, Interlocked.Increment(ref _accessTick));
 
             if (Interlocked.Increment(ref _writesSinceSweep) >= _SweepEveryWrites)
             {
                 Interlocked.Exchange(ref _writesSinceSweep, 0);
                 _SweepExpired();
             }
+
+            _EnforceCapacity();
 
             return Task.CompletedTask;
         }
@@ -69,6 +105,16 @@ namespace PolyPersist.Net.CacheStore.Memory
             return Task.FromResult(_TryRead(key, out string? json)
                 ? CacheValue.Deserialize<T>(json!)
                 : default!);
+        }
+
+        /// <inheritdoc/>
+        Task<ICacheEntry<T>> ICacheStore.TryGet<T>(string key)
+        {
+            _CheckKey(key);
+
+            return Task.FromResult(_TryRead(key, out string? json)
+                ? CacheEntry<T>.Hit(CacheValue.Deserialize<T>(json!))
+                : CacheEntry<T>.Miss);
         }
 
         /// <inheritdoc/>
@@ -94,14 +140,18 @@ namespace PolyPersist.Net.CacheStore.Memory
         {
             json = null;
 
-            if (_entries.TryGetValue(key, out _Entry entry) == false)
+            if (_entries.TryGetValue(key, out _Entry? entry) == false)
                 return false;
 
-            if (_IsExpired(entry) == true)
+            if (_IsExpired(entry!) == true)
             {
                 _entries.TryRemove(key, out _);
                 return false;
             }
+
+            // A hit makes the entry the most recently used one, which is what keeps a hot key alive
+            // while the cache evicts around it.
+            Interlocked.Exchange(ref entry!.LastAccess, Interlocked.Increment(ref _accessTick));
 
             json = entry.Json;
             return true;
@@ -117,6 +167,28 @@ namespace PolyPersist.Net.CacheStore.Memory
                 if (_IsExpired(pair.Value) == true)
                     _entries.TryRemove(pair.Key, out _);
             }
+        }
+
+        /// <summary>
+        /// Drops the least recently used entries once the table is over its bound. Expired entries
+        /// go first - they cost nothing to lose. What remains is cut back to nine tenths of the
+        /// limit rather than to the limit itself, so the ordering scan runs once every few hundred
+        /// writes instead of on every single write past the bound.
+        /// </summary>
+        private void _EnforceCapacity()
+        {
+            if (_maxEntries <= 0 || _entries.Count <= _maxEntries)
+                return;
+
+            _SweepExpired();
+
+            int lowWaterMark = _maxEntries - (_maxEntries / 10);
+            int toEvict = _entries.Count - lowWaterMark;
+            if (toEvict <= 0)
+                return;
+
+            foreach (var pair in _entries.OrderBy(p => Interlocked.Read(ref p.Value.LastAccess)).Take(toEvict))
+                _entries.TryRemove(pair.Key, out _);
         }
 
         private static void _CheckKey(string key)

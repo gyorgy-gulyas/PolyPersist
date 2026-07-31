@@ -43,6 +43,71 @@ namespace PolyPersist.Net.CacheStore.Tests
             Assert.AreEqual(42, await cache.Get<int>(key));
         }
 
+        // The reason TryGet exists: for a value type, Get cannot say whether the 0 it returned was
+        // cached or made up (PP-59).
+        [DataTestMethod]
+        [DynamicData(nameof(TestMain.StoreInstances), typeof(TestMain), DynamicDataSourceType.Property)]
+        public async Task TryGet_TellsACachedDefaultApartFromAMiss(Func<Task<ICacheStore>> factory)
+        {
+            var cache = await factory();
+            string cached = Key();
+            string absent = Key();
+
+            await cache.Set(cached, 0, 0);   // a genuine, deliberately cached zero
+
+            Assert.AreEqual(0, await cache.Get<int>(cached), "Get cannot distinguish these two...");
+            Assert.AreEqual(0, await cache.Get<int>(absent), "...and neither can it here");
+
+            var hit = await cache.TryGet<int>(cached);
+            Assert.IsTrue(hit.Found);
+            Assert.AreEqual(0, hit.Value);
+
+            var miss = await cache.TryGet<int>(absent);
+            Assert.IsFalse(miss.Found);
+            Assert.AreEqual(0, miss.Value, "a miss carries the type default");
+        }
+
+        [DataTestMethod]
+        [DynamicData(nameof(TestMain.StoreInstances), typeof(TestMain), DynamicDataSourceType.Property)]
+        public async Task TryGet_ReturnsTheValue_ForAReferenceType(Func<Task<ICacheStore>> factory)
+        {
+            var cache = await factory();
+            string key = Key();
+            var dto = Dto();
+
+            await cache.Set(key, dto, 0);
+            var entry = await cache.TryGet<CacheDto>(key);
+
+            Assert.IsTrue(entry.Found);
+            Assert.AreEqual(dto.Name, entry.Value.Name);
+            Assert.AreEqual(dto.Favourite, entry.Value.Favourite);
+        }
+
+        [DataTestMethod]
+        [DynamicData(nameof(TestMain.StoreInstances), typeof(TestMain), DynamicDataSourceType.Property)]
+        public async Task TryGet_ReportsAMiss_AfterTheKeyIsRemoved(Func<Task<ICacheStore>> factory)
+        {
+            var cache = await factory();
+            string key = Key();
+
+            await cache.Set(key, true, 0);
+            Assert.IsTrue((await cache.TryGet<bool>(key)).Found);
+
+            await cache.Remove(key);
+
+            var entry = await cache.TryGet<bool>(key);
+            Assert.IsFalse(entry.Found);
+            Assert.IsFalse(entry.Value, "a removed key reports a miss, not the false it happened to hold");
+        }
+
+        [DataTestMethod]
+        [DynamicData(nameof(TestMain.StoreInstances), typeof(TestMain), DynamicDataSourceType.Property)]
+        public async Task TryGet_RejectsAnEmptyKey(Func<Task<ICacheStore>> factory)
+        {
+            var cache = await factory();
+            await Assert.ThrowsExceptionAsync<InvalidRequestException>(() => cache.TryGet<string>(""));
+        }
+
         [DataTestMethod]
         [DynamicData(nameof(TestMain.StoreInstances), typeof(TestMain), DynamicDataSourceType.Property)]
         public async Task Set_Get_Dto_RoundTrips(Func<Task<ICacheStore>> factory)
