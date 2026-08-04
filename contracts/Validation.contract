@@ -33,6 +33,12 @@ namespace PolyPersist {
         # For example, it could be "Username", "OrderDate", or "Price".
         readonly property MemberOfEntity: string
 
+        # Where the error is, relative to the object Validate was called on:
+        # "quantity", "items[1].quantity", "billingAddress.country". This is what lets a caller
+        # address the failure - mark the right control on a form - instead of only reading a
+        # sentence. For a rule on the object's own member it is simply the member name.
+        readonly property Path: string
+
         # A human-readable description of the error, explaining what went wrong.
         # This is useful for displaying error messages to users or logging them for debugging.
         readonly property ErrorText: string

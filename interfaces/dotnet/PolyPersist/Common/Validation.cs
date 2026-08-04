@@ -16,6 +16,11 @@ namespace PolyPersist.Net.Common
     {
         public string TypeOfEntity { get; set; } = null!;
         public string MemberOfEntity { get; set; } = null!;
+
+        // Where the failure is, relative to the object Validate was called on: "quantity" for the
+        // object's own member, "items[1].quantity" once the walk goes into a value object.
+        public string Path { get; set; } = string.Empty;
+
         public string ErrorText { get; set; } = null!;
     }
 

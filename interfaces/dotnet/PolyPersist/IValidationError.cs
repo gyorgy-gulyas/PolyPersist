@@ -21,6 +21,11 @@ namespace PolyPersist
 		/// Indicates the specific member or property of the entity that caused the validation error.
 		/// For example, it could be "Username", "OrderDate", or "Price".
 		public string MemberOfEntity { get; }
+		/// Where the error is, relative to the object Validate was called on:
+		/// "quantity", "items[1].quantity", "billingAddress.country". This is what lets a caller
+		/// address the failure - mark the right control on a form - instead of only reading a
+		/// sentence. For a rule on the object's own member it is simply the member name.
+		public string Path { get; }
 		/// A human-readable description of the error, explaining what went wrong.
 		/// This is useful for displaying error messages to users or logging them for debugging.
 		public string ErrorText { get; }
