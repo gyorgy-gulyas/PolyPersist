@@ -140,6 +140,15 @@ class IValidationError(ABC):
     def MemberOfEntity(self) -> str:
         ...
 
+    # Where the error is, relative to the object Validate was called on:
+    # "quantity", "items[1].quantity", "billingAddress.country". This is what lets a caller
+    # address the failure - mark the right control on a form - instead of only reading a
+    # sentence. For a rule on the object's own member it is simply the member name.
+    @property
+    @abstractmethod
+    def Path(self) -> str:
+        ...
+
     # A human-readable description of the error, explaining what went wrong.
     # This is useful for displaying error messages to users or logging them for debugging.
     @property
@@ -1352,12 +1361,21 @@ class ITransaction(ABC):
     async def Delete(self, container: IBlobContainer[TBlob], blob: TBlob) -> None:
         ...
 
-    # Commits the transaction by executing all registered commit actions in parallel.
+    # Writes everything the transaction has collected, in the order it was collected.
+    #
+    # Nothing reached a store before this call: every operation was queued, so a Rollback before
+    # the commit costs nothing and no reader ever saw a half-finished change. Inside the commit a
+    # store that can offer a native database transaction gets one and commits LAST, after every
+    # compensation-only store has succeeded - so a failure costs that store a free ROLLBACK, and
+    # only the stores that cannot do better are compensated. With more than one native
+    # participant the guarantee degrades to "all but one commit atomically"; there is no
+    # two-phase commit. Registered commit actions run afterwards, once the data is durable.
     @abstractmethod
     async def Commit(self) -> None:
         ...
 
-    # Adds a custom rollback action to the transaction.
+    # Abandons the transaction. Before a commit this simply drops the queued operations; after a
+    # partial commit it runs the compensations in reverse order.
     @abstractmethod
     async def Rollback(self) -> None:
         ...
