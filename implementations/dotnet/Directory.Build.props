@@ -4,7 +4,18 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Authors>György Gulyás</Authors>
     <Description>PolyPersist is a cross-platform library that abstracts data persistence across different database types, including SQL, NoSQL, and file-based systems. It offers a unified interface, enabling seamless switching between databases while maintaining flexibility and minimal code changes</Description>
-    <Nullable>disable</Nullable>
+
+    <!--
+      This said 'disable' and every one of the 37 projects overrode it with 'enable', so the line
+      stated the opposite of what the repository actually does. Anyone reading it would conclude
+      PolyPersist is nullable-oblivious; it is the opposite - the hand-written code annotates
+      properly and the whole solution builds at zero warnings.
+
+      The per-project lines are NOT redundant and must stay: this repository has three separate
+      trees - interfaces/dotnet, implementations/dotnet and tests/dotnet - and only this one has a
+      Directory.Build.props, so the other two inherit nothing from here.
+    -->
+    <Nullable>enable</Nullable>
   </PropertyGroup>
 
   <PropertyGroup>
