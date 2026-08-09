@@ -4,6 +4,8 @@
 //
 //     Changes to this file may cause incorrect behavior and will be lost if the code is regenerated.
 // </auto-generated>
+#nullable enable
+
 using System;
 using System.IO;
 using System.Threading.Tasks;
@@ -68,7 +70,7 @@ namespace PolyPersist
 		///
 		/// Use Case:
 		/// Locate and retrieve a specific file from the container.
-		public Task<TBlob> Find( string partitionKey, string id );
+		public Task<TBlob?> Find( string partitionKey, string id );
 		/// Updates the content of an existing blob in the container.
 		///
 		/// Parameters:

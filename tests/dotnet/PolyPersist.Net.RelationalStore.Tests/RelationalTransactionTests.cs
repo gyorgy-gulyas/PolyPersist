@@ -89,6 +89,7 @@ namespace PolyPersist.Net.RelationalStore.Tests
             await tx.Rollback();
 
             var found = await table.Find(rec.PartitionKey, rec.id);
+            Assert.IsNotNull(found);
             Assert.AreEqual("original", found.Name);
         }
 
@@ -109,6 +110,7 @@ namespace PolyPersist.Net.RelationalStore.Tests
             }
 
             var found = await table.Find(rec.PartitionKey, rec.id);
+            Assert.IsNotNull(found);
             Assert.AreEqual("modified", found.Name);
         }
 
@@ -235,6 +237,7 @@ namespace PolyPersist.Net.RelationalStore.Tests
             await AssertCommitFails(tx);
 
             var found = await customers.Find("p1", customer.id);
+            Assert.IsNotNull(found);
             Assert.AreEqual("original", found.Name);
             Assert.AreEqual(etagBefore, found.etag, "a native ROLLBACK restores the row, etag included");
         }

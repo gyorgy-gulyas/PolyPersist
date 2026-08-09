@@ -73,13 +73,13 @@ namespace PolyPersist.Net.BlobStore.AzureStorage
         }
 
         /// <inheritdoc/>
-        async Task<TBlob> IBlobContainer<TBlob>.Find(string partitionKey, string id)
+        async Task<TBlob?> IBlobContainer<TBlob>.Find(string partitionKey, string id)
         {
             // create blob client
             BlobClient blobClient = _containerClient.GetBlobClient(id);
 
             if (await blobClient.ExistsAsync().ConfigureAwait(false) == false)
-                return default(TBlob)!;
+                return default(TBlob);
 
             var properties = await blobClient.GetPropertiesAsync().ConfigureAwait(false);
             // Create a new instance of the target type
@@ -88,7 +88,7 @@ namespace PolyPersist.Net.BlobStore.AzureStorage
 
             // (partitionKey, id) identifies the blob: a matching id in another partition is not it.
             if (blob.PartitionKey != partitionKey)
-                return default(TBlob)!;
+                return default(TBlob);
 
             return blob;
         }

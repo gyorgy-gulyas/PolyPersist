@@ -78,12 +78,14 @@ namespace PolyPersist.Net.DocumentStore.Tests
             var doc = new SampleDocument { PartitionKey = "p1", id = "d1", str_value = "before" };
             await col.Insert(doc);
             var original = await col.Find("p1", "d1");
+            Assert.IsNotNull(original);
 
             await Task.Delay(5);
             doc.str_value = "after";
             await col.Update(doc);
 
             var updated = await col.Find("p1", "d1");
+            Assert.IsNotNull(updated);
             Assert.AreNotEqual(original.etag, updated.etag);
             Assert.IsTrue(updated.LastUpdate > original.LastUpdate);
         }
@@ -99,6 +101,7 @@ namespace PolyPersist.Net.DocumentStore.Tests
             await col.Insert(doc);
 
             var found = await col.Find("p1", "d1");
+            Assert.IsNotNull(found);
             Assert.IsFalse(string.IsNullOrEmpty(found.etag));
             Assert.IsTrue(found.LastUpdate > DateTime.MinValue);
         }
@@ -180,7 +183,9 @@ namespace PolyPersist.Net.DocumentStore.Tests
             await col.Insert(d2);
 
             var found1 = await col.Find("pk", "d1");
+            Assert.IsNotNull(found1);
             var found2 = await col.Find("pk", "d2");
+            Assert.IsNotNull(found2);
 
             Assert.AreNotEqual(found1.etag, found2.etag);
         }

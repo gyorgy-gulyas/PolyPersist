@@ -38,7 +38,7 @@ public interface ITable<TRecord extends IRecord> {
 	CompletableFuture<Void> Delete(String partitionKey, String id);
 	// Asynchronous method to find a row by its PartitionKey and id.
 	// Returns the row if found, or null if not found.
-	CompletableFuture<TRecord> Find(String partitionKey, String id);
+	CompletableFuture<Optional<TRecord>> Find(String partitionKey, String id);
 	// Portable, single-table query SCOPED to one partition: the returned queryable is already
 	// filtered to rows whose PartitionKey == partitionKey. A caller cannot widen it back
 	// (a .Where is additive; a different partitionKey yields an empty result, not a leak), which

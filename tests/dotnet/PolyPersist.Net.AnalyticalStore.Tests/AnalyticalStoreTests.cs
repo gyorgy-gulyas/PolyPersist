@@ -145,7 +145,7 @@ namespace PolyPersist.Net.AnalyticalStore.Tests
         public async Task InsertBatch_Null_NoOp(Func<string, Task<IAnalyticalStore>> factory)
         {
             var (_, table, _) = await NewTable(factory);
-            await table.InsertBatch(null);
+            await table.InsertBatch(null!);   // the guard is what is under test
             Assert.AreEqual(0, table.QueryCrossPartition().Count());
         }
 

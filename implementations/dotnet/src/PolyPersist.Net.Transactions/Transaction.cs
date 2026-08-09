@@ -396,7 +396,8 @@ namespace PolyPersist.Net.Transactions
                 _rollBackActions.Enqueue(async () =>
                 {
                     TDocument original = JsonSerializer.Deserialize<TDocument>(_deepCloneOfEntities[key].Json)!;
-                    original.etag = null;   // Insert requires an empty etag; it assigns a fresh one
+                    original.etag = null!;  // Insert requires an empty etag; it assigns a fresh one. The '!' is here
+                                            // because IEntity.etag is declared non-null and is not - see PP-62.
                     await collection.Insert(original).ConfigureAwait(false);
                 });
             });
@@ -423,7 +424,8 @@ namespace PolyPersist.Net.Transactions
                 _rollBackActions.Enqueue(async () =>
                 {
                     TRow original = JsonSerializer.Deserialize<TRow>(_deepCloneOfEntities[key].Json)!;
-                    original.etag = null;   // Insert requires an empty etag; it assigns a fresh one
+                    original.etag = null!;  // Insert requires an empty etag; it assigns a fresh one. The '!' is here
+                                            // because IEntity.etag is declared non-null and is not - see PP-62.
                     await table.Insert(original).ConfigureAwait(false);
                 });
             });
@@ -471,7 +473,7 @@ namespace PolyPersist.Net.Transactions
                 _rollBackActions.Enqueue(async () =>
                 {
                     TBlob original = JsonSerializer.Deserialize<TBlob>(_deepCloneOfEntities[key].Json)!;
-                    original.etag = null;   // Upload requires an empty etag; it assigns a fresh one
+                    original.etag = null!;  // Upload requires an empty etag; it assigns a fresh one - see PP-62.
                     using var content = _deepCloneOfEntities[key].Content!.OpenRead();
                     await container.Upload(original, content).ConfigureAwait(false);
                 });

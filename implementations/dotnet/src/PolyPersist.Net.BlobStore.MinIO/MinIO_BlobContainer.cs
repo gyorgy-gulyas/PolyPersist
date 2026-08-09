@@ -94,7 +94,7 @@ namespace PolyPersist.Net.BlobStore.MinIO
         }
 
         /// <inheritdoc/>
-        async Task<TBlob> IBlobContainer<TBlob>.Find(string partitionKey, string id)
+        async Task<TBlob?> IBlobContainer<TBlob>.Find(string partitionKey, string id)
         {
             ObjectStat stat;
             try
@@ -105,7 +105,7 @@ namespace PolyPersist.Net.BlobStore.MinIO
             }
             catch (ObjectNotFoundException)
             {
-                return default(TBlob)!;
+                return default(TBlob);
             }
 
             string meta_json = stat.MetaData[BlobMetadata.Key];
@@ -113,7 +113,7 @@ namespace PolyPersist.Net.BlobStore.MinIO
 
             // (partitionKey, id) identifies the blob: a matching id in another partition is not it.
             if (blob.PartitionKey != partitionKey)
-                return default(TBlob)!;
+                return default(TBlob);
 
             return blob;
         }

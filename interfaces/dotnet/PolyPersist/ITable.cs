@@ -4,6 +4,8 @@
 //
 //     Changes to this file may cause incorrect behavior and will be lost if the code is regenerated.
 // </auto-generated>
+#nullable enable
+
 using System;
 using System.IO;
 using System.Threading.Tasks;
@@ -33,7 +35,7 @@ namespace PolyPersist
 		public Task Delete( string partitionKey, string id );
 		/// Asynchronous method to find a row by its PartitionKey and id.
 		/// Returns the row if found, or null if not found.
-		public Task<TRecord> Find( string partitionKey, string id );
+		public Task<TRecord?> Find( string partitionKey, string id );
 		/// Portable, single-table query SCOPED to one partition: the returned queryable is already
 		/// filtered to rows whose PartitionKey == partitionKey. A caller cannot widen it back
 		/// (a .Where is additive; a different partitionKey yields an empty result, not a leak), which

@@ -86,7 +86,7 @@ namespace PolyPersist.Net.Tests
         public Task Insert(TDocument document) => Task.CompletedTask;
         public Task Update(TDocument document) => Task.CompletedTask;
         public Task Delete(string partitionKey, string id) => Task.CompletedTask;
-        public Task<TDocument> Find(string partitionKey, string id) => Task.FromResult(default(TDocument)!);
+        public Task<TDocument?> Find(string partitionKey, string id) => Task.FromResult(default(TDocument));
         public IQueryable<TDocument> Query(string partitionKey) => QueryCrossPartition();
         public IQueryable<TDocument> QueryCrossPartition() => _nullQuery ? null! : Enumerable.Empty<TDocument>().AsQueryable();
         public object GetUnderlyingImplementation() => this;
@@ -124,7 +124,7 @@ namespace PolyPersist.Net.Tests
         public Task Insert(TRow row) => Task.CompletedTask;
         public Task Update(TRow row) => Task.CompletedTask;
         public Task Delete(string partitionKey, string id) => Task.CompletedTask;
-        public Task<TRow> Find(string partitionKey, string id) => Task.FromResult(default(TRow)!);
+        public Task<TRow?> Find(string partitionKey, string id) => Task.FromResult(default(TRow));
         public IQueryable<TRow> Query(string partitionKey) => QueryCrossPartition();
         public IQueryable<TRow> QueryCrossPartition() => _nullQuery ? null! : Enumerable.Empty<TRow>().AsQueryable();
         public object GetUnderlyingImplementation() => this;
@@ -153,7 +153,7 @@ namespace PolyPersist.Net.Tests
         public Task Upload(TBlob blob, Stream content) => Task.CompletedTask;
         public Task<Stream> Download(TBlob blob) => Task.FromResult<Stream>(new MemoryStream());
         public Task Delete(string partitionKey, string id) => Task.CompletedTask;
-        public Task<TBlob> Find(string partitionKey, string id) => Task.FromResult(default(TBlob)!);
+        public Task<TBlob?> Find(string partitionKey, string id) => Task.FromResult(default(TBlob));
         public Task UpdateContent(TBlob blob, Stream content) => Task.CompletedTask;
         public Task UpdateMetadata(TBlob blob) => Task.CompletedTask;
         public object GetUnderlyingImplementation() => this;

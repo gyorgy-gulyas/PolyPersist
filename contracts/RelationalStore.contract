@@ -72,7 +72,7 @@ namespace PolyPersist {
 
         # Asynchronous method to find a row by its PartitionKey and id.
         # Returns the row if found, or null if not found.
-        async method Find(partitionKey: string, id: string) => TRecord
+        async method Find(partitionKey: string, id: string) => TRecord?
 
         # Portable, single-table query SCOPED to one partition: the returned queryable is already
         # filtered to rows whose PartitionKey == partitionKey. A caller cannot widen it back
