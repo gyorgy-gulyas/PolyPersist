@@ -79,12 +79,12 @@ namespace PolyPersist.Net.DocumentStore.Memory
         }
 
         /// <inheritdoc/>
-        Task<TDocument> IDocumentCollection<TDocument>.Find(string partitionKey, string id)
+        Task<TDocument?> IDocumentCollection<TDocument>.Find(string partitionKey, string id)
         {
             if (_collectionData.MapOfDocments.TryGetValue(id, out _RowData? row) == true && row.partitionKey == partitionKey )
-                return Task.FromResult(JsonSerializer.Deserialize<TDocument>(row.Value, JsonOptionsProvider.Options())!);
+                return Task.FromResult<TDocument?>(JsonSerializer.Deserialize<TDocument>(row.Value, JsonOptionsProvider.Options()));
 
-            return Task.FromResult(default(TDocument)!);
+            return Task.FromResult<TDocument?>(default);
         }
 
         /// <inheritdoc/>

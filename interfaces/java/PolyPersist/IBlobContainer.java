@@ -73,7 +73,7 @@ public interface IBlobContainer<TBlob extends IBlob> {
 	//
 	// Use Case:
 	// Locate and retrieve a specific file from the container.
-	CompletableFuture<TBlob> Find(String partitionKey, String id);
+	CompletableFuture<Optional<TBlob>> Find(String partitionKey, String id);
 	// Updates the content of an existing blob in the container.
 	//
 	// Parameters:

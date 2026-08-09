@@ -72,7 +72,7 @@ namespace PolyPersist.Net.DocumentStore.MongoDB
         }
 
         /// <inheritdoc/>
-        async Task<TDocument> IDocumentCollection<TDocument>.Find(string partitionKey, string id)
+        async Task<TDocument?> IDocumentCollection<TDocument>.Find(string partitionKey, string id)
         {
             TDocument document = await _mongoCollection
                 .Find(e => e.id == id && e.PartitionKey == partitionKey)

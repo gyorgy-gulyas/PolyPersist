@@ -76,6 +76,7 @@ namespace PolyPersist.Net.Transactions.Tests
             await tx.Commit();
 
             var found = await col.Find("pk", "a");
+            Assert.IsNotNull(found);
             Assert.AreEqual("changed", found.str_value);
         }
 
@@ -175,6 +176,7 @@ namespace PolyPersist.Net.Transactions.Tests
             await tx.Rollback();
 
             var found = await tbl.Find("pk", "a");
+            Assert.IsNotNull(found);
             Assert.AreEqual("orig", found.str_value);
         }
 
@@ -192,6 +194,7 @@ namespace PolyPersist.Net.Transactions.Tests
             await tx.Commit();
 
             var found = await tbl.Find("pk", "a");
+            Assert.IsNotNull(found);
             Assert.AreEqual("changed", found.str_value);
         }
 
@@ -342,6 +345,7 @@ namespace PolyPersist.Net.Transactions.Tests
             await tx.Rollback();
 
             var found = await cnt.Find("pk", "a");
+            Assert.IsNotNull(found);
             Assert.AreEqual("orig.txt", found.fileName);
         }
 
@@ -359,6 +363,7 @@ namespace PolyPersist.Net.Transactions.Tests
             await tx.Commit();
 
             var found = await cnt.Find("pk", "a");
+            Assert.IsNotNull(found);
             Assert.AreEqual("changed.txt", found.fileName);
         }
 
@@ -411,6 +416,7 @@ namespace PolyPersist.Net.Transactions.Tests
             await tx.Commit();
 
             var found = await cnt.Find("pk", "a");
+            Assert.IsNotNull(found);
             Assert.AreEqual("hello", await ReadContentAsync(cnt, found));
         }
 
@@ -431,6 +437,7 @@ namespace PolyPersist.Net.Transactions.Tests
             }
 
             var found = await cnt.Find("pk", "a");
+            Assert.IsNotNull(found);
             using var stored = await cnt.Download(found);
             using var buffer = new MemoryStream();
             await stored.CopyToAsync(buffer);
@@ -555,6 +562,7 @@ namespace PolyPersist.Net.Transactions.Tests
             await tx.Rollback();
 
             var found = await tbl.Find("pk", "a");
+            Assert.IsNotNull(found);
             Assert.AreEqual("orig", found.str_value);
         }
 
@@ -572,6 +580,7 @@ namespace PolyPersist.Net.Transactions.Tests
             await tx.Commit();
 
             var found = await tbl.Find("pk", "a");
+            Assert.IsNotNull(found);
             Assert.AreEqual("changed", found.str_value);
         }
 
@@ -839,11 +848,11 @@ namespace PolyPersist.Net.Transactions.Tests
                 return Task.CompletedTask;
             }
 
-            public Task<TRecord> Find(string partitionKey, string id)
+            public Task<TRecord?> Find(string partitionKey, string id)
             {
                 if (_rows.TryGetValue(id, out var stored) && stored.PartitionKey == partitionKey)
-                    return Task.FromResult(System.Text.Json.JsonSerializer.Deserialize<TRecord>(stored.Json)!);
-                return Task.FromResult(default(TRecord)!);
+                    return Task.FromResult<TRecord?>(System.Text.Json.JsonSerializer.Deserialize<TRecord>(stored.Json));
+                return Task.FromResult<TRecord?>(default);
             }
 
             public System.Linq.IQueryable<TRecord> Query(string partitionKey) =>

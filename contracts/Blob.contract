@@ -168,7 +168,7 @@ namespace PolyPersist {
         #
         # Use Case:
         # Locate and retrieve a specific file from the container.
-        async method Find(partitionKey: string, id: string) => TBlob
+        async method Find(partitionKey: string, id: string) => TBlob?
 
         # Updates the content of an existing blob in the container.
         #

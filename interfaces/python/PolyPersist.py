@@ -314,7 +314,7 @@ class IDocumentCollection(ABC, Generic[TDocument]):
     # The 'id' parameter is the unique identifier of the document, and 'partitionKey' is used to partition data.
     # Returns the document if found, or null if not found.
     @abstractmethod
-    async def Find(self, partitionKey: str, id: str) -> TDocument:
+    async def Find(self, partitionKey: str, id: str) -> Optional[TDocument]:
         ...
 
     # Query interface SCOPED to one partition: the returned queryable is already filtered to
@@ -538,7 +538,7 @@ class IBlobContainer(ABC, Generic[TBlob]):
     # Use Case:
     # Locate and retrieve a specific file from the container.
     @abstractmethod
-    async def Find(self, partitionKey: str, id: str) -> TBlob:
+    async def Find(self, partitionKey: str, id: str) -> Optional[TBlob]:
         ...
 
     # Updates the content of an existing blob in the container.
@@ -666,7 +666,7 @@ class IColumnTable(ABC, Generic[TRow]):
     # The 'id' parameter is the unique identifier of the row, and 'partitionKey' is used to partition data.
     # Returns the row if found, or null if not found.
     @abstractmethod
-    async def Find(self, partitionKey: str, id: str) -> TRow:
+    async def Find(self, partitionKey: str, id: str) -> Optional[TRow]:
         ...
 
     # Query interface SCOPED to one partition: the returned queryable is already filtered to
@@ -782,7 +782,7 @@ class ITable(ABC, Generic[TRecord]):
     # Asynchronous method to find a row by its PartitionKey and id.
     # Returns the row if found, or null if not found.
     @abstractmethod
-    async def Find(self, partitionKey: str, id: str) -> TRecord:
+    async def Find(self, partitionKey: str, id: str) -> Optional[TRecord]:
         ...
 
     # Portable, single-table query SCOPED to one partition: the returned queryable is already

@@ -53,19 +53,19 @@ namespace PolyPersist.Net.BlobStore.FileSystem
         }
 
         /// <inheritdoc/>
-        Task<TBlob> IBlobContainer<TBlob>.Find(string partitionKey, string id)
+        Task<TBlob?> IBlobContainer<TBlob>.Find(string partitionKey, string id)
         {
             var path = _makeFilePath(id);
             var metadataPath = path + ".meta.json";
             if (File.Exists(path) == false || File.Exists(metadataPath) == false)
-                return Task.FromResult<TBlob>(default!);
+                return Task.FromResult<TBlob?>(default);
 
             var blob = BlobMetadata.Deserialize<TBlob>(File.ReadAllText(metadataPath));
             // the blob is identified by (partitionKey, id): a different partition is not it
             if (blob.PartitionKey != partitionKey)
-                return Task.FromResult<TBlob>(default!);
+                return Task.FromResult<TBlob?>(default);
 
-            return Task.FromResult(blob);
+            return Task.FromResult<TBlob?>(blob);
         }
 
         /// <inheritdoc/>

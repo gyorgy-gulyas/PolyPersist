@@ -176,6 +176,7 @@ namespace PolyPersist.Net.ColumnStore.Tests
             await table.Insert(row);
 
             var loaded = await table.Find("pk", "r1");
+            Assert.IsNotNull(loaded);
 
             Assert.IsFalse(string.IsNullOrEmpty(loaded.etag));
             Assert.IsTrue(loaded.LastUpdate > DateTime.MinValue);
@@ -192,12 +193,14 @@ namespace PolyPersist.Net.ColumnStore.Tests
             var row = new SampleRow { PartitionKey = "pk", id = "r1", str_value = "before" };
             await table.Insert(row);
             var original = await table.Find("pk", "r1");
+            Assert.IsNotNull(original);
 
             await Task.Delay(10); // ensure timestamp change
             row.str_value = "after";
             await table.Update(row);
 
             var updated = await table.Find("pk", "r1");
+            Assert.IsNotNull(updated);
             Assert.AreNotEqual(original.etag, updated.etag);
             Assert.IsTrue(updated.LastUpdate > original.LastUpdate);
         }
@@ -217,7 +220,9 @@ namespace PolyPersist.Net.ColumnStore.Tests
             await table.Insert(r2);
 
             var loaded1 = await table.Find("pk", "r1");
+            Assert.IsNotNull(loaded1);
             var loaded2 = await table.Find("pk", "r2");
+            Assert.IsNotNull(loaded2);
 
             Assert.AreNotEqual(loaded1.etag, loaded2.etag);
         }
@@ -233,6 +238,7 @@ namespace PolyPersist.Net.ColumnStore.Tests
             var row = new SampleRow { PartitionKey = "pk", id = "r1" };
             await table.Insert(row);
             var found = await table.Find("pk", "r1");
+            Assert.IsNotNull(found);
 
             Assert.IsFalse(string.IsNullOrEmpty(found.etag));
             Assert.IsTrue(found.LastUpdate > DateTime.MinValue);

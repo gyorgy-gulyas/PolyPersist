@@ -66,7 +66,9 @@ namespace PolyPersist.Net.BlobStore.Tests
                     await Assert.ThrowsExceptionAsync<ConcurrencyConflictException>(async () => await container.UpdateContent(stale, content));
 
                 // the old content is intact (no truncation, no overwrite on a rejected update)
-                using var stream = await container.Download(await container.Find("p1", "a"));
+                var stored = await container.Find("p1", "a");
+                Assert.IsNotNull(stored);
+                using var stream = await container.Download(stored);
                 using var reader = new StreamReader(stream);
                 Assert.AreEqual("v1", reader.ReadToEnd());
             }

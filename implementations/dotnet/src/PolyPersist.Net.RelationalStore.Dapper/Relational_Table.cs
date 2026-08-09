@@ -183,7 +183,7 @@ namespace PolyPersist.Net.RelationalStore.Dapper
         }
 
         /// <inheritdoc/>
-        async Task<TRecord> ITable<TRecord>.Find(string partitionKey, string id)
+        async Task<TRecord?> ITable<TRecord>.Find(string partitionKey, string id)
         {
             using var lease = _Lease();
             var db = lease.Db;

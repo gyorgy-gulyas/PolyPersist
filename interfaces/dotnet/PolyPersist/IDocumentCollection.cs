@@ -4,6 +4,8 @@
 //
 //     Changes to this file may cause incorrect behavior and will be lost if the code is regenerated.
 // </auto-generated>
+#nullable enable
+
 using System;
 using System.IO;
 using System.Threading.Tasks;
@@ -33,7 +35,7 @@ namespace PolyPersist
 		/// Asynchronous method to find an document by its ID and PartitionKey.
 		/// The 'id' parameter is the unique identifier of the document, and 'partitionKey' is used to partition data.
 		/// Returns the document if found, or null if not found.
-		public Task<TDocument> Find( string partitionKey, string id );
+		public Task<TDocument?> Find( string partitionKey, string id );
 		/// Query interface SCOPED to one partition: the returned queryable is already filtered to
 		/// documents whose PartitionKey == partitionKey. A caller cannot widen it back (a .Where is
 		/// additive; a different partitionKey yields an empty result, not a leak), which keeps ad-hoc

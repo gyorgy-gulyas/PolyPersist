@@ -83,7 +83,7 @@ namespace PolyPersist.Net.BlobStore.GridFS
         }
 
         /// <inheritdoc/>
-        async Task<TBlob> IBlobContainer<TBlob>.Find(string partitionKey, string id)
+        async Task<TBlob?> IBlobContainer<TBlob>.Find(string partitionKey, string id)
         {
             IAsyncCursor<TBlob> cursor = await _metadataCollection.FindAsync(e => e.id == id && e.PartitionKey == partitionKey).ConfigureAwait(false);
             TBlob entity = await cursor.FirstOrDefaultAsync().ConfigureAwait(false);

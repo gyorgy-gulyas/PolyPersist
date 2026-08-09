@@ -57,6 +57,7 @@ namespace PolyPersist.Net.BlobStore.Tests
             Assert.AreEqual(DateTimeKind.Utc, sample.LastUpdate.Kind);
 
             var uploaded = await container.Find(sample.PartitionKey, sample.id);
+            Assert.IsNotNull(uploaded);
             Assert.AreEqual(sample.contentType, uploaded.contentType);
             Assert.AreEqual(sample.fileName, uploaded.fileName);
             Assert.AreEqual(sample.PartitionKey, uploaded.PartitionKey);
@@ -241,6 +242,7 @@ namespace PolyPersist.Net.BlobStore.Tests
             await container.UpdateMetadata(sample);
 
             var found = await container.Find(sample.PartitionKey, sample.id);
+            Assert.IsNotNull(found);
             Assert.AreEqual("updated metadata", found.str_value);
         }
 
@@ -308,7 +310,7 @@ namespace PolyPersist.Net.BlobStore.Tests
 
             var exception = await Assert.ThrowsExceptionAsync<InvalidRequestException>(async () =>
             {
-                await container.Upload(blob, null);
+                await container.Upload(blob, null!);   // the guard is what is under test
             });
             Assert.IsTrue(exception.Message.Contains("cannot be read"));
         }
@@ -332,7 +334,7 @@ namespace PolyPersist.Net.BlobStore.Tests
 
             var exception = await Assert.ThrowsExceptionAsync<InvalidRequestException>(async () =>
             {
-                await container.UpdateContent(blob, null);
+                await container.UpdateContent(blob, null!);   // the guard is what is under test
             });
             Assert.IsTrue(exception.Message.Contains("cannot be read"));
         }
@@ -542,6 +544,7 @@ namespace PolyPersist.Net.BlobStore.Tests
             await container.UpdateContent(blob, stream2);
 
             var found = await container.Find(blob.PartitionKey, blob.id);
+            Assert.IsNotNull(found);
 
             Assert.AreNotEqual(originalEtag, found.etag, "etag should change after UpdateContent");
             Assert.IsTrue(found.LastUpdate > originalLastUpdate, "LastUpdate should be refreshed after UpdateContent");
@@ -573,6 +576,7 @@ namespace PolyPersist.Net.BlobStore.Tests
             await container.UpdateMetadata(blob);
 
             var found = await container.Find(blob.PartitionKey, blob.id);
+            Assert.IsNotNull(found);
             Assert.AreNotEqual(origEtag, found.etag);
             Assert.IsTrue(found.LastUpdate > origUpdate);
         }

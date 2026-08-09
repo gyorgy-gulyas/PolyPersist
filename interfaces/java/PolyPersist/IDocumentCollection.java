@@ -38,7 +38,7 @@ public interface IDocumentCollection<TDocument extends IDocument> {
 	// Asynchronous method to find an document by its ID and PartitionKey.
 	// The 'id' parameter is the unique identifier of the document, and 'partitionKey' is used to partition data.
 	// Returns the document if found, or null if not found.
-	CompletableFuture<TDocument> Find(String partitionKey, String id);
+	CompletableFuture<Optional<TDocument>> Find(String partitionKey, String id);
 	// Query interface SCOPED to one partition: the returned queryable is already filtered to
 	// documents whose PartitionKey == partitionKey. A caller cannot widen it back (a .Where is
 	// additive; a different partitionKey yields an empty result, not a leak), which keeps ad-hoc

@@ -86,7 +86,7 @@ namespace PolyPersist.Net.BlobStore.AmazonS3
             }
         }
 
-        async Task<TBlob> IBlobContainer<TBlob>.Find(string partitionKey, string id)
+        async Task<TBlob?> IBlobContainer<TBlob>.Find(string partitionKey, string id)
         {
             try
             {
@@ -96,13 +96,13 @@ namespace PolyPersist.Net.BlobStore.AmazonS3
 
                 // (partitionKey, id) identifies the blob: a matching id in another partition is not it.
                 if (blob.PartitionKey != partitionKey)
-                    return default(TBlob)!;
+                    return default(TBlob);
 
                 return blob;
             }
             catch (AmazonS3Exception ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
             {
-                return default(TBlob)!;
+                return default(TBlob);
             }
         }
 

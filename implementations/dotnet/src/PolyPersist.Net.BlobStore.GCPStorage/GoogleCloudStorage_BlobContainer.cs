@@ -105,7 +105,7 @@ namespace PolyPersist.Net.BlobStore.GCPStorage
         }
 
         /// <inheritdoc/>
-        public async Task<TBlob> Find(string partitionKey, string id)
+        public async Task<TBlob?> Find(string partitionKey, string id)
         {
             try
             {

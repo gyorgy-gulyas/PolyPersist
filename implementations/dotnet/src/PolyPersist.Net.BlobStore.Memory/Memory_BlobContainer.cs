@@ -76,15 +76,15 @@ namespace PolyPersist.Net.BlobStore.Memory
         }
 
         /// <inheritdoc/>
-        Task<TBlob> IBlobContainer<TBlob>.Find(string partitionKey, string id)
+        Task<TBlob?> IBlobContainer<TBlob>.Find(string partitionKey, string id)
         {
             if (_collectionData.MapOfBlobs.TryGetValue(id, out _BlobData? blobData) == true && blobData.partitionKey == partitionKey)
             {
                 TBlob blob = BlobMetadata.Deserialize<TBlob>(blobData.MetadataJSON);
-                return Task.FromResult(blob);
+                return Task.FromResult<TBlob?>(blob);
             }
 
-            return Task.FromResult(default(TBlob)!);
+            return Task.FromResult<TBlob?>(default);
         }
 
         /// <inheritdoc/>

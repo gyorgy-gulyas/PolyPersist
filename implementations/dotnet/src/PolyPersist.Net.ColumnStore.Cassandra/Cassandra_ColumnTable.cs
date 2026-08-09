@@ -158,7 +158,7 @@ namespace PolyPersist.Net.ColumnStore.Cassandra
                 throw new NotFoundException($"Row '{typeof(TRow).Name}' {id} can not be deleted because it is already removed.");
         }
 
-        async Task<TRow> IColumnTable<TRow>.Find(string partitionKey, string id)
+        async Task<TRow?> IColumnTable<TRow>.Find(string partitionKey, string id)
         {
             var ps = await _PrepareOrGetAsync($"SELECT * FROM {_session.Keyspace}.{_tableName} WHERE partitionkey = ? AND id = ? LIMIT 1;").ConfigureAwait(false);
             var bound = ps.Bind(partitionKey, id);

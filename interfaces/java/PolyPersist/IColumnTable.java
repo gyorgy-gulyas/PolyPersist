@@ -36,7 +36,7 @@ public interface IColumnTable<TRow extends IRow> {
 	// Asynchronous method to find an row by its ID and PartitionKey.
 	// The 'id' parameter is the unique identifier of the row, and 'partitionKey' is used to partition data.
 	// Returns the row if found, or null if not found.
-	CompletableFuture<TRow> Find(String partitionKey, String id);
+	CompletableFuture<Optional<TRow>> Find(String partitionKey, String id);
 	// Query interface SCOPED to one partition: the returned queryable is already filtered to
 	// rows whose PartitionKey == partitionKey. A caller cannot widen it back (a .Where is
 	// additive; a different partitionKey yields an empty result, not a leak), which keeps ad-hoc

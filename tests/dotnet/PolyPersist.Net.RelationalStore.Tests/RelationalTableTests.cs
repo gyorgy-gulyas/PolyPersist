@@ -160,6 +160,7 @@ namespace PolyPersist.Net.RelationalStore.Tests
             Assert.AreNotEqual(firstEtag, rec.etag); // etag rotates on update
 
             var found = await table.Find("p1", rec.id);
+            Assert.IsNotNull(found);
             Assert.AreEqual("Bob", found.Name);
             Assert.AreEqual(250m, found.Balance);
             Assert.AreEqual(rec.etag, found.etag);
@@ -175,6 +176,7 @@ namespace PolyPersist.Net.RelationalStore.Tests
 
             // a stale copy still holding the original etag while the row moved on
             var stale = await table.Find("p1", rec.id);
+            Assert.IsNotNull(stale);
             rec.Name = "changed";
             await table.Update(rec); // rotates the stored etag
 
